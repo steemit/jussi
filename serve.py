@@ -3,24 +3,27 @@ import logging
 import time
 import ujson
 import aiohttp
+
 from aiohttp import web
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-async def hello(request):
-    return web.Response(text="Hello, world")
 
 async def forward(request, host, port):
     start = time.time()
     host_and_port = "%s:%d" % (host, port)
     async with aiohttp.ClientSession() as session:
-        async with session.post('https://%s' % host_and_port, data=request.read()) as proxied_request:
-            logger.info('opened backend request in %d ms' % ((time.time() - start) * 1000))
+        async with session.post(
+            'https://%s' % host_and_port,
+                data=request.read()) as proxied_request:
+            logger.info('opened backend request in %d ms', (time.time() - start) * 1000)
             content = await proxied_request.read()
             response = aiohttp.web.Response(body=content)
-        logger.info('finished sending content in %d ms' % ((time.time() - start) * 1000,))
+        logger.info('finished sending content in %d ms', (time.time() - start) * 1000, )
         return response
+
 
 class MethodRouter:
     def __init__(self):
@@ -31,8 +34,9 @@ class MethodRouter:
         jsonrpc_request = await request.json(loads=ujson.loads)
         jsonrpc_method = jsonrpc_request['method']
         namespace = jsonrpc_method.split('.')[0]
-        handler = self._namespaces.get(namespace, self._default_namespace)
-        return await handler(request)
+        namespace_handler = self._namespaces.get(namespace,
+                                                 self._default_namespace)
+        return await namespace_handler(request)
 
     def register_upstream(self, handler, namespace=None):
         if namespace is None:
@@ -50,12 +54,16 @@ async def handle_steemd(request):
     # do steemd handling
     return await forward(request, 'steemd.steemitdev.com', 443)
 
+
 chooser = MethodRouter()
 chooser.register_upstream(handle_sbds, 'sbds')
 chooser.register_upstream(handle_steemd)
 
 app = web.Application()
 app.router.add_post('/', chooser.do_route)
+
+# uWSGI looks for application
+application = app
 
 if __name__ == '__main__':
     web.run_app(app)
