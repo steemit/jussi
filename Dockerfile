@@ -9,6 +9,7 @@ ENV APP_ROOT /app
 ENV WSGI_APP ${APP_ROOT}/serve.py
 
 ENV HTTP_SERVER_PORT 8080
+ENV HTTP_UPSTREAM_PYTHON_SERVER_PORT 8081
 ENV HTTP_SERVER_STATS_PORT 9191
 
 ENV SBDS_ENVIRONMENT DEV
@@ -29,8 +30,22 @@ RUN \
         libxml2-dev \
         libxslt-dev \
         runit \
-        libpcre3 \
-        libpcre3-dev
+        nginx
+
+
+RUN \
+  mkdir -p /var/lib/nginx/body && \
+  mkdir -p /var/lib/nginx/scgi && \
+  mkdir -p /var/lib/nginx/uwsgi && \
+  mkdir -p /var/lib/nginx/fastcgi && \
+  mkdir -p /var/lib/nginx/proxy && \
+  chown -R www-data:www-data /var/lib/nginx && \
+  touch /var/run/nginx.pid && \
+  chown www-data:www-data /var/run/nginx.pid
+
+# forward request and error logs to docker log collector
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+	&& ln -sf /dev/stderr /var/log/nginx/error.log
 
 RUN \
     pip3 install --upgrade pip && \

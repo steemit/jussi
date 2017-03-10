@@ -20,7 +20,7 @@ async def forward(request, host, port):
                 data=request.read()) as proxied_request:
             logger.info('opened backend request in %d ms', (time.time() - start) * 1000)
             content = await proxied_request.read()
-            response = aiohttp.web.Response(body=content)
+            response = aiohttp.web.Response(body=content, headers={'Content-Type':'application/json'})
         logger.info('finished sending content in %d ms', (time.time() - start) * 1000, )
         return response
 
@@ -28,7 +28,7 @@ async def forward(request, host, port):
 class MethodRouter:
     def __init__(self):
         self._namespaces = {}
-        self._default_namespace = 'steemd'
+        self._default_namespace = None
 
     async def do_route(self, request):
         jsonrpc_request = await request.json(loads=ujson.loads)
@@ -62,8 +62,9 @@ chooser.register_upstream(handle_steemd)
 app = web.Application()
 app.router.add_post('/', chooser.do_route)
 
-# uWSGI looks for application
-application = app
-
 if __name__ == '__main__':
-    web.run_app(app)
+    import argparse
+    parser = argparse.ArgumentParser(description="aiohttp server example")
+    parser.add_argument('--port', type=int, default=8080)
+    args = parser.parse_args()
+    web.run_app(app, port=args.port)

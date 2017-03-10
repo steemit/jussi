@@ -1,3 +1,3 @@
 #!/bin/bash
 
-exec setuidgid nobody python3 "${WSGI_APP}"
+exec setuidgid nobody python3 "${WSGI_APP}" --port "${HTTP_UPSTREAM_PYTHON_SERVER_PORT}"
