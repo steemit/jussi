@@ -10,7 +10,6 @@ ENV WSGI_APP ${APP_ROOT}/serve.py
 
 ENV HTTP_SERVER_PORT 8080
 ENV HTTP_UPSTREAM_PYTHON_SERVER_PORT 8081
-ENV HTTP_SERVER_STATS_PORT 9191
 
 ENV SBDS_ENVIRONMENT DEV
 
@@ -40,16 +39,12 @@ RUN \
   mkdir -p /var/lib/nginx/fastcgi && \
   mkdir -p /var/lib/nginx/proxy && \
   chown -R www-data:www-data /var/lib/nginx && \
+  mkdir -p /var/log/nginx && \
+  touch /var/log/nginx/access.log && \
+  touch /var/log/nginx/error.log && \
+  chown www-data:www-data /var/log/nginx/*.log && \
   touch /var/run/nginx.pid && \
   chown www-data:www-data /var/run/nginx.pid
-
-# forward request and error logs to docker log collector
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-	&& ln -sf /dev/stderr /var/log/nginx/error.log
-
-RUN \
-    pip3 install --upgrade pip && \
-    pip3 install uwsgi
 
 ADD . /app
 
@@ -60,6 +55,7 @@ RUN \
 WORKDIR /app
 
 RUN \
+    pip3 install --upgrade pip && \
     pip3 install  -r requirements.txt && \
     apt-get remove -y \
         build-essential \
@@ -76,4 +72,3 @@ RUN \
         /usr/local/include
 
 EXPOSE ${HTTP_SERVER_PORT}
-EXPOSE ${HTTP_SERVER_STATS_PORT}

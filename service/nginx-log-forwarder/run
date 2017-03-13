@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec  setuidgid www-data tail -F -n 0 /var/log/nginx/access.log
