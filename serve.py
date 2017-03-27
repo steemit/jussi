@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-from collections import defaultdict
 import logging
 import time
 from urllib.parse import urlparse
@@ -10,7 +9,7 @@ import aiohttp
 
 from aiohttp import web
 
-log_level = getattr(logging, os.environ.get('SBDS_LOG_LEVEL', 'INFO'))
+log_level = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
 logging.basicConfig(level=log_level)
 logger = logging.getLogger('jussi')
 
