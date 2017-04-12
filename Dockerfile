@@ -2,16 +2,17 @@ FROM phusion/baseimage:0.9.19
 
 ENV STEEMD_HTTP_URL https://steemd.steemitdev.com
 ENV SBDS_HTTP_URL https://sbds.steemitdev.com
-ENV SBDS_LOG_LEVEL INFO
+ENV LOG_LEVEL INFO
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 ENV APP_ROOT /app
-ENV WSGI_APP ${APP_ROOT}/serve.py
-
+ENV WSGI_APP ${APP_ROOT}/jussi/serve.py
+ENV PIPENV_VENV_IN_PROJECT 1
 ENV HTTP_SERVER_PORT 8080
 ENV HTTP_UPSTREAM_PYTHON_SERVER_PORT 8081
 
-ENV SBDS_ENVIRONMENT DEV
+
+ENV ENVIRONMENT DEV
 
 RUN \
     apt-get update && \
@@ -56,7 +57,9 @@ WORKDIR /app
 
 RUN \
     pip3 install --upgrade pip && \
-    pip3 install  -r requirements.txt && \
+    pip3 install pipenv && \
+	  pipenv lock && \
+	  pipenv install --three --dev && \
     apt-get remove -y \
         build-essential \
         libffi-dev \

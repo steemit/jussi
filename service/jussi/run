@@ -1,3 +1,4 @@
 #!/bin/bash
 
-exec setuidgid nobody python3 "${WSGI_APP}" --server_port "${HTTP_UPSTREAM_PYTHON_SERVER_PORT}"
+
+cd "${APP_ROOT}" && \exec setuidgid nobody pipenv run python3 "${WSGI_APP}" --server_port "${HTTP_UPSTREAM_PYTHON_SERVER_PORT}"

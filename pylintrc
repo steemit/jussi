@@ -65,7 +65,71 @@ confidence=
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=range-builtin-not-iterating,filter-builtin-not-iterating,raising-string,no-absolute-import,round-builtin,old-raise-syntax,nonzero-method,hex-method,import-star-module-level,zip-builtin-not-iterating,delslice-method,basestring-builtin,coerce-builtin,file-builtin,unicode-builtin,unpacking-in-except,apply-builtin,print-statement,parameter-unpacking,next-method-called,indexing-exception,reduce-builtin,reload-builtin,map-builtin-not-iterating,old-octal-literal,backtick,old-ne-operator,intern-builtin,suppressed-message,raw_input-builtin,execfile-builtin,old-division,buffer-builtin,dict-view-method,dict-iter-method,metaclass-assignment,useless-suppression,cmp-method,input-builtin,standarderror-builtin,unichr-builtin,cmp-builtin,long-suffix,getslice-method,long-builtin,xrange-builtin,using-cmp-argument,setslice-method,oct-method,coerce-method
+disable=
+    # disabled by me,
+    bad-continuation,
+    broad-except,
+    cyclic-import,
+    duplicate-code,
+    fixme,
+    invalid-name,
+    line-too-long,
+    locally-disabled,
+    missing-docstring,
+    pointless-string-statement,
+    redefined-outer-name,
+
+    # disabled by default,
+    apply-builtin,
+    backtick,
+    basestring-builtin,
+    buffer-builtin,
+    cmp-builtin,
+    cmp-method,
+    coerce-builtin,
+    coerce-method,
+    delslice-method,
+    dict-iter-method,
+    dict-view-method,
+    execfile-builtin,
+    file-builtin,
+    filter-builtin-not-iterating,
+    getslice-method,
+    hex-method,
+    import-star-module-level,
+    indexing-exception,
+    input-builtin,
+    intern-builtin,
+    long-builtin,
+    long-suffix,
+    map-builtin-not-iterating,
+    metaclass-assignment,
+    next-method-called,
+    no-absolute-import,
+    nonzero-method,
+    oct-method,
+    old-division,
+    old-ne-operator,
+    old-octal-literal,
+    old-raise-syntax,
+    parameter-unpacking,
+    print-statement,
+    raising-string,
+    range-builtin-not-iterating,
+    raw_input-builtin,
+    reduce-builtin,
+    reload-builtin,
+    round-builtin,
+    setslice-method,
+    standarderror-builtin,
+    suppressed-message,
+    unichr-builtin,
+    unicode-builtin,
+    unpacking-in-except,
+    useless-suppression,
+    using-cmp-argument,
+    xrange-builtin,
+    zip-builtin-not-iterating
 
 
 [REPORTS]
@@ -277,7 +341,7 @@ ignore-mixin-members=yes
 # (useful for modules/projects where namespaces are manipulated during runtime
 # and thus existing member attributes cannot be deduced by static analysis. It
 # supports qualified module names, as well as Unix pattern matching.
-ignored-modules=
+ignored-modules=ujson
 
 # List of class names for which member attributes should not be checked (useful
 # for classes with dynamically set attributes). This supports the use of

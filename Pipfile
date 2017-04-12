@@ -1,0 +1,30 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+
+[dev-packages]
+ipython = "*"
+pep8 = "*"
+pytest = "*"
+pytest-console-scripts = "*"
+pytest-docker = "*"
+pytest-pylint = "*"
+recommonmark = "*"
+sphinxcontrib-programoutput = "*"
+sphinxcontrib-restbuilder = "*"
+yapf = "*"
+autopep8 = "*"
+Sphinx = "*"
+
+[requires]
+python_version = "3.5"
+
+[packages]
+ujson = "*"
+aiohttp = "*"
+jsonrpcclient = "*"
+jsonrpcserver = "*"
+toolz = "*"
+websockets = "*"
+cchardet = "*"
+uvloop = "*"
