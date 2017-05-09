@@ -2,8 +2,10 @@
 import logging
 import os
 import ujson
+import sys
+import asyncio
 
-
+import uvloop
 import aiohttp
 from aiohttp import web
 import websockets
@@ -12,17 +14,20 @@ from jsonrpcclient.aiohttp_client import aiohttpClient
 from jsonrpcclient.websockets_client import WebSocketsClient
 from jsonrpcserver import config as server_config
 
+
 from methods import methods
 from utils import patch_requests
 from utils import patch_responses
 from utils import split_namespaced_method
 
-log_level = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
-logging.basicConfig(level=log_level)
+log_level = getattr(logging, os.environ.get('LOG_LEVEL', 'ERROR'))
+logging.basicConfig(level=log_level, stream=sys.stdout)
 logger = logging.getLogger('jussi')
 
 server_config.schema_validation = False
 client_config.validate = False
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 app = web.Application()
 
@@ -87,7 +92,8 @@ if __name__ == '__main__':
     import argparse
     # pylint: disable=invalid-name
     parser = argparse.ArgumentParser(description="jussi reverse proxy server")
-    parser.add_argument('--server_port', type=int, default=8081)
+    parser.add_argument('--server_path')
+    parser.add_argument('--server_port', type=int)
     parser.add_argument(
         '--steemd_url',
         type=str,
@@ -106,4 +112,5 @@ if __name__ == '__main__':
     app['sbds_url'] = args.sbds_url
     app['steemd_websocket_url'] = args.steemd_websocket_url
     app.router.add_post('/', handle)
-    web.run_app(app, port=args.server_port, host='0.0.0.0')
+
+    web.run_app(app, path=args.server_path, port=args.server_port)

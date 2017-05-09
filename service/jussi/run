@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/bin/bash -e
 
-
-cd "${APP_ROOT}" && \exec setuidgid nobody pipenv run python3 "${WSGI_APP}" --server_port "${HTTP_UPSTREAM_PYTHON_SERVER_PORT}"
+cd "${APP_ROOT}"
+exec 2>&1 \
+  chpst -u www-data \
+    pipenv run python3 "${WSGI_APP}" \
+      --server_path "${HTTP_UPSTREAM_PYTHON_SERVER_PATH}" 2>&1

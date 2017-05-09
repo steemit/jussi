@@ -1,3 +1,4 @@
 #!/bin/bash
 
-exec  setuidgid www-data /usr/sbin/nginx -c /etc/service/nginx/nginx.conf  -g "daemon off;"
+sv -w3 check jussi
+exec setuidgid www-data /usr/sbin/nginx -c /etc/service/nginx/nginx.conf  -g "daemon off;"
