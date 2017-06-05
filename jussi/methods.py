@@ -2,7 +2,7 @@
 import logging
 from collections.abc import MutableMapping
 
-from async_request import dispatch
+from jsonrpcserver import dispatch
 
 logger = logging.getLogger(__name__)
 

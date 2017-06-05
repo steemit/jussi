@@ -16,9 +16,6 @@ yapf = "*"
 autopep8 = "*"
 Sphinx = "*"
 
-[requires]
-python_version = "3.5"
-
 [packages]
 ujson = "*"
 aiohttp = "*"
@@ -28,4 +25,8 @@ toolz = "*"
 websockets = "*"
 cchardet = "*"
 uvloop = "*"
+statsd = "*"
+aiodns = "*"
 
+[requires]
+python_version = "3.5"
