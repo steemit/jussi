@@ -4,4 +4,9 @@ cd "${APP_ROOT}"
 exec 2>&1 \
   chpst -u www-data \
     pipenv run python3 "${WSGI_APP}" \
-      --server_path "${HTTP_UPSTREAM_PYTHON_SERVER_PATH}" 2>&1
+      --server_host "${JUSSI_SERVER_HOST}" \
+      --server_port "${JUSSI_SERVER_PORT}" \
+      --server_workers "${JUSSI_SERVER_WORKERS}" \
+      --steemd_ws_url "${JUSSI_STEEMD_WS_URL}" \
+      --sbds_url "${JUSSI_SBDS_HTTP_URL}" \
+      2>&1

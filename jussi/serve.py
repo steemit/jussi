@@ -3,190 +3,272 @@ import argparse
 import logging
 import os
 import ujson
-import sys
+
 import asyncio
 
-import uvloop
-import aiohttp
-from aiohttp import web
-import async_timeout
+from sanic import Sanic
+from sanic import response
+#from sanic.log import log
+#from sanic.config import LOGGING
+
 import websockets
 from jsonrpcclient import config as client_config
-from jsonrpcclient.aiohttp_client import aiohttpClient
 from jsonrpcclient.websockets_client import WebSocketsClient
-from jsonrpcserver import config as server_config
+
+import aiohttp
+import pygtrie
+from aiocache import caches
+from aiocache.serializers import PickleSerializer
+
+from middlewares import jsonrpc_id_to_str
+from middlewares import add_jussi_attrs
+from middlewares import caching_middleware
+from exceptions import JsonRpcServerError
+from utils import get_upstream
+from cache import cache_get
+from cache import cache_set
+from cache.serializers import CompressionSerializer
 
 
-from .methods import methods
-from .utils import patch_requests
-from .utils import patch_responses
-from .utils import split_namespaced_method
+# init logging
+#log_level = getattr(logging, os.environ.get('LOG_LEVEL', 'ERROR'))
+logging.basicConfig(level='ERROR')
 
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-loop = asyncio.get_event_loop()
-app = web.Application(loop=loop)
+#LOGGING['loggers']['network']['handlers']=[]
+#LOGGING['loggers']['sanic']['handlers']=[]
+logger = logging.getLogger(__name__)
 
-STEEMD_WEBSOCKETS_METHOD_LIST = frozenset(
-    'none'
+app = Sanic(__name__)
+
+DEFAULT_CACHE_TTL = 3
+NO_CACHE_TTL = -1
+NO_CACHE_EXPIRE_TTL = 0
+
+# add individual method cache settings here
+METHOD_CACHE_SETTINGS = (
+    ('get_block', 'steemd_websocket_url',NO_CACHE_EXPIRE_TTL),
 )
 
-# health check route jussi.health
-@methods.add
-async def jussi(namespaced_method, *args, **kwargs):
-    return 'ok'
-
-
-@methods.add
-async def sbds(namespaced_method, *args, **kwargs):
-    return await forward(namespaced_method, app['sbds_url'], *args, **kwargs)
-
-
-@methods.add
-async def steemd(namespaced_method, *args, **kwargs):
-    _, steemd_method = split_namespaced_method(namespaced_method)
-    if steemd_method in STEEMD_WEBSOCKETS_METHOD_LIST:
-        return await forward_websocket(steemd_method,
-                                       app['steemd_websocket_url'], *args, **kwargs)
-    else:
-        return await forward(steemd_method,
-                             app['steemd_url'], *args, **kwargs)
-
-
-async def forward(method, url, *args, **kwargs):
-    async with aiohttp.ClientSession(
-            json_serialize=ujson.dumps,
-            headers={'Content-Type': 'application/json'}) as session:
-        client = aiohttpClient(session, url)
-        response = await client.request(method, *args, **kwargs)
+async def fetch_ws(app, jussi, jsonrpc_request):
+    logger.debug('%s --> %s', jussi.upstream_url, jsonrpc_request)
+    async with websockets.connect(jussi.upstream_url) as ws:
+        response = await WebSocketsClient(ws).send(jsonrpc_request)
+        logger.debug('%s --> %s', jussi.upstream_url, response)
         return response
 
+async def http_post(app, jussi, jsonrpc_request):
+    session = app.config.aiohttp['session']
+    logger.debug('%s --> %s', jussi.upstream_url, jsonrpc_request)
+    async with session.post(jussi.upstream_url, json=jsonrpc_request) as resp:
+        response = await resp.json()
+        logger.debug('%s --> %s', jussi.upstream_url, response)
+        return response
 
-async def forward_websocket(method, url, *args, **kwargs):
-    async with websockets.connect(url) as ws:
-        response = await WebSocketsClient(ws).request(method,
-                                                      app['steemd_websocket_url'],
-                                                      *args, **kwargs)
+async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
+    app = sanic_http_request.app
+    jussi_attrs = sanic_http_request['jussi']
+
+    # get attrs for this request id part of batch request
+    if isinstance(jussi_attrs, list):
+        jussi_attrs = jussi_attrs[jrpc_req_index]
+
+    # return cached response if possible
+    response = await cache_get(app, jussi_attrs)
+    if response:
+        return response
+
+    if jussi_attrs.is_ws:
+        response = await fetch_ws(app, jussi_attrs, jsonrpc_request)
+    else:
+        response = await http_post(app, jussi_attrs, jsonrpc_request)
+
+    asyncio.ensure_future(cache_set(app, response, jussi_attrs))
     return response
 
 
-async def pre_upstream_request_hook(aio_http_request, json_rpc_requests):
-    if isinstance(json_rpc_requests, list):
-        return list(map(patch_requests, json_rpc_requests))
+async def dispatch_batch(sanic_http_request, jsonrpc_requests):
+    return asyncio.gather([dispatch_single(
+            sanic_http_request,
+            jsonrpc_request,
+            jrpc_req_index) for jsonrpc_request, jrpc_req_index in enumerate(jsonrpc_requests)])
+
+
+@app.route('/', methods=['POST'])
+async def handle(sanic_http_request):
+    app = sanic_http_request.app
+
+    # retreive parsed jsonrpc_requests after request middleware processing
+    jsonrpc_requests = sanic_http_request.json
+
+    # make upstream requests
+    if isinstance(jsonrpc_requests, list):
+        jsonrpc_responses = await dispatch_batch(sanic_http_request, jsonrpc_requests)
+        return response.json(jsonrpc_responses)
     else:
-        return patch_requests(json_rpc_requests)
+        jsonrpc_response = await dispatch_single(sanic_http_request, jsonrpc_requests, 0)
+        return response.json(jsonrpc_response)
 
 
-async def pre_response_hook(aio_http_request, json_rpc_requests, json_rpc_responses):
-    if isinstance(json_rpc_responses, list):
-        return map(patch_responses, json_rpc_responses)
-    else:
-        return patch_responses(json_rpc_responses)
+
+@app.exception(JsonRpcServerError)
+def handle_errors(request, exception):
+    return response.json(str(exception))
 
 
-async def handle(aio_http_request):
-    # parse aio http request into json rpc request[s]
-    json_rpc_requests = await aio_http_request.json(loads=ujson.loads)
+# register listeners
+# Even though these functions can be async, use sync to assure they are applied
+# in the order they are decorated
 
-    # hook called before upstream request
-    json_rpc_requests = await pre_upstream_request_hook(aio_http_request,
-                                                        json_rpc_requests)
-
-    # make upstream request
-    json_rpc_responses = await methods.dispatch(json_rpc_requests)
-
-    # hook called before returning response
-    json_rpc_responses = await pre_response_hook(aio_http_request,
-                                                 json_rpc_requests,
-                                                 json_rpc_responses)
-
-    return web.json_response(json_rpc_responses)
-
-
-def setup_middlewares(app):
-    return app
-
-
-def setup_json_rpc(app):
-    server_config.schema_validation = False
+# before server start
+@app.listener('before_server_start')
+def setup_jsonrpc(app, loop):
     client_config.validate = False
 
 
-def init(loop, argv, app):
-    parser = argparse.ArgumentParser(description="jussi reverse proxy server")
-    parser.add_argument('--server_path')
-    parser.add_argument('--server_port', type=int)
-    parser.add_argument(
-        '--steemd_url',
-        type=str,
-        default='https://steemd.steemitdev.com')
-    parser.add_argument(
-        '--steemd_websocket_url',
-        type=str,
-        default='wss://steemd.steemitdev.com')
-    parser.add_argument(
-        '--sbds_url',
-        type=str,
-        default='https://sbds.steemitdev.com')
-    parser.add_argument(
-        '--statsd_host',
-        type=str,
-        default='localhost')
-    parser.add_argument(
-        '--statsd_port',
-        type=int,
-        default=8125)
-    parser.add_argument(
-        '--statsd_prefix',
-        type=str,
-        default='jussi')
-
-    STATSD_HOST = 'localhost'
-    STATSD_PORT = 8125
-    STATSD_PREFIX = None
-    STATSD_MAXUDPSIZE = 512
-
-    args = parser.parse_args(argv)
-
-    # setup application and extensions
-    #app = web.Application(loop=loop)
-
-    # add vars to app config
-    app['config'] = dict()
-    app['config']['server_port'] = args.server_port
-    app['config']['server_path'] = args.server_path
-    app['config']['steemd_url'] = args.steemd_url
-    app['config']['steemd_websocket_url'] = args.steemd_websocket_url
-    app['config']['sbds_url'] = args.sbds_url
+@app.listener('before_server_start')
+def setup_statsd(app, loop):
+    logger.info('before_server_start -> setup_statsd')
+    args = app.config.args
+    if args.statsd_host:
+        app.config.statsd = {
+            'host':   args.statsd_host,
+            'port':   args.statsd_port,
+            'prefix': args.stats_prefix
+        }
 
 
-    # create connection to the database, etc on app startup
-    #app.on_startup.append(<run me at app startup>)
+@app.listener('before_server_start')
+def setup_middlewares(app, loop):
+    """Add middlewares to be applied in the order they are added
 
-    # shutdown db connection, etc on app exit
-    #app.on_cleanup.append(<run me at app exit>)
+    Args:
+        app:
+        loop:
 
-    app.router.add_post('/', handle)
+    Returns:
 
-    # add middlewares
-    setup_middlewares(app)
+    """
+    logger.info('before_server_start -> setup_middlewares')
+    app.request_middleware.append(jsonrpc_id_to_str)
+    app.request_middleware.append(add_jussi_attrs)
+    app.request_middleware.append(caching_middleware)
 
-    # setup json rpc
-    setup_json_rpc(app)
+@app.listener('before_server_start')
+async def setup_cache(app, loop):
+    logger.info('before_server_start -> setup_cache')
+    caches.set_config({
+        'default': {
+                       'cache':      "aiocache.SimpleMemoryCache",
+                       'serializer': {
+                           'class': CompressionSerializer
+                       },
+                       'plugins': [
+                           {'class': "aiocache.plugins.HitMissRatioPlugin"},
+                           {'class': "aiocache.plugins.TimingPlugin"}
+                       ]
 
-    return app
+                   }})
+    cache_config = dict()
+    cache_config['default_cache_ttl'] = DEFAULT_CACHE_TTL
+    cache_config['no_cache_ttl'] = NO_CACHE_TTL
+    cache_config['no_cache_expire_ttl'] = NO_CACHE_EXPIRE_TTL
+
+    app.config.cache_config = cache_config
+    app.config.cache = caches.get('default')
 
 
-def main(argv, app=app):
-    # init logging
-    log_level = getattr(logging, os.environ.get('LOG_LEVEL', 'ERROR'))
-    logging.basicConfig(level=log_level, stream=sys.stdout)
+@app.listener('before_server_start')
+def setup_aiohttp_session(app, loop):
+    logger.info('before_server_start -> setup_aiohttp_session')
+    aio = dict(session=aiohttp.ClientSession(
+            skip_auto_headers=['User-Agent'],
+            loop=loop,
+            json_serialize=ujson.dumps,
+            headers={'Content-Type': 'application/json'}))
+    app.config.aiohttp = aio
 
-    app = init(loop, argv, app)
 
-    web.run_app(app,path=app['config']['path'],
-                    port=app['config']['port'])
+@app.listener('before_server_start')
+async def setup_ws_client(app, loop):
+    logger.info('before_server_start -> setup_ws_client')
+    args = app.config.args
+    ws = await websockets.connect(args.steemd_websocket_url, loop=loop)
+    app.config.ws_client = WebSocketsClient(ws)
+
+
+@app.listener('before_server_start')
+async def config_upstreams(app, loop):
+    logger.info('before_server_start -> config_upstreams')
+    args = app.config.args
+
+    upstreams = pygtrie.StringTrie(separator='.')
+
+    # steemd methods aren't namespaced so this is the steemd default entry
+    upstreams[''] = dict(url=args.steemd_websocket_url, ttl=DEFAULT_CACHE_TTL)
+
+    upstreams['sbds'] = dict(url=args.sbds_url, ttl=30)
+
+    for m in METHOD_CACHE_SETTINGS:
+        name, url_name, ttl = m
+        url = getattr(args, url_name)
+        upstreams[name] = dict(url=url, ttl=ttl)
+
+    app.config.upstreams = upstreams
+
+
+# before server stop
+@app.listener('before_server_stop')
+def close_aiohttp_session(app, loop):
+    logger.info('before_server_stop -> close_aiohttp_session')
+    session = app.config.aiohttp['session']
+    session.close()
+
+@app.listener('before_server_stop')
+def close_websockets_session(app, loop):
+    logger.info('before_server_stop -> close_websockets_session')
+    app.config.ws_client.close_connection(force=True)
 
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+
+    # parse CLI args and add them to app.config for use by registered listeners
+    parser = argparse.ArgumentParser(description="jussi reverse proxy server")
+    parser.add_argument('--server_host', type=str, default='0.0.0.0')
+    parser.add_argument('--server_port', type=int, default=9000)
+    parser.add_argument('--server_workers', type=int, default=os.cpu_count()-1)
+    parser.add_argument('--server_debug', type=bool, default=False)
+    parser.add_argument(
+            '--steemd_url',
+            type=str,
+            default='https://steemd.steemitdev.com')
+    parser.add_argument(
+            '--steemd_websocket_url',
+            type=str,
+            default='wss://steemd.steemitdev.com')
+    parser.add_argument(
+            '--sbds_url',
+            type=str,
+            default='https://sbds.steemitdev.com')
+    parser.add_argument(
+            '--statsd_host',
+            type=str)
+    parser.add_argument(
+            '--statsd_port',
+            type=int,
+            default=8125)
+    parser.add_argument(
+            '--statsd_prefix',
+            type=str,
+            default='jussi')
+
+    args = parser.parse_args()
+    app.config.args = args
+
+    # run app
+    logger.info('app.run')
+    app.run(host=args.server_host,
+            port=args.server_port,
+            debug=args.server_debug,
+            workers=args.server_workers,
+            log_config=None)

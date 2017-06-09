@@ -27,6 +27,11 @@ cchardet = "*"
 uvloop = "*"
 statsd = "*"
 aiodns = "*"
+Sanic = "*"
+aiocache = "*"
+pygtrie = "*"
+funcy = "*"
+diskcache = "*"
 
 [requires]
 python_version = "3.5"

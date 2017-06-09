@@ -1,15 +1,24 @@
 FROM phusion/baseimage:0.9.19
 
-ENV STEEMD_HTTP_URL https://steemd.steemitdev.com
-ENV SBDS_HTTP_URL https://sbds.steemitdev.com
+
 ENV LOG_LEVEL INFO
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 ENV APP_ROOT /app
 ENV WSGI_APP ${APP_ROOT}/jussi/serve.py
 ENV PIPENV_VENV_IN_PROJECT 1
-ENV HTTP_SERVER_PORT 8080
-ENV HTTP_UPSTREAM_PYTHON_SERVER_PATH /tmp/jussi_1.sock
+
+# all nginx env vars must also be changed in service/nginx/nginx.conf
+ENV NGINX_SERVER_PORT 8000
+
+
+ENV JUSSI_SERVER_HOST 0.0.0.0
+ENV JUSSI_SERVER_PORT 9000
+ENV JUSSI_SERVER_WORKERS = 4
+ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
+ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
+
+
 ENV ENVIRONMENT DEV
 
 RUN \
