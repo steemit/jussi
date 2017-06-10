@@ -51,7 +51,7 @@ async def fetch_ws(app, jussi, jsonrpc_request):
     session = app.config.aiohttp['session']
     async with session.ws_connect(jussi.upstream_url) as ws:
         ws.send_json(jsonrpc_request)
-        response = await ws.receive_json()
+        response = await ws.receive_str()
         logger.debug('%s --> %s', jussi.upstream_url, response)
         return response
 
@@ -60,9 +60,9 @@ async def http_post(app, jussi, jsonrpc_request):
     session = app.config.aiohttp['session']
     logger.debug('%s --> %s', jsonrpc_request, jussi.upstream_url)
     async with session.post(jussi.upstream_url, json=jsonrpc_request) as resp:
-        response = await resp.json()
-        logger.debug('%s --> %s', jussi.upstream_url, response)
-        return response
+        bytes_response = await resp.read()
+        logger.debug('%s --> %s', jussi.upstream_url, bytes_response)
+        return bytes_response
 
 
 async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
@@ -70,7 +70,7 @@ async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
     jussi_attrs = sanic_http_request['jussi']
 
     # get attrs for this request id part of batch request
-    if isinstance(jussi_attrs, list):
+    if sanic_http_request['jussi_is_batch']:
         jussi_attrs = jussi_attrs[jrpc_req_index]
 
     # return cached response if possible
@@ -79,20 +79,25 @@ async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
         return response
 
     if jussi_attrs.is_ws:
-        response = await fetch_ws(app, jussi_attrs, jsonrpc_request)
+        bytes_response = await fetch_ws(app, jussi_attrs, jsonrpc_request)
     else:
-        response = await http_post(app, jussi_attrs, jsonrpc_request)
+        bytes_response = await http_post(app, jussi_attrs, jsonrpc_request)
 
-    asyncio.ensure_future(cache_set(app, response, jussi_attrs=jussi_attrs))
-    return response
+    asyncio.ensure_future(cache_set(app, bytes_response, jussi_attrs=jussi_attrs))
+    return bytes_response
 
 
 async def dispatch_batch(sanic_http_request, jsonrpc_requests):
-    return asyncio.gather([
+    responses =  asyncio.gather([
         dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index)
         for jsonrpc_request, jrpc_req_index in enumerate(jsonrpc_requests)
     ])
-
+    for r in responses:
+        if isinstance(r, bytes):
+            r = ujson.loads(r.decode())
+        elif isinstance(r, str):
+            r = ujson.loads(r)
+    return ujson.dumps(responses).encode()
 
 @app.route('/', methods=['POST'])
 async def handle(sanic_http_request):
@@ -103,19 +108,18 @@ async def handle(sanic_http_request):
 
     # make upstream requests
     if sanic_http_request['jussi_is_batch']:
-        jsonrpc_responses = await dispatch_batch(sanic_http_request,
+        jsonrpc_response = await dispatch_batch(sanic_http_request,
                                                  jsonrpc_requests)
-        # handle caching of batch response
-        cache_key = sanic_http_request['jussi_batch_key']
-        cache_expire = sanic_http_request['jussi_batch_ttl']
-        asyncio.ensure_future(
-            cache_set(app, response, key=cache_key, expire=cache_expire))
-        return response.json(jsonrpc_responses)
     else:
         jsonrpc_response = await dispatch_single(sanic_http_request,
                                                  jsonrpc_requests, 0)
-        return response.json(jsonrpc_response)
 
+    if isinstance(jsonrpc_response, bytes):
+        return response.raw(jsonrpc_response, content_type='application/json')
+    elif isinstance(jsonrpc_response, (dict,list)):
+        return response.json(jsonrpc_response)
+    else:
+        return response.text(jsonrpc_response, content_type='application/json')
 
 @app.exception(JsonRpcServerError)
 def handle_errors(request, exception):
@@ -128,11 +132,6 @@ def handle_errors(request, exception):
 
 
 # before server start
-@app.listener('before_server_start')
-def setup_jsonrpc(app, loop):
-    client_config.validate = False
-
-
 @app.listener('before_server_start')
 def setup_statsd(app, loop):
     logger.info('before_server_start -> setup_statsd')

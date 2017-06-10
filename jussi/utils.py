@@ -7,8 +7,6 @@ from functools import wraps
 from toolz.functoolz import compose
 
 from cache import jsonrpc_cache_key
-from cache import batch_jsonrpc_cache_key
-from cache import batch_jsonrpc_cache_ttl
 
 
 def apply_single_or_batch(f):
@@ -104,6 +102,7 @@ async def jussi_attrs(sanic_http_request):
     jsonrpc_requests = sanic_http_request.json
     app = sanic_http_request.app
 
+
     if isinstance(jsonrpc_requests, list):
         results = []
         for r in jsonrpc_requests:
@@ -120,12 +119,6 @@ async def jussi_attrs(sanic_http_request):
                     is_ws=is_ws))
         sanic_http_request['jussi'] = results
         sanic_http_request['jussi_is_batch'] = True
-        sanic_http_request['jussi_batch_key'] = batch_jsonrpc_cache_key(
-            jsonrpc_requests)
-        sanic_http_request['jussi_batch_ttl'] = batch_jsonrpc_cache_ttl(
-            jsonrpc_requests)
-        sanic_http_request[
-            'jussi_batch_cacheable'] = sanic_http_request['jussi_batch_ttl'] >= 0
     else:
         key = jsonrpc_cache_key(jsonrpc_requests)
         url, ttl = await get_upstream(sanic_http_request, jsonrpc_requests)
@@ -140,3 +133,4 @@ async def jussi_attrs(sanic_http_request):
         sanic_http_request['jussi_is_batch'] = False
 
     return sanic_http_request
+

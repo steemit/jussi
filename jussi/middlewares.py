@@ -1,6 +1,6 @@
 # coding=utf-8
 import logging
-from collections import namedtuple
+
 
 from sanic import response
 
@@ -12,8 +12,7 @@ from cache import cache_get
 
 logger = logging.getLogger('sanic')
 
-Jussi = namedtuple('Jussi',
-                   ['key', 'upstream_url', 'ttl', 'cacheable', 'is_ws'])
+
 
 
 async def jsonrpc_id_to_str(request):

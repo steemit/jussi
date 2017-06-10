@@ -9,5 +9,5 @@ exec 2>&1 \
       --server_workers "${JUSSI_SERVER_WORKERS}" \
       --steemd_websocket_url "${JUSSI_STEEMD_WS_URL}" \
       --sbds_url "${JUSSI_SBDS_HTTP_URL}" \
-      --cache-dir "${JUSSI_CACHE_DIR}" \
+      --cache_dir "${JUSSI_CACHE_DIR}" \
       2>&1

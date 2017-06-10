@@ -66,7 +66,7 @@ RUN \
     pip3 install --upgrade pip && \
     pip3 install pipenv && \
 	  pipenv lock && \
-	  pipenv install --three --dev && \
+	  pipenv install --three && \
     apt-get remove -y \
         build-essential \
         libffi-dev \
@@ -80,6 +80,8 @@ RUN \
         /var/cache/* \
         /usr/include \
         /usr/local/include
+
+RUN mkdir ${JUSSI_CACHE_DIR} && chown -R www-data:www-data ${JUSSI_CACHE_DIR}
 
 EXPOSE ${NGINX_SERVER_PORT}
 
