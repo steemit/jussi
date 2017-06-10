@@ -10,7 +10,7 @@ default: build
 .PHONY: test run test-without-lint test-pylint fmt test-without-build build
 
 init:
-	pip install pipenv
+	pip3 install pipenv
 	pipenv lock
 	pipenv install --three --dev
 
