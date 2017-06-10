@@ -42,8 +42,10 @@ NO_CACHE_TTL = -1
 NO_CACHE_EXPIRE_TTL = 0
 
 # add individual method cache settings here
-METHOD_CACHE_SETTINGS = (('get_block', 'steemd_websocket_url',
-                          NO_CACHE_EXPIRE_TTL), )
+METHOD_CACHE_SETTINGS = (
+    ('get_block', 'steemd_websocket_url', NO_CACHE_EXPIRE_TTL),
+    ('get_global_dynamic_properties', 'steemd_websocket_url', 1)
+)
 
 
 async def fetch_ws(app, jussi, jsonrpc_request):
