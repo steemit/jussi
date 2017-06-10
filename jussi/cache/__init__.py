@@ -1,33 +1,42 @@
 # coding=utf-8
 import asyncio
 import logging
+import hashlib
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('sanic')
 
 
 def batch_jsonrpc_cache_key(batch_jussi_attrs):
     return tuple(r['jussi']['key'] for r in batch_jussi_attrs)
 
 
+def batch_jsonrpc_cache_ttl(batch_jussi_attrs):
+    return min(b.ttl for b in batch_jussi_attrs)
+
+
 def jsonrpc_cache_key(single_jsonrpc_request):
     if isinstance(single_jsonrpc_request.get('params'), dict):
         params = tuple(single_jsonrpc_request['params'].items())
     else:
-        params = tuple(single_jsonrpc_request.get('params',[]))
+        params = tuple(single_jsonrpc_request.get('params', []))
 
-    return (params, single_jsonrpc_request['method'])
+    return hashlib.sha1(
+        ('%s%s' % (params,
+                   single_jsonrpc_request['method'])).encode()).digest()
 
 
 async def cache_get(app, jussi_attrs):
     cache = app.config.cache
-    response = await cache.get(jussi_attrs.key)
+    response = cache.get(jussi_attrs.key)
     if response:
-        logger.debug(logger.debug('cache(%s) --> %s', jussi_attrs.key, response))
+        logger.debug(logger.debug('cache --> %s', response))
     return response
 
 
-async def cache_set(app, response, jussi_attrs):
-    if not jussi_attrs.cacheable:
+async def cache_set(app, value, jussi_attrs=None, expire=None, key=None):
+    expire = expire or jussi_attrs.ttl
+    if expire < 0:
         return
+    key = key or jussi_attrs.key
     cache = app.config.cache
-    asyncio.ensure_future(cache.set(jussi_attrs.key, response, ttl=jussi_attrs.ttl))
+    cache.set(key, value, expire=expire)

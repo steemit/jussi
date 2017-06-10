@@ -3,10 +3,7 @@
 from sanic.exceptions import SanicException
 from sanic.response import ALL_STATUS_CODES, COMMON_STATUS_CODES
 from jsonrpcserver import status
-
-
 """Exceptions raised by jsonrpcserver."""
-
 
 
 class JsonRpcServerError(SanicException):
@@ -19,9 +16,6 @@ class JsonRpcServerError(SanicException):
     def __init__(self, *args, **kwargs):
         super(JsonRpcServerError, self).__init__(*args, **kwargs)
         # Holds extra information related to the error.
-
-
-
 
 
 class ParseError(JsonRpcServerError):

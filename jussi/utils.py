@@ -8,6 +8,8 @@ from toolz.functoolz import compose
 
 from cache import jsonrpc_cache_key
 from cache import batch_jsonrpc_cache_key
+from cache import batch_jsonrpc_cache_ttl
+
 
 def apply_single_or_batch(f):
     """Apply a function to all jsonrpc_requests, including batch requests
@@ -33,6 +35,7 @@ def apply_single_or_batch(f):
 def generate_int_id():
     return int(time.time() * 1000000)
 
+
 @apply_single_or_batch
 def replace_jsonrpc_id(single_jsonrpc_request):
     try:
@@ -42,17 +45,19 @@ def replace_jsonrpc_id(single_jsonrpc_request):
     return single_jsonrpc_request
 
 
-
 @apply_single_or_batch
 def replace_jsonrpc_version(single_jsonrpc_request):
     single_jsonrpc_request['jsonrpc'] = '2.0'
     return single_jsonrpc_request
 
+
 @apply_single_or_batch
 def strip_steemd_method_namespace(single_jsonrpc_request):
     if single_jsonrpc_request['method'].startswith('steemd.'):
-        single_jsonrpc_request = strip_namespace(single_jsonrpc_request, 'steemd')
+        single_jsonrpc_request = strip_namespace(single_jsonrpc_request,
+                                                 'steemd')
     return single_jsonrpc_request
+
 
 @apply_single_or_batch
 def sort_request(single_jsonrpc_request):
@@ -60,8 +65,10 @@ def sort_request(single_jsonrpc_request):
     if isinstance(params, list):
         single_jsonrpc_request['params'] = sorted(params)
     elif isinstance(params, dict):
-        single_jsonrpc_request['params'] = OrderedDict(sorted(single_jsonrpc_request['params']))
+        single_jsonrpc_request['params'] = OrderedDict(
+            sorted(single_jsonrpc_request['params']))
     return OrderedDict(sorted(single_jsonrpc_request.items()))
+
 
 def strip_namespace(request, namespace):
     request['method'] = request['method'].strip('%s.' % namespace)
@@ -74,6 +81,7 @@ def parse_namespaced_method(namespaced_method, default_namespace='steemd'):
     except ValueError:
         namespace, method = default_namespace, namespaced_method
     return namespace, method
+
 
 async def get_upstream(sanic_http_request, jsonrpc_request):
     app = sanic_http_request.app
@@ -88,7 +96,8 @@ async def get_upstream(sanic_http_request, jsonrpc_request):
     return upstream['url'], upstream['ttl']
 
 
-JussiAttributes = namedtuple('JussiAttributes', ['key', 'upstream_url', 'ttl', 'cacheable', 'is_ws'])
+JussiAttributes = namedtuple(
+    'JussiAttributes', ['key', 'upstream_url', 'ttl', 'cacheable', 'is_ws'])
 
 
 async def jussi_attrs(sanic_http_request):
@@ -102,15 +111,32 @@ async def jussi_attrs(sanic_http_request):
             url, ttl = await get_upstream(sanic_http_request, r)
             cacheable = ttl > app.config.cache_config['no_cache_ttl']
             is_ws = url.startswith('ws')
-            results.append(JussiAttributes(key=key, upstream_url=url, ttl=ttl, cacheable=cacheable, is_ws=is_ws))
+            results.append(
+                JussiAttributes(
+                    key=key,
+                    upstream_url=url,
+                    ttl=ttl,
+                    cacheable=cacheable,
+                    is_ws=is_ws))
         sanic_http_request['jussi'] = results
-        sanic_http_request['jussi_isbatch'] = True
+        sanic_http_request['jussi_is_batch'] = True
+        sanic_http_request['jussi_batch_key'] = batch_jsonrpc_cache_key(
+            jsonrpc_requests)
+        sanic_http_request['jussi_batch_ttl'] = batch_jsonrpc_cache_ttl(
+            jsonrpc_requests)
+        sanic_http_request[
+            'jussi_batch_cacheable'] = sanic_http_request['jussi_batch_ttl'] >= 0
     else:
         key = jsonrpc_cache_key(jsonrpc_requests)
         url, ttl = await get_upstream(sanic_http_request, jsonrpc_requests)
         cacheable = ttl > app.config.cache_config['no_cache_ttl']
         is_ws = url.startswith('ws')
-        sanic_http_request['jussi'] = JussiAttributes(key=key, upstream_url=url, ttl=ttl, cacheable=cacheable, is_ws=is_ws)
-        sanic_http_request['jussi_isbatch'] = False
+        sanic_http_request['jussi'] = JussiAttributes(
+            key=key,
+            upstream_url=url,
+            ttl=ttl,
+            cacheable=cacheable,
+            is_ws=is_ws)
+        sanic_http_request['jussi_is_batch'] = False
 
     return sanic_http_request

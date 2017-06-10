@@ -9,17 +9,17 @@ ENV WSGI_APP ${APP_ROOT}/jussi/serve.py
 ENV PIPENV_VENV_IN_PROJECT 1
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
-ENV NGINX_SERVER_PORT 8000
+ENV NGINX_SERVER_PORT 8080
 
 
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
-ENV JUSSI_SERVER_WORKERS = 4
+ENV JUSSI_SERVER_WORKERS 4
 ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
 ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
+ENV JUSSI_CACHE_DIR /data
 
-
-ENV ENVIRONMENT DEV
+ENV ENVIRONMENT PROD
 
 RUN \
     apt-get update && \
@@ -81,5 +81,5 @@ RUN \
         /usr/include \
         /usr/local/include
 
-EXPOSE ${HTTP_SERVER_PORT}
-EXPOSE 8081
+EXPOSE ${NGINX_SERVER_PORT}
+
