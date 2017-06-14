@@ -15,12 +15,12 @@ sphinxcontrib-restbuilder = "*"
 yapf = "*"
 autopep8 = "*"
 Sphinx = "*"
+certifi = "*"
+urllib3 = "*"
 
 [packages]
 ujson = "*"
 aiohttp = "*"
-jsonrpcclient = "*"
-jsonrpcserver = "*"
 toolz = "*"
 websockets = "*"
 cchardet = "*"
@@ -31,7 +31,8 @@ Sanic = "*"
 aiocache = "*"
 pygtrie = "*"
 funcy = "*"
-diskcache = "*"
+pipenv = "*"
 
 [requires]
 python_version = "3.5"
+

@@ -4,9 +4,9 @@ from collections import OrderedDict
 from collections import namedtuple
 from functools import wraps
 
-from toolz.functoolz import compose
+import websockets
 
-from cache import jsonrpc_cache_key
+from .cache import jsonrpc_cache_key
 
 
 def apply_single_or_batch(f):
@@ -84,7 +84,6 @@ def parse_namespaced_method(namespaced_method, default_namespace='steemd'):
 async def get_upstream(sanic_http_request, jsonrpc_request):
     app = sanic_http_request.app
     jsonrpc_method = jsonrpc_request['method']
-    cache_config = app.config.cache_config
     _, upstream = app.config.upstreams.longest_prefix(jsonrpc_method)
 
     # get default values if no specific values found
@@ -101,7 +100,6 @@ JussiAttributes = namedtuple(
 async def jussi_attrs(sanic_http_request):
     jsonrpc_requests = sanic_http_request.json
     app = sanic_http_request.app
-
 
     if isinstance(jsonrpc_requests, list):
         results = []
@@ -134,3 +132,10 @@ async def jussi_attrs(sanic_http_request):
 
     return sanic_http_request
 
+
+async def get_or_create_websocket_client(app, ws=None):
+    if ws and ws.open:
+        return ws
+    args = app.config.args
+    return await websockets.connect(
+        args.steemd_websocket_url, max_size=int(2e6), max_queue=200)

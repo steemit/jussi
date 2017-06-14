@@ -14,11 +14,9 @@ ENV NGINX_SERVER_PORT 8080
 
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
-ENV JUSSI_SERVER_WORKERS 4
 ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
 ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
-ENV JUSSI_CACHE_DIR /data
-
+ENV JUSSI_REDIS_PORT 6379
 ENV ENVIRONMENT PROD
 
 RUN \
@@ -81,7 +79,6 @@ RUN \
         /usr/include \
         /usr/local/include
 
-RUN mkdir ${JUSSI_CACHE_DIR} && chown -R www-data:www-data ${JUSSI_CACHE_DIR}
 
 EXPOSE ${NGINX_SERVER_PORT}
 

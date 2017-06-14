@@ -20,6 +20,9 @@ build:
 run:
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
+run-local:
+	pipenv run jussi/serve.py
+
 test:
 	pipenv run py.test tests
 
@@ -30,4 +33,3 @@ lint:
 fmt:
 	pipenv run yapf --recursive --in-place --style pep8 jussi
 	pipenv run autopep8 --recursive --in-place jussi
-
