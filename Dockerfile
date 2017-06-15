@@ -5,7 +5,7 @@ ENV LOG_LEVEL INFO
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 ENV APP_ROOT /app
-ENV APP_CMD jussi
+ENV APP_CMD ${APP_ROOT}/jussi/serve.py
 ENV PIPENV_VENV_IN_PROJECT 1
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
@@ -63,8 +63,7 @@ WORKDIR /app
 RUN \
     pip3 install --upgrade pip && \
     pip3 install pipenv && \
-	  pipenv lock && \
-	  pipenv install --three && \
+	pipenv install --three && \
 	pipenv run python3 setup.py install && \
     apt-get remove -y \
         build-essential \

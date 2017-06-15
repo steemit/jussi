@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse
 import asyncio
+import functools
 import logging
 import os
 import ujson
@@ -10,6 +11,8 @@ import aiocache
 import aiocache.plugins
 import aiohttp
 import pygtrie
+import funcy
+import websockets
 from sanic import Sanic
 from sanic import response
 from sanic.exceptions import SanicException
@@ -20,7 +23,9 @@ from jussi.serializers import CompressionSerializer
 from jussi.logging_config import LOGGING
 from jussi.middlewares import add_jussi_attrs
 from jussi.middlewares import caching_middleware
-from jussi.utils import get_or_create_websocket_client
+from jussi.utils import websocket_conn
+from jussi.utils import return_bytes
+
 
 # init logging
 LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
@@ -29,7 +34,6 @@ LOGGING['loggers']['network']['level'] = LOG_LEVEL
 
 # pylint: disable=unused-variable
 app = Sanic(__name__, log_config=LOGGING)
-
 logger = logging.getLogger('sanic')
 
 DEFAULT_CACHE_TTL = 3
@@ -43,27 +47,20 @@ METHOD_CACHE_SETTINGS = (
     ('get_global_dynamic_properties', 'steemd_websocket_url', 1))
 
 
+@funcy.log_calls(logger.debug)
+@return_bytes
+@websocket_conn
 async def fetch_ws(app, jussi, jsonrpc_request):
-    logger.debug('%s --> %s', jsonrpc_request, jussi.upstream_url)
     ws = app.config.websocket_client
-    if not ws.open:
-        ws = await get_or_create_websocket_client(app)
-        app.config.websocket_client = ws
-
     await ws.send(ujson.dumps(jsonrpc_request).encode())
     response = await ws.recv()
-    if isinstance(response, str):
-        response = response.encode()
-    logger.debug('%s --> %s', jussi.upstream_url, response)
     return response
 
-
+@funcy.log_calls(logger.debug)
 async def http_post(app, jussi, jsonrpc_request):
     session = app.config.aiohttp['session']
-    logger.debug('%s --> %s', jsonrpc_request, jussi.upstream_url)
     async with session.post(jussi.upstream_url, json=jsonrpc_request) as resp:
         bytes_response = await resp.read()
-        logger.debug('%s --> %s', jussi.upstream_url, bytes_response)
         return bytes_response
 
 
@@ -172,7 +169,11 @@ async def setup_cache(app, loop):
     logger.info('before_server_start -> setup_cache')
     args = app.config.args
     # only use redis if we can really talk to it
+    logger.info('before_server_start -> setup_cache redis_host:%s', args.redis_host)
+    logger.info('before_server_start -> setup_cache redis_port:%s', args.redis_port)
     try:
+        if not args.redis_host:
+            raise ValueError('no redis host specified')
         default_cache = aiocache.RedisCache(
             serializer=CompressionSerializer(),
             endpoint=args.redis_host,
@@ -181,19 +182,20 @@ async def setup_cache(app, loop):
                 aiocache.plugins.HitMissRatioPlugin(),
                 aiocache.plugins.TimingPlugin()
             ])
-        await default_cache.set('test', 1)
+        await default_cache.set('test', b'testval')
         val = await default_cache.get('test')
-        assert val == 1
+        logger.debug('before_server_start -> setup_cache val=%s', val)
+        assert val == b'testval'
     except Exception as e:
         logger.exception(e)
-        logger.error('Unable to use redis, using in-memory cache instead...')
+        logger.error('Unable to use redis (was a setting not defined?), using in-memory cache instead...')
         default_cache = aiocache.SimpleMemoryCache(
             serializer=CompressionSerializer(),
             plugins=[
                 aiocache.plugins.HitMissRatioPlugin(),
                 aiocache.plugins.TimingPlugin()
             ])
-    logger.info('setup_cache: %s', default_cache)
+    logger.info('before_server_start -> setup_cache cache=%s', default_cache)
     cache_config = dict()
     cache_config['default_cache_ttl'] = DEFAULT_CACHE_TTL
     cache_config['no_cache_ttl'] = NO_CACHE_TTL
@@ -235,8 +237,11 @@ async def setup_websocket_connection(app, loop):
 
     """
     logger.info('before_server_start -> setup_ws_client')
-    ws_client = await get_or_create_websocket_client(app)
-    app.config.websocket_client = ws_client
+    args = app.config.args
+    app.config.websocket_kwargs = dict(uri=args.steemd_websocket_url,
+                                       max_size=int(2e6), max_queue=200)
+    app.config.websocket_client = await websockets.connect(**app.config.websocket_kwargs)
+
 
 
 @app.listener('before_server_start')
@@ -302,3 +307,6 @@ def main():
             port=args.server_port,
             workers=args.server_workers,
             log_config=LOGGING)
+
+if __name__ == '__main__':
+    main()
