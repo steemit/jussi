@@ -5,7 +5,7 @@ ENV LOG_LEVEL INFO
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 ENV APP_ROOT /app
-ENV WSGI_APP ${APP_ROOT}/jussi/serve.py
+ENV APP_CMD jussi
 ENV PIPENV_VENV_IN_PROJECT 1
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
@@ -14,11 +14,9 @@ ENV NGINX_SERVER_PORT 8080
 
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
-ENV JUSSI_SERVER_WORKERS 4
 ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
 ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
-ENV JUSSI_CACHE_DIR /data
-
+ENV JUSSI_REDIS_PORT 6379
 ENV ENVIRONMENT PROD
 
 RUN \
@@ -67,6 +65,7 @@ RUN \
     pip3 install pipenv && \
 	  pipenv lock && \
 	  pipenv install --three && \
+	pipenv run python3 setup.py install && \
     apt-get remove -y \
         build-essential \
         libffi-dev \
@@ -81,7 +80,6 @@ RUN \
         /usr/include \
         /usr/local/include
 
-RUN mkdir ${JUSSI_CACHE_DIR} && chown -R www-data:www-data ${JUSSI_CACHE_DIR}
 
 EXPOSE ${NGINX_SERVER_PORT}
 
