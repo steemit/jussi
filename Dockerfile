@@ -5,7 +5,7 @@ ENV LOG_LEVEL INFO
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 ENV APP_ROOT /app
-ENV WSGI_APP ${APP_ROOT}/jussi/serve.py
+ENV APP_CMD jussi
 ENV PIPENV_VENV_IN_PROJECT 1
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
@@ -65,6 +65,7 @@ RUN \
     pip3 install pipenv && \
 	  pipenv lock && \
 	  pipenv install --three && \
+	pipenv run python3 setup.py install && \
     apt-get remove -y \
         build-essential \
         libffi-dev \

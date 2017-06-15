@@ -14,13 +14,13 @@ from sanic import Sanic
 from sanic import response
 from sanic.exceptions import SanicException
 
-from .cache import cache_get
-from .cache import cache_set
-from .cache.serializers import CompressionSerializer
-from .logging_config import LOGGING
-from .middlewares import add_jussi_attrs
-from .middlewares import caching_middleware
-from .utils import get_or_create_websocket_client
+from jussi.cache import cache_get
+from jussi.cache import cache_set
+from jussi.serializers import CompressionSerializer
+from jussi.logging_config import LOGGING
+from jussi.middlewares import add_jussi_attrs
+from jussi.middlewares import caching_middleware
+from jussi.utils import get_or_create_websocket_client
 
 # init logging
 LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
@@ -274,7 +274,7 @@ def close_websocket_connection(app, loop):
     session.close()
 
 
-def main(app):
+def main():
     # parse CLI args and add them to app.config for use by registered listeners
     parser = argparse.ArgumentParser(description="jussi reverse proxy server")
     parser.add_argument('--server_host', type=str, default='0.0.0.0')

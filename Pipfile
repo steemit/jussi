@@ -32,7 +32,7 @@ aiocache = "*"
 pygtrie = "*"
 funcy = "*"
 pipenv = "*"
+click = "*"
 
 [requires]
 python_version = "3.5"
-

@@ -14,6 +14,7 @@ test_requirements = convert_deps_to_pip(pfile['dev-packages'], r=False)
 base_dir = os.path.dirname(__file__)
 
 about = {}
+
 with open(os.path.join(base_dir, "jussi", "__about__.py")) as f:
     exec(f.read(), about)
 
@@ -38,6 +39,6 @@ setup(
 
     packages=["jussi"],
     entry_points={
-        'console_scripts': ['jussi=jussi.main:main']
+        'console_scripts': ['jussi=jussi.serve:main']
     }
 )

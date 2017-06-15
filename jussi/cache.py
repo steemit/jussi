@@ -3,7 +3,6 @@ import asyncio
 import hashlib
 import logging
 
-from .serializers import CompressionSerializer
 
 logger = logging.getLogger('sanic')
 
