@@ -7,7 +7,7 @@ PROJECT_DOCKER_RUN_ARGS := -p8080:8080
 
 default: build
 
-.PHONY: test run test-without-lint test-pylint fmt test-without-build build
+.PHONY: init build run run-local test lint fmt
 
 init:
 	pip3 install pipenv
@@ -17,11 +17,11 @@ init:
 build:
 	docker build -t $(PROJECT_DOCKER_TAG) .
 
-run:
+run: build
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
 run-local:
-	pipenv run jussi/serve.py
+	pipenv run python3 jussi/serve.py
 
 test:
 	pipenv run py.test tests

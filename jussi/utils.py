@@ -1,33 +1,77 @@
 # -*- coding: utf-8 -*-
+import functools
 import time
+import websockets
 from collections import OrderedDict
 from collections import namedtuple
-from functools import wraps
-
-import websockets
-
-from .cache import jsonrpc_cache_key
 
 
-def apply_single_or_batch(f):
-    """Apply a function to all jsonrpc_requests, including batch requests
+
+
+from jussi.cache import jsonrpc_cache_key
+
+# decorators
+def apply_single_or_batch(func):
+    """Decorate func to apply func to single or batch jsonrpc_requests
 
     Args:
-        f:
+        func:
 
     Returns:
         decorated_function
     """
 
-    @wraps(f)
-    def decorated_function(jsonrpc_request):
+    @functools.wraps(func)
+    def wrapper(jsonrpc_request):
         if isinstance(jsonrpc_request, list):
-            jsonrpc_request = list(map(f, jsonrpc_request))
+            jsonrpc_request = list(map(func, jsonrpc_request))
         else:
-            jsonrpc_request = f(jsonrpc_request)
+            jsonrpc_request = func(jsonrpc_request)
         return jsonrpc_request
 
-    return decorated_function
+    return wrapper
+
+
+
+def websocket_conn(func):
+    """Decorate func to make sure func has an open websocket client
+
+    Args:
+        func:
+
+    Returns:
+
+    """
+    @functools.wraps(func)
+    async def wrapper(app, jussi, jsonrpc_request):
+        ws = app.config.websocket_client
+        if ws and ws.open:
+            # everything ok, noop
+            pass
+        else:
+            ws = await websockets.connect(**app.config.websocket_kwargs)
+            app.config.websocket_client = ws
+        return await func(app, jussi, jsonrpc_request)
+    return wrapper
+
+
+def return_bytes(func):
+    """Decorate func to make sure func has an open websocket client
+
+    Args:
+        func:
+
+    Returns:
+
+    """
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        result = await func(*args, **kwargs)
+        if isinstance(result, str):
+            result = result.encode()
+        return result
+    return wrapper
+
 
 
 def generate_int_id():
@@ -131,11 +175,3 @@ async def jussi_attrs(sanic_http_request):
         sanic_http_request['jussi_is_batch'] = False
 
     return sanic_http_request
-
-
-async def get_or_create_websocket_client(app, ws=None):
-    if ws and ws.open:
-        return ws
-    args = app.config.args
-    return await websockets.connect(
-        args.steemd_websocket_url, max_size=int(2e6), max_queue=200)
