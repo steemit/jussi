@@ -12,8 +12,8 @@ logger = logging.getLogger('sanic')
 
 
 async def add_jussi_attrs(request):
-    request.parsed_json = replace_jsonrpc_id(request.json)
-    request.parsed_json = sort_request(request.parsed_json)
+    #request.parsed_json = replace_jsonrpc_id(request.json)
+    request.parsed_json = sort_request(request.json)
     request = await jussi_attrs(request)
     logger.debug('request.jussi: %s', request['jussi'])
 

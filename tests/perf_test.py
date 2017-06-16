@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import argparse
 import os
 import sys
 import logging
@@ -56,16 +57,16 @@ def fetch_blocks(block_nums,
 
     print(results)
 
-def do_test(steemd_http_url, max_procs, max_threads):
+def do_test(steemd_http_url, max_procs, max_threads, start=None, end=None):
     client = http_client.SimpleSteemAPIClient(url=steemd_http_url)
     print(client.get_dynamic_global_properties())
     try:
 
 
-        # [1/2] find last irreversible block
-        last_chain_block = client.block_height()
-
-        missing_block_nums = list(range(1,last_chain_block))
+        start = start or 1
+        end = end or client.block_height()
+	
+        missing_block_nums = list(range(start,end))
 
 
         # [2/2] adding missing blocks
@@ -106,4 +107,11 @@ def block_adder_process_worker(
 # included only for debugging with pdb, all the above code should be called
 # using the click framework
 if __name__ == '__main__':
-    do_test(sys.argv[1], max_procs=4, max_threads=2)
+    parser = argparse.ArgumentParser('jussi perf test script')
+    parser.add_argument('url',type=str)
+    parser.add_argument('--max_procs',type=int, default=os.cpu_count() -1)
+    parser.add_argument('--max_threads',type=int, default=30) 
+    parser.add_argument('--start',type=int, default=1) 
+    parser.add_argument('--end',type=int, default=None) 
+    args = parser.parse_args()
+    do_test(args.url, max_procs=args.max_procs, max_threads=args.max_threads,start=args.start, end=args.end)
