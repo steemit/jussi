@@ -88,16 +88,17 @@ async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
 
 
 async def dispatch_batch(sanic_http_request, jsonrpc_requests):
-    responses = asyncio.gather([
+    responses = await asyncio.gather(*[
         dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index)
-        for jsonrpc_request, jrpc_req_index in enumerate(jsonrpc_requests)
+        for jrpc_req_index, jsonrpc_request  in enumerate(jsonrpc_requests)
     ])
+    json_responses = []
     for r in responses:
         if isinstance(r, bytes):
-            r = ujson.loads(r.decode())
+            json_responses.append(ujson.loads(r.decode()))
         elif isinstance(r, str):
-            r = ujson.loads(r)
-    return ujson.dumps(responses).encode()
+            json_responses.append(ujson.loads(r))
+    return ujson.dumps(json_responses).encode()
 
 
 @app.route('/', methods=['POST'])
