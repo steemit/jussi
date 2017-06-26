@@ -50,19 +50,16 @@ def fetch_blocks(block_nums,
         steemd_http_url,
         max_threads=max_threads)
 
-    chunks = chunkify(block_nums, 10000)
+    chunks = chunkify(block_nums, chunksize)
 
     with Pool(processes=max_workers) as pool:
         results = pool.map(map_func, chunks)
 
-    print(results)
+    #print(results)
 
 def do_test(steemd_http_url, max_procs, max_threads, start=None, end=None):
     client = http_client.SimpleSteemAPIClient(url=steemd_http_url)
-    print(client.get_dynamic_global_properties())
     try:
-
-
         start = start or 1
         end = end or client.block_height()
 	
@@ -90,8 +87,7 @@ def do_test(steemd_http_url, max_procs, max_threads, start=None, end=None):
 def block_fetcher_thread_worker(rpc_url, block_nums, max_threads=None):
     rpc = http_client.SimpleSteemAPIClient(rpc_url, return_with_args=False)
     # pylint: disable=unused-variable
-    for block in rpc.exec_multi_with_futures(
-            'get_block', block_nums, max_workers=max_threads):
+    for block in rpc.exec_batch('get_block', block_nums): #, max_workers=max_threads):
         yield block
 
 
@@ -99,10 +95,10 @@ def block_adder_process_worker(
                                rpc_url,
                                block_nums,
                                max_threads=5):
+    rpc = http_client.SimpleSteemAPIClient(rpc_url, return_with_args=False)
+    for block in rpc.exec_batch('get_block', block_nums): #, max_workers=max_threads):
+        print(block)
 
-    for raw_block in block_fetcher_thread_worker(rpc_url, block_nums, max_threads=max_threads):
-        print(raw_block)
-    return True
 
 # included only for debugging with pdb, all the above code should be called
 # using the click framework
