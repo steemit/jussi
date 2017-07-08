@@ -25,6 +25,18 @@ class RPCError(Exception):
 class RPCConnectionError(Exception):
     pass
 
+def chunkify(iterable, chunksize=3000):
+    i = 0
+    chunk = []
+    for item in iterable:
+        chunk.append(item)
+        i += 1
+        if i == chunksize:
+            yield chunk
+            i = 0
+            chunk = []
+    if len(chunk) > 0:
+        yield chunk
 
 class SimpleSteemAPIClient(object):
     """Simple Steem JSON-HTTP-RPC API
@@ -156,30 +168,49 @@ class SimpleSteemAPIClient(object):
     def exec_multi(self, name, params):
         body_gen = ({
             "method": name,
-            "params": [i],
+            "params": [str(i)],
             "jsonrpc": "2.0",
-            "id": 0
+            "id": i
         } for i in params)
-        for body in body_gen:
-            json_body = json.dumps(body, ensure_ascii=False).encode('utf8')
-            yield self._return(
-                response=self.request(body=json_body),
-                args=body['params'],
-                return_with_args=True)
+        for chunk in chunkify(body_gen):
+            batch_json_body = json.dumps(chunk, ensure_ascii=False).encode('utf8')
+            r = self.request(body=batch_json_body).read()
+            print(r)
+            batch_response = json.loads(self.request(body=batch_json_body).read())
+            for i,resp in enumerate(batch_response):
+                yield self._return(
+                        response=resp,
+                        args=batch_json_body[i]['params'],
+                        return_with_args=True)
 
-    def exec_multi_with_futures(self, name, params, max_workers=None):
+
+    def exec_batch(self, name, params):
+        batch_requests = [{
+            "method":  name,
+            "params":   [str(i)],
+            "jsonrpc": "2.0",
+            "id":      i
+        } for i in params]
+        for chunk in chunkify(batch_requests):
+            batch_json_body = json.dumps(chunk).encode()
+            r = self.request(body=batch_json_body)
+            batch_response = json.loads(r.data.decode())
+            for i,resp in enumerate(batch_response):
+                yield json.dumps(resp)
+
+    def exec_batch_with_futures(self, name, params, max_workers=None):
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max_workers) as executor:
-            futures = (executor.submit(
-                self.exec, name, param, return_with_args=True)
-                for param in params)
+            futures = []
+            for chunk in chunkify(params):
+                futures.append(executor.submit(self.exec_batch, name, chunk))
+
             for future in concurrent.futures.as_completed(futures):
-                result, args = future.result()
-                if result:
-                    yield result
-                else:
-                    executor.submit(
-                        self.exec, name, args, return_with_args=True)
+                for item in future.result():
+                    yield item
+
+
+
 
     get_dynamic_global_properties = partialmethod(
         exec, 'get_dynamic_global_properties')
