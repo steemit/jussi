@@ -1,9 +1,12 @@
 SHELL := /bin/bash
 ROOT_DIR := $(shell pwd)
 
-PROJECT_NAME := jussi
+PROJECT_NAME := $(notdir $(ROOT_DIR))
 PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
 PROJECT_DOCKER_RUN_ARGS := -p8080:8080
+
+PIPENV_VENV_IN_PROJECT := 1
+export PIPENV_VENV_IN_PROJECT
 
 default: build
 
@@ -11,13 +14,13 @@ default: build
 
 init:
 	pip3 install pipenv
-	pipenv lock
 	pipenv install --three --dev
+	pipenv run python3 setup.py develop
 
 build:
 	docker build -t $(PROJECT_DOCKER_TAG) .
 
-run: build
+run:
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
 run-local:
@@ -26,10 +29,9 @@ run-local:
 test:
 	pipenv run py.test tests
 
-
 lint:
-	pipenv run py.test --pylint -m pylint jussi
+	pipenv run py.test --pylint -m pylint $(PROJECT_NAME)
 
 fmt:
-	pipenv run yapf --recursive --in-place --style pep8 jussi
-	pipenv run autopep8 --recursive --in-place jussi
+	pipenv run yapf --recursive --in-place --style pep8 $(PROJECT_NAME)
+	pipenv run autopep8 --recursive --in-placedo $(PROJECT_NAME)

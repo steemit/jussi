@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 import functools
 import time
+import logging
 import websockets
+
 from collections import OrderedDict
 from collections import namedtuple
-
-
-
+from sanic.exceptions import InvalidUsage
 
 from jussi.cache import jsonrpc_cache_key
+
+logger = logging.getLogger('sanic')
+
 
 # decorators
 def apply_single_or_batch(func):
@@ -32,7 +35,6 @@ def apply_single_or_batch(func):
     return wrapper
 
 
-
 def websocket_conn(func):
     """Decorate func to make sure func has an open websocket client
 
@@ -42,6 +44,7 @@ def websocket_conn(func):
     Returns:
 
     """
+
     @functools.wraps(func)
     async def wrapper(app, jussi, jsonrpc_request):
         ws = app.config.websocket_client
@@ -52,7 +55,43 @@ def websocket_conn(func):
             ws = await websockets.connect(**app.config.websocket_kwargs)
             app.config.websocket_client = ws
         return await func(app, jussi, jsonrpc_request)
+
     return wrapper
+
+
+def async_ignore_exceptions(func):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            logger.info('Ignored exception: %s', e)
+
+    return wrapper
+
+
+def async_exclude_methods(middleware_func=None, exclude_http_methods=None):
+    """Exclude specified HTTP methods from middleware
+
+    Args:
+        middleware_func:
+        exclude_http_methods:
+
+    Returns:
+
+    """
+    if middleware_func is None:
+        return functools.partial(
+            async_exclude_methods, exclude_http_methods=exclude_http_methods)
+
+    @functools.wraps(middleware_func)
+    async def f(request):
+        if request.method in exclude_http_methods:
+            return request
+        else:
+            return await middleware_func(request)
+
+    return f
 
 
 def return_bytes(func):
@@ -64,14 +103,15 @@ def return_bytes(func):
     Returns:
 
     """
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         result = await func(*args, **kwargs)
         if isinstance(result, str):
             result = result.encode()
         return result
-    return wrapper
 
+    return wrapper
 
 
 def generate_int_id():
@@ -137,28 +177,38 @@ async def get_upstream(sanic_http_request, jsonrpc_request):
     return upstream['url'], upstream['ttl']
 
 
-JussiAttributes = namedtuple(
-    'JussiAttributes', ['key', 'upstream_url', 'ttl', 'cacheable', 'is_ws'])
+JussiAttributes = namedtuple('JussiAttributes', [
+    'key', 'upstream_url', 'ttl', 'cacheable', 'is_ws', 'namespace',
+    'method_name', 'log_prefix'
+])
 
 
 async def jussi_attrs(sanic_http_request):
     jsonrpc_requests = sanic_http_request.json
+
     app = sanic_http_request.app
 
     if isinstance(jsonrpc_requests, list):
         results = []
-        for r in jsonrpc_requests:
+        for i, r in enumerate(jsonrpc_requests):
+            if not r:
+                raise InvalidUsage('Bad jsonrpc request')
             key = jsonrpc_cache_key(r)
             url, ttl = await get_upstream(sanic_http_request, r)
             cacheable = ttl > app.config.cache_config['no_cache_ttl']
             is_ws = url.startswith('ws')
+            namespace, method_name = parse_namespaced_method(r['method'])
+            prefix = '.'.join([str(i), namespace, method_name])
             results.append(
                 JussiAttributes(
                     key=key,
                     upstream_url=url,
                     ttl=ttl,
                     cacheable=cacheable,
-                    is_ws=is_ws))
+                    is_ws=is_ws,
+                    namespace=namespace,
+                    method_name=method_name,
+                    log_prefix=prefix))
         sanic_http_request['jussi'] = results
         sanic_http_request['jussi_is_batch'] = True
     else:
@@ -166,12 +216,18 @@ async def jussi_attrs(sanic_http_request):
         url, ttl = await get_upstream(sanic_http_request, jsonrpc_requests)
         cacheable = ttl > app.config.cache_config['no_cache_ttl']
         is_ws = url.startswith('ws')
+        namespace, method_name = parse_namespaced_method(
+            jsonrpc_requests['method'])
+        prefix = '.'.join(['0', namespace, method_name])
         sanic_http_request['jussi'] = JussiAttributes(
             key=key,
             upstream_url=url,
             ttl=ttl,
             cacheable=cacheable,
-            is_ws=is_ws)
+            is_ws=is_ws,
+            namespace=namespace,
+            method_name=method_name,
+            log_prefix=prefix)
         sanic_http_request['jussi_is_batch'] = False
 
     return sanic_http_request

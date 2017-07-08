@@ -12,4 +12,3 @@ __summary__ = ""
 __uri__ = "https://github.com/steemit/jussi"
 __author__ = "John Gerlock"
 __email__ = "jg@steemit.com"
-

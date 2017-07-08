@@ -19,6 +19,8 @@ ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
 ENV JUSSI_REDIS_PORT 6379
 ENV ENVIRONMENT PROD
 
+
+
 RUN \
     apt-get update && \
     apt-get install -y \
@@ -35,7 +37,20 @@ RUN \
         libxml2-dev \
         libxslt-dev \
         runit \
-        nginx
+        nginx \
+        wget
+
+RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstrap_1.2.1_all.deb
+RUN dpkg -r scalyr-repo scalyr-repo-bootstrap  # Remove any previous repository definitions, if any.
+RUN dpkg -i ./scalyr-repo-bootstrap_1.2.1_all.deb
+
+#RUN rm scalyr-repo-bootstrap_1.2.1_all.deb
+
+RUN \
+    apt-get update && \
+    apt-get install -y \
+        scalyr-repo \
+        scalyr-agent-2
 
 
 RUN \
@@ -77,7 +92,8 @@ RUN \
         /var/tmp/* \
         /var/cache/* \
         /usr/include \
-        /usr/local/include
+        /usr/local/include \
+
 
 
 EXPOSE ${NGINX_SERVER_PORT}

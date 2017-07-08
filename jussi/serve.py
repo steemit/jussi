@@ -6,6 +6,7 @@ import functools
 import logging
 import os
 import ujson
+import datetime
 
 import aiocache
 import aiocache.plugins
@@ -13,19 +14,22 @@ import aiohttp
 import pygtrie
 import funcy
 import websockets
+from statsd import StatsClient
 from sanic import Sanic
 from sanic import response
 from sanic.exceptions import SanicException
 
 from jussi.cache import cache_get
-from jussi.cache import cache_set
+from jussi.cache import cache_json_response
 from jussi.serializers import CompressionSerializer
 from jussi.logging_config import LOGGING
 from jussi.middlewares import add_jussi_attrs
 from jussi.middlewares import caching_middleware
+from jussi.middlewares import start_stats
+from jussi.middlewares import finalize_timers
+from jussi.middlewares import log_stats
 from jussi.utils import websocket_conn
 from jussi.utils import return_bytes
-
 
 # init logging
 LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
@@ -41,10 +45,12 @@ NO_CACHE_TTL = -1
 NO_CACHE_EXPIRE_TTL = 0
 
 # add individual method cache settings here
-METHOD_CACHE_SETTINGS = (
-    ('get_block', 'steemd_websocket_url', NO_CACHE_EXPIRE_TTL),
-    ('get_block_header', 'steemd_websocket_url', NO_CACHE_EXPIRE_TTL),
-    ('get_global_dynamic_properties', 'steemd_websocket_url', 1))
+METHOD_CACHE_SETTINGS = (('get_block', 'steemd_websocket_url',
+                          NO_CACHE_EXPIRE_TTL),
+                         ('get_block_header', 'steemd_websocket_url',
+                          NO_CACHE_EXPIRE_TTL),
+                         ('get_global_dynamic_properties',
+                          'steemd_websocket_url', 1))
 
 
 @funcy.log_calls(logger.debug)
@@ -56,8 +62,9 @@ async def fetch_ws(app, jussi, jsonrpc_request):
     response = await ws.recv()
     return response
 
+
 @funcy.log_calls(logger.debug)
-async def http_post(app, jussi, jsonrpc_request):
+async def fetch_http(app, jussi, jsonrpc_request):
     session = app.config.aiohttp['session']
     async with session.post(jussi.upstream_url, json=jsonrpc_request) as resp:
         bytes_response = await resp.read()
@@ -72,26 +79,39 @@ async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
     if sanic_http_request['jussi_is_batch']:
         jussi_attrs = jussi_attrs[jrpc_req_index]
 
+    # stats/logging
+    def prefix(name):
+        return '%s.%s' % (jussi_attrs.log_prefix, name)
+
+    sanic_http_request['statsd'].incr('%s.%s' % (jussi_attrs.namespace,
+                                                 jussi_attrs.method_name))
+
     # return cached response if possible
-    response = await cache_get(app, jussi_attrs)
+    with sanic_http_request['timers'][prefix('dispatch_single_caching_check')]:
+        response = await cache_get(app, jussi_attrs)
     if response:
         return response
 
     if jussi_attrs.is_ws:
-        bytes_response = await fetch_ws(app, jussi_attrs, jsonrpc_request)
+        with sanic_http_request['timers'][prefix('fetch_ws')]:
+            bytes_response = await fetch_ws(app, jussi_attrs, jsonrpc_request)
     else:
-        bytes_response = await http_post(app, jussi_attrs, jsonrpc_request)
+        with sanic_http_request['timers'][prefix('fetch_http')]:
+            bytes_response = await fetch_http(app, jussi_attrs,
+                                              jsonrpc_request)
 
     asyncio.ensure_future(
-        cache_set(app, bytes_response, jussi_attrs=jussi_attrs))
+        cache_json_response(app, bytes_response, jussi_attrs=jussi_attrs))
     return bytes_response
 
 
 async def dispatch_batch(sanic_http_request, jsonrpc_requests):
-    responses = await asyncio.gather(*[
-        dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index)
-        for jrpc_req_index, jsonrpc_request  in enumerate(jsonrpc_requests)
-    ])
+    with sanic_http_request['timers']['batch_requests']:
+        responses = await asyncio.gather(* [
+            dispatch_single(sanic_http_request, jsonrpc_request,
+                            jrpc_req_index)
+            for jrpc_req_index, jsonrpc_request in enumerate(jsonrpc_requests)
+        ])
     json_responses = []
     for r in responses:
         if isinstance(r, bytes):
@@ -101,7 +121,7 @@ async def dispatch_batch(sanic_http_request, jsonrpc_requests):
     return ujson.dumps(json_responses).encode()
 
 
-@app.route('/', methods=['POST'])
+@app.post('/')
 async def handle(sanic_http_request):
     app = sanic_http_request.app
 
@@ -109,6 +129,7 @@ async def handle(sanic_http_request):
     jsonrpc_requests = sanic_http_request.json
 
     # make upstream requests
+
     if sanic_http_request['jussi_is_batch']:
         jsonrpc_response = await dispatch_batch(sanic_http_request,
                                                 jsonrpc_requests)
@@ -124,6 +145,23 @@ async def handle(sanic_http_request):
     return response.text(jsonrpc_response, content_type='application/json')
 
 
+# health check routes
+@app.get('/')
+async def handle(sanic_http_request):
+    return response.json({
+        'status': 'OK',
+        'datetime': datetime.datetime.utcnow().isoformat()
+    })
+
+
+@app.get('/health')
+async def handle(sanic_http_request):
+    return response.json({
+        'status': 'OK',
+        'datetime': datetime.datetime.utcnow().isoformat()
+    })
+
+
 @app.exception(SanicException)
 def handle_errors(request, exception):
     """all errors return HTTP 502
@@ -135,8 +173,14 @@ def handle_errors(request, exception):
     Returns:
 
     """
+    status_code = getattr(exception, 'status_code', 502)
+    message = str(exception) or 'Gateway Error'
     logger.error('%s-%s', request, exception)
-    return response.text(body='Gateway Error', status=502)
+    return response.json(
+        {
+            'error': message,
+            'status_code': status_code
+        }, status=status_code)
 
 
 # register listeners
@@ -150,19 +194,24 @@ def handle_errors(request, exception):
 def setup_statsd(app, loop):
     logger.info('before_server_start -> setup_statsd')
     args = app.config.args
-    if args.statsd_host:
-        app.config.statsd = {
-            'host': args.statsd_host,
-            'port': args.statsd_port,
-            'prefix': args.stats_prefix
-        }
+
+    config = {
+        'host': args.statsd_host,
+        'port': args.statsd_port,
+        'prefix': args.statsd_prefix
+    }
+    app.config.statsd_client = StatsClient(**config)
 
 
 @app.listener('before_server_start')
 def setup_middlewares(app, loop):
     logger.info('before_server_start -> setup_middlewares')
+    app.request_middleware.append(start_stats)
     app.request_middleware.append(add_jussi_attrs)
     app.request_middleware.append(caching_middleware)
+
+    app.response_middleware.append(finalize_timers)
+    app.response_middleware.append(log_stats)
 
 
 @app.listener('before_server_start')
@@ -170,8 +219,10 @@ async def setup_cache(app, loop):
     logger.info('before_server_start -> setup_cache')
     args = app.config.args
     # only use redis if we can really talk to it
-    logger.info('before_server_start -> setup_cache redis_host:%s', args.redis_host)
-    logger.info('before_server_start -> setup_cache redis_port:%s', args.redis_port)
+    logger.info('before_server_start -> setup_cache redis_host:%s',
+                args.redis_host)
+    logger.info('before_server_start -> setup_cache redis_port:%s',
+                args.redis_port)
     try:
         if not args.redis_host:
             raise ValueError('no redis host specified')
@@ -189,7 +240,9 @@ async def setup_cache(app, loop):
         assert val == b'testval'
     except Exception as e:
         logger.exception(e)
-        logger.error('Unable to use redis (was a setting not defined?), using in-memory cache instead...')
+        logger.error(
+            'Unable to use redis (was a setting not defined?), using in-memory cache instead...'
+        )
         default_cache = aiocache.SimpleMemoryCache(
             serializer=CompressionSerializer(),
             plugins=[
@@ -239,10 +292,10 @@ async def setup_websocket_connection(app, loop):
     """
     logger.info('before_server_start -> setup_ws_client')
     args = app.config.args
-    app.config.websocket_kwargs = dict(uri=args.steemd_websocket_url,
-                                       max_size=int(2e6), max_queue=200)
-    app.config.websocket_client = await websockets.connect(**app.config.websocket_kwargs)
-
+    app.config.websocket_kwargs = dict(
+        uri=args.steemd_websocket_url, max_size=int(2e6), max_queue=200)
+    app.config.websocket_client = await websockets.connect(
+        **app.config.websocket_kwargs)
 
 
 @app.listener('before_server_start')
@@ -287,27 +340,28 @@ def main():
     parser.add_argument('--server_port', type=int, default=9000)
     parser.add_argument('--server_workers', type=int, default=os.cpu_count())
     parser.add_argument(
-            '--steemd_websocket_url', type=str,
-            default='wss://steemd.steemitdev.com')
-    parser.add_argument('--sbds_url', type=str,
-                        default='https://sbds.steemit.com')
+        '--steemd_websocket_url',
+        type=str,
+        default='wss://steemd.steemitdev.com')
+    parser.add_argument(
+        '--sbds_url', type=str, default='https://sbds.steemit.com')
     parser.add_argument('--redis_host', type=str, default=None)
     parser.add_argument('--redis_port', type=int, default=6379)
     parser.add_argument('--redis_namespace', type=str, default='jussi')
-    parser.add_argument('--statsd_host', type=str)
+    parser.add_argument('--statsd_host', type=str, default='localhost')
     parser.add_argument('--statsd_port', type=int, default=8125)
     parser.add_argument('--statsd_prefix', type=str, default='jussi')
     args = parser.parse_args()
     app.config.args = args
 
-
     # run app
     logger.info('app.run')
     app.run(
-            host=args.server_host,
-            port=args.server_port,
-            workers=args.server_workers,
-            log_config=LOGGING)
+        host=args.server_host,
+        port=args.server_port,
+        workers=args.server_workers,
+        log_config=LOGGING)
+
 
 if __name__ == '__main__':
     main()

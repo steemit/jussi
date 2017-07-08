@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import logging
 
+import ujson
 
 logger = logging.getLogger('sanic')
 
@@ -40,3 +41,34 @@ async def cache_set(app, value, jussi_attrs):
     cache = app.config.cache
     logger.debug('%s.set(%s, %s, ttl=%s)', cache, jussi_attrs.key, value, ttl)
     asyncio.ensure_future(cache.set(jussi_attrs.key, value, ttl=ttl))
+
+
+async def cache_json_response(app, value, jussi_attrs):
+    """Don't cache error responses
+
+    Args:
+        app: object
+        value: str || bytes
+        jussi_attrs: namedtuple
+
+    Returns:
+
+    """
+    try:
+        if isinstance(value, bytes):
+            parsed = ujson.loads(value.decode())
+        else:
+            parsed = ujson.loads(value)
+
+    except Exception as e:
+        logger.error(
+            'json parse error %s in response from upstream %s, skipping cache',
+            e, jussi_attrs.upstream_url)
+        return
+    if 'error' in parsed:
+        logger.error(
+            'jsonrpc error %s in response from upstream %s, skipping cache',
+            parsed['error'], jussi_attrs.upstream_url)
+        return
+    else:
+        asyncio.ensure_future(cache_set(app, value, jussi_attrs))
