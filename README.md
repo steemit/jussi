@@ -9,9 +9,9 @@ POST / HTTP/1.1
 Content-Type: application/json
 
 {
-  "method": "sbds.count_operations", 
-  "params": {"operation":"account_creates"}, 
-  "jsonrpc": "2.0", 
+  "method": "sbds.count_operations",
+  "params": {"operation":"account_creates"},
+  "jsonrpc": "2.0",
   "id": 1
 }
 ```
@@ -24,9 +24,9 @@ POST / HTTP/1.1
 Content-Type: application/json
 
 {
-  "method": "get_block", 
-  "params": [1], 
-  "jsonrpc": "2.0", 
+  "method": "get_block",
+  "params": [1],
+  "jsonrpc": "2.0",
   "id": 1
 }
 ```
@@ -37,9 +37,9 @@ POST / HTTP/1.1
 Content-Type: application/json
 
 {
-  "method": "steemd.get_block", 
-  "params": [1], 
-  "jsonrpc": "2.0", 
+  "method": "steemd.get_block",
+  "params": [1],
+  "jsonrpc": "2.0",
   "id": 1
 }
 ```

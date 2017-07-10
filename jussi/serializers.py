@@ -1,7 +1,7 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import zlib
-import ujson
 
+import ujson
 from aiocache.serializers import StringSerializer
 
 

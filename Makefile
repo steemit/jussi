@@ -24,7 +24,7 @@ run:
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
 run-local:
-	pipenv run python3 jussi/serve.py
+	pipenv run python3 jussi/serve.py  --server_workers=1
 
 test:
 	pipenv run py.test tests
@@ -35,3 +35,6 @@ lint:
 fmt:
 	pipenv run yapf --recursive --in-place --style pep8 $(PROJECT_NAME)
 	pipenv run autopep8 --recursive --in-placedo $(PROJECT_NAME)
+
+pre-commit:
+	pipenv run pre-commit run --all-files

@@ -1,9 +1,9 @@
-# coding=utf-8
-import json
-import os
-import logging
-import socket
+# -*- coding: utf-8 -*-
 import concurrent.futures
+import json
+import logging
+import os
+import socket
 import time
 from functools import partial
 from functools import partialmethod
@@ -12,8 +12,6 @@ from urllib.parse import urlparse
 import certifi
 import urllib3
 from urllib3.connection import HTTPConnection
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +23,7 @@ class RPCError(Exception):
 class RPCConnectionError(Exception):
     pass
 
+
 def chunkify(iterable, chunksize=3000):
     i = 0
     chunk = []
@@ -35,8 +34,9 @@ def chunkify(iterable, chunksize=3000):
             yield chunk
             i = 0
             chunk = []
-    if len(chunk) > 0:
+    if chunk:
         yield chunk
+
 
 class SimpleSteemAPIClient(object):
     """Simple Steem JSON-HTTP-RPC API
@@ -64,8 +64,9 @@ class SimpleSteemAPIClient(object):
 
     """
 
-    def __init__(self, url=None, log_level=logging.INFO, **kwargs):
-        url = url or os.environ.get('STEEMD_HTTP_URL', 'https://steemd.steemitdev.com')
+    def __init__(self, url=None, **kwargs):
+        url = url or os.environ.get('STEEMD_HTTP_URL',
+                                    'https://steemd.steemitdev.com')
         self.url = url
         self.hostname = urlparse(url).hostname
         self.return_with_args = kwargs.get('return_with_args', False)
@@ -105,14 +106,12 @@ class SimpleSteemAPIClient(object):
 
         _logger = logging.getLogger('urllib3')
 
-
     @staticmethod
     def json_rpc_body(name, *args, as_json=True):
         body_dict = {"method": name, "params": args, "jsonrpc": "2.0", "id": 0}
         if as_json:
             return json.dumps(body_dict, ensure_ascii=False).encode('utf8')
-        else:
-            return body_dict
+        return body_dict
 
     def exec(self, name, *args, re_raise=None, return_with_args=None):
         body = SimpleSteemAPIClient.json_rpc_body(name, *args)
@@ -162,8 +161,7 @@ class SimpleSteemAPIClient(object):
                 result = response_json.get('result', None)
         if return_with_args:
             return result, args
-        else:
-            return result
+        return result
 
     def exec_multi(self, name, params):
         body_gen = ({
@@ -173,29 +171,30 @@ class SimpleSteemAPIClient(object):
             "id": i
         } for i in params)
         for chunk in chunkify(body_gen):
-            batch_json_body = json.dumps(chunk, ensure_ascii=False).encode('utf8')
+            batch_json_body = json.dumps(
+                chunk, ensure_ascii=False).encode('utf8')
             r = self.request(body=batch_json_body).read()
             print(r)
-            batch_response = json.loads(self.request(body=batch_json_body).read())
-            for i,resp in enumerate(batch_response):
+            batch_response = json.loads(
+                self.request(body=batch_json_body).read())
+            for i, resp in enumerate(batch_response):
                 yield self._return(
-                        response=resp,
-                        args=batch_json_body[i]['params'],
-                        return_with_args=True)
-
+                    response=resp,
+                    args=batch_json_body[i]['params'],
+                    return_with_args=True)
 
     def exec_batch(self, name, params):
         batch_requests = [{
-            "method":  name,
-            "params":   [str(i)],
+            "method": name,
+            "params": [str(i)],
             "jsonrpc": "2.0",
-            "id":      i
+            "id": i
         } for i in params]
         for chunk in chunkify(batch_requests):
             batch_json_body = json.dumps(chunk).encode()
             r = self.request(body=batch_json_body)
             batch_response = json.loads(r.data.decode())
-            for i,resp in enumerate(batch_response):
+            for resp in batch_response:
                 yield json.dumps(resp)
 
     def exec_batch_with_futures(self, name, params, max_workers=None):
@@ -208,9 +207,6 @@ class SimpleSteemAPIClient(object):
             for future in concurrent.futures.as_completed(futures):
                 for item in future.result():
                     yield item
-
-
-
 
     get_dynamic_global_properties = partialmethod(
         exec, 'get_dynamic_global_properties')

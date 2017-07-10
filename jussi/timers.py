@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import time
 from collections import defaultdict
 
@@ -6,13 +6,13 @@ from collections import defaultdict
 class Timer(object):
     __slots__ = ('_start_time', '_end_time')
 
-    def __init__(self, start=None, end=None):
-        self._start_time = start or time.time()
+    def __init__(self, start_time=None, end=None):
+        self._start_time = start_time or time.time()
         self._end_time = end
 
-    def start(self, start=None):
-        if start:
-            self._start_time = start
+    def start(self, start_time=None):
+        if start_time:
+            self._start_time = start_time
 
     def restart(self):
         self._start_time = time.time()
@@ -34,7 +34,7 @@ class Timer(object):
         return str(self.elapsed)
 
     def __repr__(self):
-        return self.elapsed
+        return 'Timer(start_time=%s end_time=%s elapsed=%s)' % (self._start_time, self._end_time, self.elapsed)
 
     def __enter__(self, start=None):
         if start:
@@ -46,11 +46,11 @@ class Timer(object):
 
 
 def init_timers(start_time=None):
-    return defaultdict(lambda: Timer(start=start_time))
+    return defaultdict(lambda: Timer(start_time=start_time))
 
 
 def end_timers(timers, end=None):
-    for name, timer in timers.items():
+    for timer in timers.values():
         if end:
             timer.end(end)
     return timers
@@ -63,6 +63,6 @@ def display_timers(timers, end=None):
         print('%s %s' % (name, timer))
 
 
-def log_timers(timers, log_func, end=None):
+def log_timers(timers, log_func):
     for name, timer in timers.items():
         log_func('%s %s' % (name, timer))

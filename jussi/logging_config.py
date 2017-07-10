@@ -1,5 +1,6 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import sys
+
 from sanic.defaultFilter import DefaultFilter
 
 LOGGING = {

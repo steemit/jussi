@@ -1,35 +1,31 @@
-#! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 import argparse
 import asyncio
-import functools
+import datetime
 import logging
 import os
-import ujson
-import datetime
 
-import aiocache
-import aiocache.plugins
 import aiohttp
-import pygtrie
 import funcy
+import pygtrie
+import ujson
 import websockets
-from statsd import StatsClient
 from sanic import Sanic
 from sanic import response
 from sanic.exceptions import SanicException
+from statsd import StatsClient
 
 from jussi.cache import cache_get
 from jussi.cache import cache_json_response
-from jussi.serializers import CompressionSerializer
+from jussi.cache import setup_caches
 from jussi.logging_config import LOGGING
 from jussi.middlewares import add_jussi_attrs
 from jussi.middlewares import caching_middleware
-from jussi.middlewares import start_stats
 from jussi.middlewares import finalize_timers
 from jussi.middlewares import log_stats
-from jussi.utils import websocket_conn
+from jussi.middlewares import start_stats
 from jussi.utils import return_bytes
+from jussi.utils import websocket_conn
 
 # init logging
 LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
@@ -51,6 +47,8 @@ METHOD_CACHE_SETTINGS = (('get_block', 'steemd_websocket_url',
                           NO_CACHE_EXPIRE_TTL),
                          ('get_global_dynamic_properties',
                           'steemd_websocket_url', 1))
+
+# pylint: disable=unused-argument
 
 
 @funcy.log_calls(logger.debug)
@@ -88,7 +86,7 @@ async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
 
     # return cached response if possible
     with sanic_http_request['timers'][prefix('dispatch_single_caching_check')]:
-        response = await cache_get(app, jussi_attrs)
+        response = await cache_get(sanic_http_request, jussi_attrs)
     if response:
         return response
 
@@ -101,7 +99,7 @@ async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
                                               jsonrpc_request)
 
     asyncio.ensure_future(
-        cache_json_response(app, bytes_response, jussi_attrs=jussi_attrs))
+        cache_json_response(sanic_http_request, bytes_response, jussi_attrs=jussi_attrs))
     return bytes_response
 
 
@@ -122,7 +120,7 @@ async def dispatch_batch(sanic_http_request, jsonrpc_requests):
 
 
 @app.post('/')
-async def handle(sanic_http_request):
+async def handle_jsonrpc(sanic_http_request):
     app = sanic_http_request.app
 
     # retreive parsed jsonrpc_requests after request middleware processing
@@ -147,7 +145,7 @@ async def handle(sanic_http_request):
 
 # health check routes
 @app.get('/')
-async def handle(sanic_http_request):
+async def handle_root_health(sanic_http_request):
     return response.json({
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat()
@@ -155,7 +153,7 @@ async def handle(sanic_http_request):
 
 
 @app.get('/health')
-async def handle(sanic_http_request):
+async def handle_health(sanic_http_request):
     return response.json({
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat()
@@ -164,7 +162,7 @@ async def handle(sanic_http_request):
 
 @app.exception(SanicException)
 def handle_errors(request, exception):
-    """all errors return HTTP 502
+    """handles all errors
 
     Args:
         request:
@@ -173,14 +171,14 @@ def handle_errors(request, exception):
     Returns:
 
     """
+    logger.exception('%s caused %s', request, exception)
     status_code = getattr(exception, 'status_code', 502)
     message = str(exception) or 'Gateway Error'
-    logger.error('%s-%s', request, exception)
-    return response.json(
+    return response.json(status=status_code, body=
         {
-            'error': message,
+            'error': 'Gateway Error',
             'status_code': status_code
-        }, status=status_code)
+        })
 
 
 # register listeners
@@ -210,53 +208,27 @@ def setup_middlewares(app, loop):
     app.request_middleware.append(add_jussi_attrs)
     app.request_middleware.append(caching_middleware)
 
-    app.response_middleware.append(finalize_timers)
-    app.response_middleware.append(log_stats)
+    #app.response_middleware.append(finalize_timers)
+    #app.response_middleware.append(log_stats)
 
 
 @app.listener('before_server_start')
 async def setup_cache(app, loop):
     logger.info('before_server_start -> setup_cache')
     args = app.config.args
-    # only use redis if we can really talk to it
-    logger.info('before_server_start -> setup_cache redis_host:%s',
-                args.redis_host)
-    logger.info('before_server_start -> setup_cache redis_port:%s',
-                args.redis_port)
-    try:
-        if not args.redis_host:
-            raise ValueError('no redis host specified')
-        default_cache = aiocache.RedisCache(
-            serializer=CompressionSerializer(),
-            endpoint=args.redis_host,
-            port=args.redis_port,
-            plugins=[
-                aiocache.plugins.HitMissRatioPlugin(),
-                aiocache.plugins.TimingPlugin()
-            ])
-        await default_cache.set('test', b'testval')
-        val = await default_cache.get('test')
-        logger.debug('before_server_start -> setup_cache val=%s', val)
-        assert val == b'testval'
-    except Exception as e:
-        logger.exception(e)
-        logger.error(
-            'Unable to use redis (was a setting not defined?), using in-memory cache instead...'
-        )
-        default_cache = aiocache.SimpleMemoryCache(
-            serializer=CompressionSerializer(),
-            plugins=[
-                aiocache.plugins.HitMissRatioPlugin(),
-                aiocache.plugins.TimingPlugin()
-            ])
-    logger.info('before_server_start -> setup_cache cache=%s', default_cache)
+    caches = await setup_caches(app, loop)
+    for cache_alias in caches.get_config().keys():
+        logger.info('before_server_start -> setup_cache caches=%s', cache_alias)
+    active_caches = [caches.get(alias) for alias in caches.get_config().keys()]
+
     cache_config = dict()
     cache_config['default_cache_ttl'] = DEFAULT_CACHE_TTL
     cache_config['no_cache_ttl'] = NO_CACHE_TTL
     cache_config['no_cache_expire_ttl'] = NO_CACHE_EXPIRE_TTL
 
+
     app.config.cache_config = cache_config
-    app.config.cache = default_cache
+    app.config.caches = active_caches
 
 
 @app.listener('before_server_start')

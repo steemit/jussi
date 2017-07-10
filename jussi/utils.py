@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import functools
-import time
 import logging
-import websockets
-
+import time
 from collections import OrderedDict
 from collections import namedtuple
+
+import websockets
 from sanic.exceptions import InvalidUsage
 
 from jussi.cache import jsonrpc_cache_key
@@ -87,9 +87,8 @@ def async_exclude_methods(middleware_func=None, exclude_http_methods=None):
     @functools.wraps(middleware_func)
     async def f(request):
         if request.method in exclude_http_methods:
-            return request
-        else:
-            return await middleware_func(request)
+            return
+        return await middleware_func(request)
 
     return f
 

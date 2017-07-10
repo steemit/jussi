@@ -5,7 +5,7 @@
 
 # Python code to execute, usually for sys.path manipulation such as
 # pygtk.require().
-#init-hook=
+init-hook='import sys; pth="{}/lib/python3.6".format(os.environ.get("VIRTUAL_ENV")); sys.path.append(pth)'
 
 # Add files or directories to the blacklist. They should be base names, not
 # paths.

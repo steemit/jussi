@@ -1,25 +1,19 @@
 FROM phusion/baseimage:0.9.19
 
-
 ENV LOG_LEVEL INFO
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
+ENV PIPENV_VENV_IN_PROJECT 1
 ENV APP_ROOT /app
 ENV APP_CMD ${APP_ROOT}/jussi/serve.py
-ENV PIPENV_VENV_IN_PROJECT 1
-
 # all nginx env vars must also be changed in service/nginx/nginx.conf
 ENV NGINX_SERVER_PORT 8080
-
-
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
 ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
 ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
 ENV JUSSI_REDIS_PORT 6379
 ENV ENVIRONMENT PROD
-
-
 
 RUN \
     apt-get update && \
@@ -40,18 +34,15 @@ RUN \
         nginx \
         wget
 
-RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstrap_1.2.1_all.deb
-RUN dpkg -r scalyr-repo scalyr-repo-bootstrap  # Remove any previous repository definitions, if any.
-RUN dpkg -i ./scalyr-repo-bootstrap_1.2.1_all.deb
-
-#RUN rm scalyr-repo-bootstrap_1.2.1_all.deb
-
-RUN \
+# add scalyr agent
+RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstrap_1.2.1_all.deb && \
+    dpkg -r scalyr-repo scalyr-repo-bootstrap  && \ # Remove any previous repository definitions, if any.
+    dpkg -i ./scalyr-repo-bootstrap_1.2.1_all.deb && \
     apt-get update && \
     apt-get install -y \
         scalyr-repo \
-        scalyr-agent-2
-
+        scalyr-agent-2 && \
+    rm scalyr-repo-bootstrap_1.2.1_all.deb
 
 RUN \
   mkdir -p /var/lib/nginx/body && \
@@ -78,8 +69,8 @@ WORKDIR /app
 RUN \
     pip3 install --upgrade pip && \
     pip3 install pipenv && \
-	pipenv install --three && \
-	pipenv run python3 setup.py install && \
+    pipenv install --three && \
+    pipenv run python3 setup.py install && \
     apt-get remove -y \
         build-essential \
         libffi-dev \
@@ -97,4 +88,3 @@ RUN \
 
 
 EXPOSE ${NGINX_SERVER_PORT}
-

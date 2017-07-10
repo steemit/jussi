@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
 __all__ = [
     "__title__",
     "__version__",
-    "__summary",
+    "__summary__",
     "__uri__",
     "__author__",
     "__email__",

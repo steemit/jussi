@@ -1,17 +1,16 @@
-# coding=utf-8
-import time
+# -*- coding: utf-8 -*-
 import logging
+import time
 
 from sanic import response
 from sanic.exceptions import InvalidUsage
 
 from .cache import cache_get
-from .utils import async_exclude_methods
-from .utils import jussi_attrs
-from .utils import replace_jsonrpc_id
-from .utils import sort_request
 from .timers import init_timers
 from .timers import log_timers
+from .utils import async_exclude_methods
+from .utils import jussi_attrs
+from .utils import sort_request
 
 logger = logging.getLogger('sanic')
 
@@ -19,7 +18,6 @@ logger = logging.getLogger('sanic')
 async def start_stats(request):
     request['timers'] = init_timers(start_time=time.time())
     request['statsd'] = request.app.config.statsd_client.pipeline()
-
 
 @async_exclude_methods(exclude_http_methods=('GET', ))
 async def add_jussi_attrs(request):
@@ -38,7 +36,7 @@ async def caching_middleware(request):
         return
     jussi_attrs = request['jussi']
     with request['timers']['caching_middleware']:
-        cached_response = await cache_get(request.app, jussi_attrs)
+        cached_response = await cache_get(request, jussi_attrs)
 
     if cached_response:
         return response.raw(
@@ -47,28 +45,27 @@ async def caching_middleware(request):
             headers={'x-jussi-cache-hit': jussi_attrs.key})
 
 
+# pylint: disable=unused-argument
 async def finalize_timers(request, response):
-    end = time.time()
-    if not request.get('timers'):
+    if request.get('timers'):
+        end = time.time()
         logger.info('skipped finalizing timers, no timers to finalize')
         return
-    request['timers']['total_jussi_elapsed']
-    for name, timer in request['timers'].items():
-        timer.end(end)
-    log_timers(request.get('timers'), logger.debug)
+        request['timers']['total_jussi_elapsed'].end()
+        for timer in request['timers'].values():
+            timer.end(end)
+        log_timers(request.get('timers'), logger.debug)
 
 
 async def log_stats(request, response):
-    if not request.get('timers'):
+    if request.get('timers'):
         logger.info('skipped logging timers, no timers to log')
-        return
-    log_timers(request.get('timers'), logger.info)
-
-    try:
-        pipe = request['statsd']
-        logger.info(pipe._stats)
-        for name, timer in request['timers'].items():
-            pipe.timing(name, timer.elapsed)
-        pipe.send()
-    except Exception as e:
-        logger.warning('Failed to send stats to statsd: %s', e)
+        log_timers(request.get('timers'), logger.info)
+        try:
+            pipe = request['statsd']
+            logger.debug(pipe._stats)  # pylint: disable=protected-access
+            for name, timer in request['timers'].items():
+                pipe.timing(name, timer.elapsed)
+            pipe.send()
+        except Exception as e:
+            logger.warning('Failed to send stats to statsd: %s', e)

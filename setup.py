@@ -1,6 +1,9 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import os
+
 from setuptools import setup
+
 try:
     from pipenv.project import Project
     from pipenv.utils import convert_deps_to_pip
@@ -16,6 +19,7 @@ base_dir = os.path.dirname(__file__)
 
 about = {}
 
+# pylint: disable=exec-used
 with open(os.path.join(base_dir, "jussi", "__about__.py")) as f:
     exec(f.read(), about)
 
