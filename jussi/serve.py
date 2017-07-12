@@ -12,18 +12,16 @@ import ujson
 import websockets
 from sanic import Sanic
 from sanic import response
-from sanic.exceptions import SanicException
 from statsd import StatsClient
 
 from jussi.cache import cache_get
 from jussi.cache import cache_json_response
 from jussi.cache import setup_caches
+from jussi.errors import log_request_error
 from jussi.logging_config import LOGGING
 from jussi.middlewares import add_jussi_attrs
 from jussi.middlewares import caching_middleware
-from jussi.middlewares import finalize_timers
-from jussi.middlewares import log_stats
-from jussi.middlewares import start_stats
+from jussi.middlewares import validate_jsonrpc_request
 from jussi.utils import return_bytes
 from jussi.utils import websocket_conn
 
@@ -99,7 +97,8 @@ async def dispatch_single(sanic_http_request, jsonrpc_request, jrpc_req_index):
                                               jsonrpc_request)
 
     asyncio.ensure_future(
-        cache_json_response(sanic_http_request, bytes_response, jussi_attrs=jussi_attrs))
+        cache_json_response(
+            sanic_http_request, bytes_response, jussi_attrs=jussi_attrs))
     return bytes_response
 
 
@@ -160,7 +159,7 @@ async def handle_health(sanic_http_request):
     })
 
 
-@app.exception(SanicException)
+@app.exception(Exception)
 def handle_errors(request, exception):
     """handles all errors
 
@@ -171,14 +170,7 @@ def handle_errors(request, exception):
     Returns:
 
     """
-    logger.exception('%s caused %s', request, exception)
-    status_code = getattr(exception, 'status_code', 502)
-    message = str(exception) or 'Gateway Error'
-    return response.json(status=status_code, body=
-        {
-            'error': 'Gateway Error',
-            'status_code': status_code
-        })
+    log_request_error(request, exception)
 
 
 # register listeners
@@ -204,12 +196,13 @@ def setup_statsd(app, loop):
 @app.listener('before_server_start')
 def setup_middlewares(app, loop):
     logger.info('before_server_start -> setup_middlewares')
-    app.request_middleware.append(start_stats)
+    app.request_middleware.append(validate_jsonrpc_request)
+    # app.request_middleware.append(start_stats)
     app.request_middleware.append(add_jussi_attrs)
     app.request_middleware.append(caching_middleware)
 
-    #app.response_middleware.append(finalize_timers)
-    #app.response_middleware.append(log_stats)
+    # app.response_middleware.append(finalize_timers)
+    # app.response_middleware.append(log_stats)
 
 
 @app.listener('before_server_start')
@@ -218,14 +211,14 @@ async def setup_cache(app, loop):
     args = app.config.args
     caches = await setup_caches(app, loop)
     for cache_alias in caches.get_config().keys():
-        logger.info('before_server_start -> setup_cache caches=%s', cache_alias)
+        logger.info('before_server_start -> setup_cache caches=%s',
+                    cache_alias)
     active_caches = [caches.get(alias) for alias in caches.get_config().keys()]
 
     cache_config = dict()
     cache_config['default_cache_ttl'] = DEFAULT_CACHE_TTL
     cache_config['no_cache_ttl'] = NO_CACHE_TTL
     cache_config['no_cache_expire_ttl'] = NO_CACHE_EXPIRE_TTL
-
 
     app.config.cache_config = cache_config
     app.config.caches = active_caches

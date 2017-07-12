@@ -34,7 +34,7 @@ lint:
 
 fmt:
 	pipenv run yapf --recursive --in-place --style pep8 $(PROJECT_NAME)
-	pipenv run autopep8 --recursive --in-placedo $(PROJECT_NAME)
+	pipenv run autopep8 --recursive --in-place $(PROJECT_NAME)
 
 pre-commit:
 	pipenv run pre-commit run --all-files

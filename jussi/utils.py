@@ -59,17 +59,6 @@ def websocket_conn(func):
     return wrapper
 
 
-def async_ignore_exceptions(func):
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        try:
-            return await func(*args, **kwargs)
-        except Exception as e:
-            logger.info('Ignored exception: %s', e)
-
-    return wrapper
-
-
 def async_exclude_methods(middleware_func=None, exclude_http_methods=None):
     """Exclude specified HTTP methods from middleware
 
@@ -149,6 +138,16 @@ def sort_request(single_jsonrpc_request):
         single_jsonrpc_request['params'] = OrderedDict(
             sorted(single_jsonrpc_request['params']))
     return OrderedDict(sorted(single_jsonrpc_request.items()))
+
+
+@apply_single_or_batch
+def is_valid_jsonrpc_request(single_jsonrpc_request):
+    assert single_jsonrpc_request.get('jsonrpc') == '2.0'
+    assert 'method' in single_jsonrpc_request
+    if 'id' in single_jsonrpc_request:
+        assert isinstance(single_jsonrpc_request['id'], (int, str, type(None)))
+    if 'params' in single_jsonrpc_request:
+        assert isinstance(single_jsonrpc_request, (list, dict))
 
 
 def strip_namespace(request, namespace):

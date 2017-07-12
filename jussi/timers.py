@@ -6,9 +6,9 @@ from collections import defaultdict
 class Timer(object):
     __slots__ = ('_start_time', '_end_time')
 
-    def __init__(self, start_time=None, end=None):
+    def __init__(self, start_time=None, end_time=None):
         self._start_time = start_time or time.time()
-        self._end_time = end
+        self._end_time = end_time
 
     def start(self, start_time=None):
         if start_time:
@@ -17,8 +17,8 @@ class Timer(object):
     def restart(self):
         self._start_time = time.time()
 
-    def end(self, end=None):
-        self._end_time = self._end_time or end or time.time()
+    def end(self, end_time=None):
+        self._end_time = self._end_time or end_time or time.time()
 
     @property
     def elapsed(self):
@@ -34,11 +34,12 @@ class Timer(object):
         return str(self.elapsed)
 
     def __repr__(self):
-        return 'Timer(start_time=%s end_time=%s elapsed=%s)' % (self._start_time, self._end_time, self.elapsed)
+        return 'Timer(start_time=%s end_time=%s elapsed=%s)' % (
+            self._start_time, self._end_time, self.elapsed)
 
-    def __enter__(self, start=None):
-        if start:
-            self.start(start=start)
+    def __enter__(self, start_time=None):
+        if start_time:
+            self.start(start_time=start_time)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -49,17 +50,17 @@ def init_timers(start_time=None):
     return defaultdict(lambda: Timer(start_time=start_time))
 
 
-def end_timers(timers, end=None):
+def end_timers(timers, end_time=None):
     for timer in timers.values():
-        if end:
-            timer.end(end)
+        if end_time:
+            timer.end(end_time)
     return timers
 
 
-def display_timers(timers, end=None):
+def display_timers(timers, end_time=None):
     for name, timer in timers.items():
-        if end:
-            timer.end(end)
+        if end_time:
+            timer.end(end_time)
         print('%s %s' % (name, timer))
 
 

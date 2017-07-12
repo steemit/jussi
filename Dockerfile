@@ -36,7 +36,7 @@ RUN \
 
 # add scalyr agent
 RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstrap_1.2.1_all.deb && \
-    dpkg -r scalyr-repo scalyr-repo-bootstrap  && \ # Remove any previous repository definitions, if any.
+    dpkg -r scalyr-repo scalyr-repo-bootstrap  && \
     dpkg -i ./scalyr-repo-bootstrap_1.2.1_all.deb && \
     apt-get update && \
     apt-get install -y \
@@ -84,7 +84,6 @@ RUN \
         /var/cache/* \
         /usr/include \
         /usr/local/include \
-
 
 
 EXPOSE ${NGINX_SERVER_PORT}
