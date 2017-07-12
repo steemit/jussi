@@ -144,7 +144,15 @@ async def handle_jsonrpc(sanic_http_request):
 
 # health check routes
 @app.get('/')
-async def handle_root_health(sanic_http_request):
+async def handle_health1(sanic_http_request):
+    return response.json({
+        'status': 'OK',
+        'datetime': datetime.datetime.utcnow().isoformat()
+    })
+
+
+@app.get('/.well-known/healthcheck.json')
+async def handle_health2(sanic_http_request):
     return response.json({
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat()
@@ -152,7 +160,7 @@ async def handle_root_health(sanic_http_request):
 
 
 @app.get('/health')
-async def handle_health(sanic_http_request):
+async def handle_health3(sanic_http_request):
     return response.json({
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat()
