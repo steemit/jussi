@@ -30,7 +30,7 @@ async def start_stats(request):
 @async_exclude_methods(exclude_http_methods=('GET', ))
 async def validate_jsonrpc_request(request):
     try:
-        assert is_valid_jsonrpc_request(request.json)
+        is_valid_jsonrpc_request(request.json)
     except AssertionError as e:
         # invalid jsonrpc
         return response.json(

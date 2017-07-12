@@ -21,6 +21,9 @@ from jussi.errors import log_request_error
 from jussi.logging_config import LOGGING
 from jussi.middlewares import add_jussi_attrs
 from jussi.middlewares import caching_middleware
+from jussi.middlewares import finalize_timers
+from jussi.middlewares import log_stats
+from jussi.middlewares import start_stats
 from jussi.middlewares import validate_jsonrpc_request
 from jussi.utils import return_bytes
 from jussi.utils import websocket_conn
@@ -205,12 +208,12 @@ def setup_statsd(app, loop):
 def setup_middlewares(app, loop):
     logger.info('before_server_start -> setup_middlewares')
     app.request_middleware.append(validate_jsonrpc_request)
-    # app.request_middleware.append(start_stats)
+    app.request_middleware.append(start_stats)
     app.request_middleware.append(add_jussi_attrs)
     app.request_middleware.append(caching_middleware)
 
-    # app.response_middleware.append(finalize_timers)
-    # app.response_middleware.append(log_stats)
+    app.response_middleware.append(finalize_timers)
+    app.response_middleware.append(log_stats)
 
 
 @app.listener('before_server_start')
