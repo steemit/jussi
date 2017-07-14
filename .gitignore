@@ -97,6 +97,9 @@ Session.vim
 # Pycharm
 .idea
 
+# mypy
+.mypy_cache
+
 # sqlite db for testing
 *.db
 /tests/fast-test.sh
