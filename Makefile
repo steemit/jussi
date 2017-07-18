@@ -16,6 +16,7 @@ init:
 	pip3 install pipenv
 	pipenv install --three --dev
 	pipenv run python3 setup.py develop
+	pipenv pre-commit install
 
 build:
 	docker build -t $(PROJECT_DOCKER_TAG) .
@@ -30,11 +31,24 @@ test:
 	pipenv run py.test tests
 
 lint:
-	pipenv run py.test --pylint -m pylint $(PROJECT_NAME)
+	pipenv pre-commit run pylint --all-files
 
 fmt:
-	pipenv run yapf --recursive --in-place --style pep8 $(PROJECT_NAME)
-	pipenv run autopep8 --recursive --in-place $(PROJECT_NAME)
+	pipenv pre-commit run yapf --all-files
+	pipenv pre-commit run autopep8 --all-files
+
 
 pre-commit:
 	pipenv run pre-commit run --all-files
+
+quick-test:
+	curl http://localhost:8080/
+	curl http://localhost:8080/health
+	curl http://localhost:8080/.well-known/healthcheck.json
+	curl -d '{"id": 1, "jsonrpc":"2.0", "method": "get_block", "params": [1000]}' http://localhost:8080/
+
+quick-test-local:
+	curl http://localhost:9000/
+	curl http://localhost:9000/health
+	curl http://localhost:9000/.well-known/healthcheck.json
+	curl -d '{"id": 1, "jsonrpc":"2.0", "method": "get_block", "params": [1000]}' http://localhost:9000/

@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import aiohttp
-import pygtrie
 import ujson
 import websockets
 
+import aiojobs
 import jussi.cache
+import jussi.jobs
+import jussi.jsonrpc_method_cache_settings
+import jussi.jsonrpc_method_upstream_url_settings
 from jussi.typedefs import WebApp
 
 
@@ -24,33 +27,24 @@ def setup_listeners(app: WebApp) -> WebApp:
             caches.get(alias) for alias in caches.get_config().keys()
         ]
 
-        cache_config = dict()
-        cache_config['default_ttl'] = jussi.cache.DEFAULT_TTL
-        cache_config['no_cache_ttl'] = jussi.cache.NO_CACHE_TTL
-        cache_config['no_expire_ttl'] = jussi.cache.NO_EXPIRE_TTL
-
-        app.config.cache_config = cache_config
         app.config.caches = active_caches
 
     @app.listener('before_server_start')
-    def setup_upstreams(app: WebApp, loop) -> None:
-        logger.info('before_server_start -> config_upstreams')
+    def setup_jsonrpc_method_cache_settings(app: WebApp, loop) -> None:
+        logger.info(
+            'before_server_start -> setup_jsonrpc_method_cache_settings')
+        app.config.method_ttls = jussi.jsonrpc_method_cache_settings.TTLS
+
+    @app.listener('before_server_start')
+    def setup_jsonrpc_method_url_settings(app: WebApp, loop) -> None:
+        logger.info('before_server_start -> setup_jsonrpc_method_url_settings')
         args = app.config.args
+        mapping = {}
+        mapping['steemd_default'] = args.steemd_websocket_url
+        mapping['sbds_default'] = args.sbds_url
 
-        upstreams = pygtrie.StringTrie(separator='.')
-
-        # steemd methods aren't namespaced so this is the steemd default entry
-        upstreams[''] = dict(
-            url=args.steemd_websocket_url, ttl=jussi.cache.DEFAULT_TTL)
-
-        upstreams['sbds'] = dict(url=args.sbds_url, ttl=30)
-
-        for m in jussi.cache.METHOD_CACHE_SETTINGS:
-            name, url_name, ttl = m
-            url = getattr(args, url_name)
-            upstreams[name] = dict(url=url, ttl=ttl)
-
-        app.config.upstreams = upstreams
+        app.config.upstream_urls = jussi.jsonrpc_method_upstream_url_settings.deref_urls(
+            url_mapping=mapping)
 
     @app.listener('before_server_start')
     def setup_aiohttp_session(app: WebApp, loop) -> None:
@@ -75,6 +69,15 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.websocket_client = await websockets.connect(
             **app.config.websocket_kwargs)
 
+    # after server start
+    @app.listener('after_server_start')
+    async def setup_job_scheduler(app: WebApp, loop) -> None:
+        logger.info('before_server_start -> setup_job_scheduler')
+        app.config.last_irreversible_block_num = 0
+        app.config.scheduler = await aiojobs.create_scheduler()
+        await app.config.scheduler.spawn(
+            jussi.jobs.get_last_irreversible_block(app=app))
+
     # before server stop
     @app.listener('before_server_stop')
     def close_aiohttp_session(app: WebApp, loop) -> None:
@@ -87,5 +90,10 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('before_server_stop -> close_aiohttp_session')
         session = app.config.aiohttp['session']
         session.close()
+
+    @app.listener('before_server_stop')
+    async def stop_job_scheduler(app: WebApp, loop) -> None:
+        logger.info('before_server_stop -> stop_job_scheduler')
+        await app.config.scheduler.close()
 
     return app

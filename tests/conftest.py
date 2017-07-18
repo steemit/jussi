@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import os
+import time
 
+import sanic
+import sanic.response
 import ujson
 from aiocache import SimpleMemoryCache
-from sanic import Sanic
 
 import jsonschema
 import jussi.errors
@@ -183,6 +185,11 @@ VALID_JRPC_REQUESTS = [{
     'jsonrpc': '2.0',
     'method': 'get_best_categories',
     'params': ['steemit', 10]
+}, {
+    'id': 1,
+    'jsonrpc': '2.0',
+    'method': 'get_block',
+    'params': [1000]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
@@ -977,17 +984,49 @@ STEEMD_JSON_RPC_CALLS = [{
 }]
 
 
+# pylint:  disable=unused-variable,unused-argument,attribute-defined-outside-init
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+@pytest.fixture
+def dummy_app_config():
+    app = AttrDict()
+    app.config = AttrDict()
+    return app
+
+
+@pytest.fixture
+def dummy_request(dummy_app_config):
+    request = AttrDict()
+    request.app = dummy_app_config
+    return request
+
+
 @pytest.yield_fixture
 def app():
-    args = jussi.serve.parse_args()
+    args = jussi.serve.parse_args(args=[])
     # run app
-    app = Sanic('testApp')
+    app = sanic.Sanic('testApp')
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
     app = jussi.serve.setup_routes(app)
     app = jussi.middlewares.setup_middlewares(app)
     app = jussi.errors.setup_error_handlers(app)
     app = jussi.listeners.setup_listeners(app)
+    yield app
+
+
+# pylint:;  disable=unused-argument
+@pytest.yield_fixture
+def app_with_wait(loop, app):
+    @app.route('/wait/<seconds:number>')
+    async def wait_route(request, seconds):
+        time.sleep(seconds)
+        return sanic.response.text('OK')
+
     yield app
 
 
@@ -1030,5 +1069,4 @@ def all_steemd_jrpc_calls(request):
 
 @pytest.fixture(scope='function')
 def memory_cache():
-
     return SimpleMemoryCache()

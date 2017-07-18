@@ -3,11 +3,10 @@
 import pytest
 from jussi.utils import ignore_errors_async
 
+
 # pylint: disable=unused-argument
+async def test_correct_result_async():
 
-
-@pytest.mark.asyncio
-async def test_correct_result_async(event_loop):
     @ignore_errors_async
     async def func1(a, b=2, c=None):
         return (a, b, c)
@@ -18,8 +17,7 @@ async def test_correct_result_async(event_loop):
     assert c == 3
 
 
-@pytest.mark.asyncio
-async def test_errors_ignored_async(event_loop):
+async def test_errors_ignored_async():
     with pytest.raises(Exception):
 
         async def func2(a, b=2, c=None):

@@ -2,6 +2,7 @@
 import zlib
 from typing import AnyStr
 from typing import Optional
+from typing import Union
 
 import ujson
 from aiocache.serializers import StringSerializer
@@ -14,13 +15,14 @@ class CompressionSerializer(StringSerializer):
     # store/retrieve values
     encoding = None
 
-    def dumps(self, value: AnyStr) -> bytes:
+    def dumps(self, value: Union[AnyStr, dict]) -> bytes:
         if isinstance(value, bytes):
             return zlib.compress(value)
         elif isinstance(value, str):
             return zlib.compress(value.encode())
+        # dict
         return zlib.compress(ujson.dumps(value).encode())
 
-    def loads(self, value: bytes) -> Optional[bytes]:
+    def loads(self, value: bytes) -> Optional[dict]:
         if value:
-            return zlib.decompress(value)
+            return ujson.loads(zlib.decompress(value).decode())

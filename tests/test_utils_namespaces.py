@@ -14,3 +14,49 @@ import pytest
 def test_parse_namespaced_method(namspaced_method, expected):
     result = jussi.utils.parse_namespaced_method(namspaced_method)
     assert result == expected
+
+
+@pytest.mark.parametrize("jsonrpc_request,expected", [({
+    'id':
+    1,
+    'jsonrpc':
+    '2.0',
+    'method':
+    'get_account_count',
+    'params': []
+}, 'steemd.database_api.get_account_count'), ({
+    'id': 1,
+    'jsonrpc': '2.0',
+    'method': 'get_account_count'
+}, 'steemd.database_api.get_account_count'), ({
+    'id':
+    1,
+    'jsonrpc':
+    '2.0',
+    'method':
+    'call',
+    'params': ['database_api', 'get_account_count', []]
+}, 'steemd.database_api.get_account_count'), ({
+    'id':
+    1,
+    'jsonrpc':
+    '2.0',
+    'method':
+    'yo.test',
+    'params': ['database_api', 'get_account_count', []]
+}, "yo.test?params=['database_api','get_account_count',[]]"), ({
+    'id':
+    1,
+    'jsonrpc':
+    '2.0',
+    'method':
+    'yo.test',
+    'params': {
+        'z': 'val1',
+        'a': [],
+        'f': 1
+    }
+}, "yo.test?params={'a':[],'f':1,'z':'val1'}")])
+def test_urns(jsonrpc_request, expected):
+    result = jussi.utils.method_urn(jsonrpc_request)
+    assert result == expected
