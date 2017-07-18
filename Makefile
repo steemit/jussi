@@ -34,21 +34,12 @@ lint:
 	pipenv pre-commit run pylint --all-files
 
 fmt:
-	pipenv pre-commit run yapf --all-files
-	pipenv pre-commit run autopep8 --all-files
-
+	pipenv run yapf --in-place --style pep8 --parallel --recursive $(PROJECT_NAME)
+	pipenv run autopep8 --aggressive --in-place  --jobs 0 --recursive $(PROJECT_NAME)
+	pipenv run autoflake --remove-all-unused-imports --recursive $(PROJECT_NAME)
 
 pre-commit:
+	pipenv run pre-commit run
+
+pre-commit-all:
 	pipenv run pre-commit run --all-files
-
-quick-test:
-	curl http://localhost:8080/
-	curl http://localhost:8080/health
-	curl http://localhost:8080/.well-known/healthcheck.json
-	curl -d '{"id": 1, "jsonrpc":"2.0", "method": "get_block", "params": [1000]}' http://localhost:8080/
-
-quick-test-local:
-	curl http://localhost:9000/
-	curl http://localhost:9000/health
-	curl http://localhost:9000/.well-known/healthcheck.json
-	curl -d '{"id": 1, "jsonrpc":"2.0", "method": "get_block", "params": [1000]}' http://localhost:9000/

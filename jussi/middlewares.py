@@ -34,7 +34,7 @@ def setup_middlewares(app):
 @handle_middleware_exceptions
 @async_exclude_methods(exclude_http_methods=('GET', ))
 async def validate_jsonrpc_request(
-    request: HTTPRequest) -> Optional[HTTPResponse]:
+        request: HTTPRequest) -> Optional[HTTPResponse]:
     try:
         is_valid_jsonrpc_request(single_jsonrpc_request=request.json)
         request.parsed_json = sort_request(single_jsonrpc_request=request.json)
@@ -62,7 +62,6 @@ async def caching_middleware(request: HTTPRequest) -> None:
     cached_response = await cache_get(request)
 
     if cached_response:
-
         logger.debug('caching_middleware hit for %s', key)
         cached_response = merge_cached_response(cached_response, request.json)
         return response.json(

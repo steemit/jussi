@@ -15,6 +15,7 @@ from jussi.typedefs import WebApp
 def setup_listeners(app: WebApp) -> WebApp:
     logger = app.config.logger
     # pylint: disable=unused-argument, unused-variable
+
     @app.listener('before_server_start')
     def setup_cache(app: WebApp, loop) -> None:
         logger.info('before_server_start -> setup_cache')

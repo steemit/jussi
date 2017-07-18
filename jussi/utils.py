@@ -25,7 +25,7 @@ logger = logging.getLogger('sanic')
 
 # decorators
 @decorator
-def apply_single_or_batch(call: Callable) -> Callable:
+def apply_single_or_batch(call: Callable) -> JsonRpcRequest:
     """Decorate func to apply func to single or batch jsonrpc_requests
     """
     if isinstance(call.single_jsonrpc_request, list):

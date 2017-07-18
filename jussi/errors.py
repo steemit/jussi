@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from copy import deepcopy
+from typing import Optional
 from typing import Union
 
 import ujson
@@ -55,7 +56,7 @@ def log_request_error(request: HTTPRequest, exception: Exception) -> None:
             amzn_trace_id,
             amzn_request_id,
             exc_info=exception)
-    except:
+    except BaseException:
         logger.error('%s --> %s', request, exception)
         logger.exception('Error while logging exception')
 
@@ -71,7 +72,7 @@ async def handle_middleware_exceptions(call):
         if isinstance(e, JsonRpcError):
             return e.to_sanic_response()
         log_request_error(call.request, e)
-        return JsonRpcError(sanic_request=call.request)
+        return JsonRpcError(sanic_request=call.request).to_sanic_response()
 
 
 class JsonRpcError(Exception):
@@ -94,32 +95,33 @@ class JsonRpcError(Exception):
         if exception:
             log_request_error(self.sanic_request, exception)
 
-        self.id = self.jrpc_request_id()
+        self._id = self.jrpc_request_id()
 
-    def jrpc_request_id(self) -> Union[str, int, None]:
+    def jrpc_request_id(self) -> Optional[Union[str, int]]:
         try:
             return self.sanic_request.json['id']
-        except:
+        except BaseException:
             return None
 
     def to_dict(self) -> dict:
         base_error = {
             'jsonrpc': '2.0',
-            'id': self.id,
             'error': {
                 'code': self.code,
                 'message': self.message
             }
         }
+        if self._id:
+            base_error['id'] = self._id
         if self.data:
             try:
                 error = deepcopy(base_error)
                 error['error']['data'] = self.data
-                ujson.dumps(error)
-            except:
-                return base_error
-            else:
                 return error
+            except Exception:
+                logger.exception('Error generating jsonrpc error response')
+                return base_error
+
         return base_error
 
     def to_sanic_response(self) -> HTTPResponse:

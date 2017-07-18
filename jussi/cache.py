@@ -85,12 +85,13 @@ def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
 
 
 @ignore_errors_async
-async def cache_get(sanic_http_request: HTTPRequest) -> Optional[bytes]:
+async def cache_get(sanic_http_request: HTTPRequest) -> Optional[dict]:
     caches = sanic_http_request.app.config.caches
     key = jsonrpc_cache_key(single_jsonrpc_request=sanic_http_request.json)
     logger.debug('cache.get(%s)', key)
 
-    # happy eyeballs approach supports use of multiple caches, eg, SimpleMemoryCache and RedisCache
+    # happy eyeballs approach supports use of multiple caches, eg,
+    # SimpleMemoryCache and RedisCache
     for result in asyncio.as_completed([cache.get(key) for cache in caches]):
         logger.debug('cache_get result: %s', result)
         response = await result
@@ -131,7 +132,8 @@ async def cache_json_response(sanic_http_request: HTTPRequest,
 
 
 def memory_cache_ttl(ttl: int, max_ttl=60) -> Union[None, int]:
-    # avoid using too much memory, especially beause there may be os.cpu_count() instances running
+    # avoid using too much memory, especially beause there may be
+    # os.cpu_count() instances running
     if 0 < ttl < 60:
         logger.debug('adjusting memory cache ttl from %s to %s', ttl, max_ttl)
         ttl = max_ttl
