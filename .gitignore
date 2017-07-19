@@ -97,6 +97,9 @@ Session.vim
 # Pycharm
 .idea
 
+# mypy
+.mypy_cache
+
 # sqlite db for testing
 *.db
 /tests/fast-test.sh
@@ -111,3 +114,4 @@ tests/failed_blocks/
 /envd/
 /tests/envdir-to-envfile.sh
 /deploy/
+/tests/async_deco.py

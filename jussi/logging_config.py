@@ -1,7 +1,21 @@
 # -*- coding: utf-8 -*-
+import logging
+import os
 import sys
 
 from sanic.defaultFilter import DefaultFilter
+
+from jussi.typedefs import WebApp
+
+
+def setup_logging(app: WebApp) -> WebApp:
+    # init logging
+    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
+    LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
+    LOGGING['loggers']['network']['level'] = LOG_LEVEL
+    app.config.logger = logging.getLogger('sanic')
+    return app
+
 
 LOGGING = {
     'version': 1,

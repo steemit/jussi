@@ -19,20 +19,35 @@ RUN \
     apt-get update && \
     apt-get install -y \
         build-essential \
+        checkinstall \
         daemontools \
         git \
+        jq \
+        libbz2-dev \
+        libc6-dev \
         libffi-dev \
+        libgdbm-dev \
         libmysqlclient-dev \
+        libncursesw5-dev \
+        libreadline-gplv2-dev \
+        libsqlite3-dev \
         libssl-dev \
-        make \
-        python3 \
-        python3-dev \
-        python3-pip \
         libxml2-dev \
         libxslt-dev \
-        runit \
+        make \
         nginx \
+        runit \
+        tk-dev \
         wget
+
+
+RUN \
+    wget https://www.python.org/ftp/python/3.6.2/Python-3.6.2.tar.xz && \
+    tar xvf Python-3.6.2.tar.xz && \
+    cd Python-3.6.2/ && \
+    ./configure && \
+    make altinstall
+
 
 # add scalyr agent
 RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstrap_1.2.1_all.deb && \
@@ -44,6 +59,8 @@ RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstr
         scalyr-agent-2 && \
     rm scalyr-repo-bootstrap_1.2.1_all.deb
 
+
+# nginx
 RUN \
   mkdir -p /var/lib/nginx/body && \
   mkdir -p /var/lib/nginx/scgi && \
@@ -67,23 +84,26 @@ RUN \
 WORKDIR /app
 
 RUN \
-    pip3 install --upgrade pip && \
-    pip3 install pipenv && \
-    pipenv install --three && \
-    pipenv run python3 setup.py install && \
-    apt-get remove -y \
-        build-essential \
-        libffi-dev \
-        libssl-dev && \
-    apt-get autoremove -y && \
-    rm -rf \
-        /root/.cache \
-        /var/lib/apt/lists/* \
-        /tmp/* \
-        /var/tmp/* \
-        /var/cache/* \
-        /usr/include \
-        /usr/local/include \
+    python3.6 -m pip install --upgrade pip && \
+    python3.6 -m pip install pipenv && \
+    pipenv install && \
+    pipenv run python3.6 setup.py install
+
+RUN chown -R www-data .
+    #apt-get remove -y \
+    #    build-essential \
+    #    libffi-dev \
+    #    libssl-dev
+
+    #apt-get autoremove -y && \
+    #rm -rf \
+    #    /root/.cache \
+    #    /var/lib/apt/lists/* \
+    #    /tmp/* \
+    #    /var/tmp/* \
+    #    /var/cache/* \
+    #    /usr/include \
+    #    /usr/local/include \
 
 
 EXPOSE ${NGINX_SERVER_PORT}

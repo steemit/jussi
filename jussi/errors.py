@@ -1,16 +1,34 @@
 # -*- coding: utf-8 -*-
 import logging
+from copy import deepcopy
+from typing import Optional
+from typing import Union
 
 import ujson
 from funcy.decorators import decorator
 from sanic import response
+
+from jussi.typedefs import HTTPRequest
+from jussi.typedefs import HTTPResponse
+from jussi.typedefs import WebApp
 
 logger = logging.getLogger('sanic')
 
 # pylint: disable=bare-except
 
 
-def log_request_error(request, exception):
+def setup_error_handlers(app: WebApp) -> WebApp:
+    # pylint: disable=unused-variable
+
+    @app.exception(Exception)
+    def handle_errors(request: HTTPRequest, exception: Exception) -> None:
+        """handles all errors"""
+        log_request_error(request, exception)
+
+    return app
+
+
+def log_request_error(request: HTTPRequest, exception: Exception) -> None:
     try:
         method = getattr(request, 'method', 'HTTP Method:None')
         path = getattr(request, 'path', 'Path:None')
@@ -38,7 +56,7 @@ def log_request_error(request, exception):
             amzn_trace_id,
             amzn_request_id,
             exc_info=exception)
-    except:
+    except BaseException:
         logger.error('%s --> %s', request, exception)
         logger.exception('Error while logging exception')
 
@@ -54,7 +72,7 @@ async def handle_middleware_exceptions(call):
         if isinstance(e, JsonRpcError):
             return e.to_sanic_response()
         log_request_error(call.request, e)
-        return JsonRpcError(sanic_request=call.request)
+        return JsonRpcError(sanic_request=call.request).to_sanic_response()
 
 
 class JsonRpcError(Exception):
@@ -65,7 +83,10 @@ class JsonRpcError(Exception):
     message = 'Internal Error'
     code = -32603
 
-    def __init__(self, sanic_request=None, data=None, exception=None):
+    def __init__(self,
+                 sanic_request: HTTPRequest=None,
+                 data: dict=None,
+                 exception: Exception=None) -> None:
         super(JsonRpcError, self).__init__(self.message)
         self.sanic_request = sanic_request
         self.data = data
@@ -74,41 +95,42 @@ class JsonRpcError(Exception):
         if exception:
             log_request_error(self.sanic_request, exception)
 
-        self.id = self.jrpc_request_id()
+        self._id = self.jrpc_request_id()
 
-    def jrpc_request_id(self):
+    def jrpc_request_id(self) -> Optional[Union[str, int]]:
         try:
             return self.sanic_request.json['id']
-        except:
+        except BaseException:
             return None
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         base_error = {
             'jsonrpc': '2.0',
-            'id': self.id,
             'error': {
                 'code': self.code,
                 'message': self.message
             }
         }
+        if self._id:
+            base_error['id'] = self._id
         if self.data:
             try:
-                error = dict(base_error.items())
+                error = deepcopy(base_error)
                 error['error']['data'] = self.data
-                ujson.dumps(error)
-            except:
-                return base_error
-            else:
                 return error
+            except Exception:
+                logger.exception('Error generating jsonrpc error response')
+                return base_error
+
         return base_error
 
-    def to_sanic_response(self):
+    def to_sanic_response(self) -> HTTPResponse:
         return response.json(self.to_dict())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ujson.dumps(self.to_dict())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.to_dict())
 
 
@@ -120,7 +142,10 @@ class ParseError(JsonRpcError):
     code = -32700
     message = 'Parse error'
 
-    def __init__(self, sanic_request=None, data=None, exception=None):
+    def __init__(self,
+                 sanic_request: HTTPRequest=None,
+                 data: dict=None,
+                 exception: Exception=None) -> None:
         super(ParseError, self).__init__(
             sanic_request=sanic_request, data=data, exception=exception)
 
@@ -133,7 +158,10 @@ class InvalidRequest(JsonRpcError):
     code = -32600
     message = 'Invalid Request'
 
-    def __init__(self, sanic_request=None, data=None, exception=None):
+    def __init__(self,
+                 sanic_request: HTTPRequest=None,
+                 data: dict=None,
+                 exception: Exception=None) -> None:
         super(InvalidRequest, self).__init__(
             sanic_request=sanic_request, data=data, exception=exception)
 
@@ -146,6 +174,9 @@ class ServerError(JsonRpcError):
     code = -32000
     message = 'Server error'
 
-    def __init__(self, sanic_request=None, data=None, exception=None):
+    def __init__(self,
+                 sanic_request: HTTPRequest=None,
+                 data: dict=None,
+                 exception: Exception=None) -> None:
         super(ServerError, self).__init__(
             sanic_request=sanic_request, data=data, exception=exception)

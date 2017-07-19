@@ -19,6 +19,10 @@ certifi = "*"
 urllib3 = "*"
 Sphinx = "*"
 pylint = "*"
+pytest-sanic = "*"
+mypy = "*"
+requests = "*"
+autoflake = "*"
 
 [packages]
 ujson = "*"
@@ -35,6 +39,14 @@ funcy = "*"
 pipenv = "*"
 click = "*"
 Sanic = "*"
+aiojobs = "*"
+jsonrpcserver = "*"
 
 [requires]
 python_version = "3.6"
+
+[dev-packages.jsonrpcclient]
+extras = [ "requests",]
+
+[packages.jsonrpcclient]
+extras = [ "aiohttp",]

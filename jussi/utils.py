@@ -1,65 +1,73 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import functools
 import logging
-import time
 from collections import OrderedDict
-from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from typing import Callable
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import websockets
-from sanic.exceptions import InvalidUsage
+from funcy.decorators import decorator
 
-from jussi.cache import jsonrpc_cache_key
+from jussi.typedefs import HTTPRequest
+from jussi.typedefs import HTTPResponse
+from jussi.typedefs import JsonRpcRequest
+from jussi.typedefs import SingleJsonRpcRequest
+from jussi.typedefs import StringTrie
+from jussi.typedefs import WebApp
 
 logger = logging.getLogger('sanic')
 
 
 # decorators
-def apply_single_or_batch(func):
+@decorator
+def apply_single_or_batch(call: Callable) -> JsonRpcRequest:
     """Decorate func to apply func to single or batch jsonrpc_requests
-
-    Args:
-        func:
-
-    Returns:
-        decorated_function
     """
+    if isinstance(call.single_jsonrpc_request, list):
+        original = deepcopy(call.single_jsonrpc_request)
+        results = []
+        for request in original:
+            # pylint: disable=protected-access
+            call._kwargs['single_jsonrpc_request'] = request
+            results.append(call())
+        return results
+    return call()
 
-    @functools.wraps(func)
-    def wrapper(jsonrpc_request):
-        if isinstance(jsonrpc_request, list):
-            jsonrpc_request = list(map(func, jsonrpc_request))
-        else:
-            jsonrpc_request = func(jsonrpc_request)
-        return jsonrpc_request
 
-    return wrapper
-
-
-def websocket_conn(func):
+@decorator
+async def websocket_conn(call: Callable) -> dict:
     """Decorate func to make sure func has an open websocket client
-
-    Args:
-        func:
-
-    Returns:
-
     """
-
-    @functools.wraps(func)
-    async def wrapper(app, jussi, jsonrpc_request):
-        ws = app.config.websocket_client
-        if ws and ws.open:
-            # everything ok, noop
-            pass
-        else:
-            ws = await websockets.connect(**app.config.websocket_kwargs)
-            app.config.websocket_client = ws
-        return await func(app, jussi, jsonrpc_request)
-
-    return wrapper
+    ws = call.sanic_http_request.app.config.websocket_client
+    if ws and ws.open:
+        # everything ok, noop
+        pass
+    else:
+        ws = await websockets.connect(**call.sanic_http_request.app.config.websocket_kwargs)
+        call.sanic_http_request.app.config.websocket_client = ws
+    return await call()
 
 
-def async_exclude_methods(middleware_func=None, exclude_http_methods=None):
+@decorator
+async def ignore_errors_async(call: Callable) -> Optional[dict]:
+    try:
+        # pylint: disable=protected-access
+        if not asyncio.iscoroutinefunction(call._func):
+            loop = asyncio.get_event_loop()
+            executor = ThreadPoolExecutor(max_workers=1)
+            return await loop.run_in_executor(executor, func=call)
+        return await call()
+    except Exception as e:
+        logger.exception('Error ignored %s', e)
+
+
+def async_exclude_methods(middleware_func: Optional[Callable]=None,
+                          exclude_http_methods: Tuple[str]=None):
     """Exclude specified HTTP methods from middleware
 
     Args:
@@ -74,7 +82,7 @@ def async_exclude_methods(middleware_func=None, exclude_http_methods=None):
             async_exclude_methods, exclude_http_methods=exclude_http_methods)
 
     @functools.wraps(middleware_func)
-    async def f(request):
+    async def f(request: HTTPRequest) -> Union[None, HTTPResponse]:
         if request.method in exclude_http_methods:
             return
         return await middleware_func(request)
@@ -82,150 +90,91 @@ def async_exclude_methods(middleware_func=None, exclude_http_methods=None):
     return f
 
 
-def return_bytes(func):
-    """Decorate func to make sure func has an open websocket client
-
-    Args:
-        func:
-
-    Returns:
-
-    """
-
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        result = await func(*args, **kwargs)
-        if isinstance(result, str):
-            result = result.encode()
-        return result
-
-    return wrapper
-
-
-def generate_int_id():
-    return int(time.time() * 1000000)
-
-
 @apply_single_or_batch
-def replace_jsonrpc_id(single_jsonrpc_request):
-    try:
-        single_jsonrpc_request['id'] = int(single_jsonrpc_request['id'])
-    except ValueError:
-        single_jsonrpc_request['id'] = generate_int_id()
-    return single_jsonrpc_request
-
-
-@apply_single_or_batch
-def replace_jsonrpc_version(single_jsonrpc_request):
-    single_jsonrpc_request['jsonrpc'] = '2.0'
-    return single_jsonrpc_request
-
-
-@apply_single_or_batch
-def strip_steemd_method_namespace(single_jsonrpc_request):
-    if single_jsonrpc_request['method'].startswith('steemd.'):
-        single_jsonrpc_request = strip_namespace(single_jsonrpc_request,
-                                                 'steemd')
-    return single_jsonrpc_request
-
-
-@apply_single_or_batch
-def sort_request(single_jsonrpc_request):
+def sort_request(
+        single_jsonrpc_request: SingleJsonRpcRequest=None) -> OrderedDict:
     params = single_jsonrpc_request.get('params')
-    if isinstance(params, list):
-        single_jsonrpc_request['params'] = sorted(params)
-    elif isinstance(params, dict):
+    if isinstance(params, dict):
         single_jsonrpc_request['params'] = OrderedDict(
             sorted(single_jsonrpc_request['params']))
     return OrderedDict(sorted(single_jsonrpc_request.items()))
 
 
 @apply_single_or_batch
-def is_valid_jsonrpc_request(single_jsonrpc_request):
+def is_valid_jsonrpc_request(
+        single_jsonrpc_request: SingleJsonRpcRequest=None) -> None:
     assert single_jsonrpc_request.get('jsonrpc') == '2.0'
-    assert 'method' in single_jsonrpc_request
+    assert isinstance(single_jsonrpc_request.get('method'), str)
     if 'id' in single_jsonrpc_request:
         assert isinstance(single_jsonrpc_request['id'], (int, str, type(None)))
     if 'params' in single_jsonrpc_request:
         assert isinstance(single_jsonrpc_request, (list, dict))
 
 
-def strip_namespace(request, namespace):
-    request['method'] = request['method'].strip('%s.' % namespace)
-    return request
+def parse_namespaced_method(namespaced_method: str,
+                            default_namespace: str='steemd'
+                            ) -> Tuple[str, str]:
+    parts = namespaced_method.split('.')
+    if len(parts) == 1:
+        return default_namespace, namespaced_method
+    return parts[0], '.'.join(parts[1:])
 
 
-def parse_namespaced_method(namespaced_method, default_namespace='steemd'):
-    try:
-        namespace, method = namespaced_method.split('.')
-    except ValueError:
-        namespace, method = default_namespace, namespaced_method
-    return namespace, method
+def method_urn(single_jsonrpc_request: dict) -> str:
+    api = None
+    query = ''
+    namespace, method = parse_namespaced_method(
+        single_jsonrpc_request['method'])
+    params = single_jsonrpc_request.get('params', None)
+    if isinstance(params, dict):
+        params = dict(sorted(params.items()))
+    if namespace == 'steemd':
+        if method == 'call':
+            api = params[0]
+            method = params[1]
+            params = params[2]
+        else:
+            api = 'database_api'
+    if params and params != []:
+        query = ('?params=%s' % params).replace(' ', '')
+    return '.'.join([p for p in (namespace, api, method, ) if p]) + query
 
 
-async def get_upstream(sanic_http_request, jsonrpc_request):
-    app = sanic_http_request.app
-    jsonrpc_method = jsonrpc_request['method']
-    _, upstream = app.config.upstreams.longest_prefix(jsonrpc_method)
-
-    # get default values if no specific values found
-    if upstream is None:
-        _, upstream = app.config.upstreams.longest_prefix('')
-
-    return upstream['url'], upstream['ttl']
+def get_upstream(upstreams, single_jsonrpc_request: SingleJsonRpcRequest
+                 ) -> Tuple[str, int]:
+    urn = method_urn(single_jsonrpc_request)
+    _, ttl = upstreams.longest_prefix(urn)
+    return 'error', ttl
 
 
-JussiAttributes = namedtuple('JussiAttributes', [
-    'key', 'upstream_url', 'ttl', 'cacheable', 'is_ws', 'namespace',
-    'method_name', 'log_prefix'
-])
+def is_batch_jsonrpc(
+        jsonrpc_request: JsonRpcRequest=None,
+        sanic_http_request: HTTPRequest=None, ) -> bool:
+    return isinstance(jsonrpc_request, list) or isinstance(
+        sanic_http_request.json, list)
 
 
-async def jussi_attrs(sanic_http_request):
-    jsonrpc_requests = sanic_http_request.json
+def upstream_url_from_jsonrpc_request(
+        upstream_urls: StringTrie=None,
+        single_jsonrpc_request: SingleJsonRpcRequest=None) -> str:
+    urn = method_urn(single_jsonrpc_request=single_jsonrpc_request)
+    return upstream_url_from_urn(upstream_urls, urn=urn)
 
-    app = sanic_http_request.app
 
-    if isinstance(jsonrpc_requests, list):
-        results = []
-        for i, r in enumerate(jsonrpc_requests):
-            if not r:
-                raise InvalidUsage('Bad jsonrpc request')
-            key = jsonrpc_cache_key(r)
-            url, ttl = await get_upstream(sanic_http_request, r)
-            cacheable = ttl > app.config.cache_config['no_cache_ttl']
-            is_ws = url.startswith('ws')
-            namespace, method_name = parse_namespaced_method(r['method'])
-            prefix = '.'.join([str(i), namespace, method_name])
-            results.append(
-                JussiAttributes(
-                    key=key,
-                    upstream_url=url,
-                    ttl=ttl,
-                    cacheable=cacheable,
-                    is_ws=is_ws,
-                    namespace=namespace,
-                    method_name=method_name,
-                    log_prefix=prefix))
-        sanic_http_request['jussi'] = results
-        sanic_http_request['jussi_is_batch'] = True
-    else:
-        key = jsonrpc_cache_key(jsonrpc_requests)
-        url, ttl = await get_upstream(sanic_http_request, jsonrpc_requests)
-        cacheable = ttl > app.config.cache_config['no_cache_ttl']
-        is_ws = url.startswith('ws')
-        namespace, method_name = parse_namespaced_method(
-            jsonrpc_requests['method'])
-        prefix = '.'.join(['0', namespace, method_name])
-        sanic_http_request['jussi'] = JussiAttributes(
-            key=key,
-            upstream_url=url,
-            ttl=ttl,
-            cacheable=cacheable,
-            is_ws=is_ws,
-            namespace=namespace,
-            method_name=method_name,
-            log_prefix=prefix)
-        sanic_http_request['jussi_is_batch'] = False
+def upstream_url_from_urn(upstream_urls: StringTrie=None,
+                          urn: str=None) -> str:
+    _, url = upstream_urls.longest_prefix(urn)
+    return url
 
-    return sanic_http_request
+
+# pylint: disable=super-init-not-called
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+class DummyRequest(AttrDict):
+    def __init__(self, app: WebApp=None, json: dict=None):
+        self.app = app
+        self.json = json
