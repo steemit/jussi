@@ -7,12 +7,12 @@ CPU_COUNT="$(grep processor /proc/cpuinfo | wc -l)"
 cd "${APP_ROOT}"
 exec 2>&1 \
   chpst -u www-data \
-    pipenv run python3 "${APP_CMD}" \
+    pipenv run python3.6 "${APP_CMD}" \
       --server_host "${JUSSI_SERVER_HOST}" \
       --server_port "${JUSSI_SERVER_PORT}" \
       --server_workers "${JUSSI_SERVER_WORKERS:-$CPU_COUNT}" \
       --steemd_websocket_url "${JUSSI_STEEMD_WS_URL}" \
       --sbds_url "${JUSSI_SBDS_HTTP_URL}" \
-      --redis_host "${JUSSI_REDIS_HOST:-''}" \
+      --redis_host "${JUSSI_REDIS_HOST}" \
       --redis_port "${JUSSI_REDIS_PORT:-6379}" \
       2>&1

@@ -1,0 +1,10 @@
+#!/bin/bash -e
+
+BASE_CONFIG=/etc/service/scalyr-agent-2/agent.json
+UPDATED_CONFIG=/etc/service/scalyr-agent-2/updated-agent.json
+
+if [[ -n ${SCALYR_API_KEY+x} ]]; then
+    cat "${BASE_CONFIG}" | jq '.server_attributes.tier='\"${ENVIRONMENT}\" > "${UPDATED_CONFIG}"
+    scalyr-agent-2-config  --config-file="${UPDATED_CONFIG}" --set-key="${SCALYR_API_KEY}"
+    exec 2>&1 scalyr-agent-2 --no-fork --config-file="${UPDATED_CONFIG}" start
+fi

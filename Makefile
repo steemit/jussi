@@ -43,3 +43,14 @@ pre-commit:
 
 pre-commit-all:
 	pipenv run pre-commit run --all-files
+
+mypy:
+	pipenv run mypy --ignore-missing-imports $(PROJECT_NAME)
+
+curl-check:
+	-curl http://localhost:8080/
+	curl http://localhost:8080/health
+	curl http://localhost:8080/.well-known/healthcheck.json
+	curl -d '{"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]}' \
+	-H'Content-Type:application/json' \
+	localhost:8080

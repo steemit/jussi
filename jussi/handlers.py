@@ -49,8 +49,8 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
 
 
 @funcy.log_calls(logger.debug)
-@cacher
 @websocket_conn
+@cacher
 async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: dict) -> dict:
     ws = sanic_http_request.app.config.websocket_client

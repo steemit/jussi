@@ -40,7 +40,7 @@ def apply_single_or_batch(call: Callable) -> JsonRpcRequest:
 
 
 @decorator
-async def websocket_conn(call: Callable) -> Callable:
+async def websocket_conn(call: Callable) -> dict:
     """Decorate func to make sure func has an open websocket client
     """
     ws = call.sanic_http_request.app.config.websocket_client
@@ -48,13 +48,13 @@ async def websocket_conn(call: Callable) -> Callable:
         # everything ok, noop
         pass
     else:
-        ws = await websockets.connect(**call.app.config.websocket_kwargs)
+        ws = await websockets.connect(**call.sanic_http_request.app.config.websocket_kwargs)
         call.sanic_http_request.app.config.websocket_client = ws
     return await call()
 
 
 @decorator
-async def ignore_errors_async(call: Callable) -> Callable:
+async def ignore_errors_async(call: Callable) -> Optional[dict]:
     try:
         # pylint: disable=protected-access
         if not asyncio.iscoroutinefunction(call._func):
