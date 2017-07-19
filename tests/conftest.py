@@ -140,258 +140,6 @@ INVALID_JRPC_REQUESTS = [
     },
 ]
 
-VALID_JRPC_REQUESTS = [{
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_account_count',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_account_history',
-    'params': ['steemit', 10, 20]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_account_references',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_account_votes',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_accounts',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_active_categories',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_active_votes',
-    'params': ['steemit', 'steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_active_witnesses',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_best_categories',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_block',
-    'params': [1000]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_block_header',
-    'params': [1000]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_chain_properties',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_config',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_content',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_content_replies',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_conversion_requests',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_current_median_history_price',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_active',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_author_before_date',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_cashout',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_children',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_created',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_feed',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_hot',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_payout',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_trending',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_discussions_by_votes',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_dynamic_global_properties',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_feed_history',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_hardfork_version',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_key_references',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_liquidity_queue',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_miner_queue',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_next_scheduled_hardfork',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_open_orders',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_order_book',
-    'params': [10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_owner_history',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_recent_categories',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_recovery_request',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_replies_by_last_update',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_state',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_transaction',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_trending_categories',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_trending_tags',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_witness_by_account',
-    'params': ['smooth.witness']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_witness_count',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_witness_schedule',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'lookup_account_names',
-    'params': ['steemit']
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'lookup_accounts',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'lookup_witness_accounts',
-    'params': ['steemit', 10]
-}]
-
 STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
@@ -404,20 +152,12 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_account_history', ['steemit', 10, 20]]
-}, {
-    'id':
-    1,
-    'jsonrpc':
-    '2.0',
-    'method':
-    'call',
-    'params': ['database_api', 'get_account_references', ['steemit']]
+    'params': ['database_api', 'get_account_history', ['steemit', 20, 10]]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'call',
-    'params': ['database_api', 'get_account_votes', []]
+    'params': ['database_api', 'get_account_votes', ['steemit','test']]
 }, {
     'id':
     1,
@@ -425,7 +165,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_accounts', ['steemit']]
+    'params': ['database_api', 'get_accounts', [['steemit']]]
 }, {
     'id':
     1,
@@ -433,28 +173,12 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_active_categories', ['steemit', 10]]
-}, {
-    'id':
-    1,
-    'jsonrpc':
-    '2.0',
-    'method':
-    'call',
-    'params': ['database_api', 'get_active_votes', ['steemit', 'steemit']]
+    'params': ['database_api', 'get_active_votes', ['smooth','test']]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'call',
     'params': ['database_api', 'get_active_witnesses', []]
-}, {
-    'id':
-    1,
-    'jsonrpc':
-    '2.0',
-    'method':
-    'call',
-    'params': ['database_api', 'get_best_categories', ['steemit', 10]]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
@@ -474,7 +198,7 @@ STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'call',
-    'params': ['database_api', 'get_content', ['steemit']]
+    'params': ['database_api', 'get_content', ['steemit','test']]
 }, {
     'id':
     1,
@@ -482,7 +206,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_content_replies', ['steemit']]
+    'params': ['database_api', 'get_content_replies', ['steemit','test']]
 }, {
     'id':
     1,
@@ -506,7 +230,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_active', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_active', [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -514,7 +238,11 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_author_before_date', []]
+    'params': ['database_api', 'get_discussions_by_author_before_date', [
+            "smooth",
+             "test",
+             "2016-07-23T22:00:06",
+             "1"]]
 }, {
     'id':
     1,
@@ -522,7 +250,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_cashout', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_cashout', [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -530,7 +258,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_children', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_children', [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -538,7 +266,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_created', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_created',  [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -546,7 +274,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_feed', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_feed',  [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -554,7 +282,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_hot', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_hot',  [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -562,7 +290,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_payout', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_payout',  [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -570,7 +298,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_trending', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_trending',  [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -578,7 +306,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_discussions_by_votes', ['steemit', 10]]
+    'params': ['database_api', 'get_discussions_by_votes', [{"tag":"steem", "limit": "1"}]]
 }, {
     'id':
     1,
@@ -597,11 +325,6 @@ STEEMD_JSON_RPC_CALLS = [{
     'jsonrpc': '2.0',
     'method': 'call',
     'params': ['database_api', 'get_hardfork_version', []]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'call',
-    'params': ['database_api', 'get_key_references', []]
 }, {
     'id':
     1,
@@ -651,14 +374,6 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_recent_categories', ['steemit', 10]]
-}, {
-    'id':
-    1,
-    'jsonrpc':
-    '2.0',
-    'method':
-    'call',
     'params': ['database_api', 'get_recovery_request', ['steemit']]
 }, {
     'id':
@@ -667,25 +382,12 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'get_replies_by_last_update', []]
+    'params': ['database_api', 'get_replies_by_last_update', ['smooth','test',10]]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'call',
-    'params': ['database_api', 'get_state', []]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'call',
-    'params': ['database_api', 'get_transaction', []]
-}, {
-    'id':
-    1,
-    'jsonrpc':
-    '2.0',
-    'method':
-    'call',
-    'params': ['database_api', 'get_trending_categories', []]
+    'params': ['database_api', 'get_state', ["/@layz3r"]]
 }, {
     'id':
     1,
@@ -719,7 +421,7 @@ STEEMD_JSON_RPC_CALLS = [{
     '2.0',
     'method':
     'call',
-    'params': ['database_api', 'lookup_account_names', ['steemit']]
+    'params': ['database_api', 'lookup_account_names', [['steemit']]]
 }, {
     'id':
     1,
@@ -745,42 +447,27 @@ STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_account_history',
-    'params': ['steemit', 10, 20]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_account_references',
-    'params': ['steemit']
+    'params': ['steemit', 20, 10]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_account_votes',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_accounts',
     'params': ['steemit']
 }, {
     'id': 1,
     'jsonrpc': '2.0',
-    'method': 'get_active_categories',
-    'params': ['steemit', 10]
-}, {
+    'method': 'get_accounts',
+    'params': [['steemit']]
+},  {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_active_votes',
-    'params': ['steemit', 'steemit']
+    'params': ['smooth','test']
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_active_witnesses',
     'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_best_categories',
-    'params': ['steemit', 10]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
@@ -800,12 +487,12 @@ STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_content',
-    'params': ['steemit']
+    'params': ['steemit','test']
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_content_replies',
-    'params': ['steemit']
+    'params': ['steemit','test']
 }, {
     'id': 1,
     'jsonrpc': '2.0',
@@ -820,52 +507,52 @@ STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_active',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_author_before_date',
-    'params': []
+    'params': ["smooth","test","2016-07-23T22:00:06","1"]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_cashout',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_children',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_created',
-    'params': ['steemit', 10]
+    'params':[{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_feed',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_hot',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_payout',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_trending',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_discussions_by_votes',
-    'params': ['steemit', 10]
+    'params': [{"tag":"steem", "limit": "1"}]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
@@ -880,11 +567,6 @@ STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_hardfork_version',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_key_references',
     'params': []
 }, {
     'id': 1,
@@ -919,33 +601,18 @@ STEEMD_JSON_RPC_CALLS = [{
 }, {
     'id': 1,
     'jsonrpc': '2.0',
-    'method': 'get_recent_categories',
-    'params': ['steemit', 10]
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
     'method': 'get_recovery_request',
     'params': ['steemit']
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_replies_by_last_update',
-    'params': []
+    'params': ['smooth','test',10]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_state',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_transaction',
-    'params': []
-}, {
-    'id': 1,
-    'jsonrpc': '2.0',
-    'method': 'get_trending_categories',
-    'params': []
+    'params': ["/@layz3r"]
 }, {
     'id': 1,
     'jsonrpc': '2.0',
@@ -970,7 +637,7 @@ STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'lookup_account_names',
-    'params': ['steemit']
+    'params': [['steemit']]
 }, {
     'id': 1,
     'jsonrpc': '2.0',

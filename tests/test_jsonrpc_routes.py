@@ -86,3 +86,13 @@ def test_jsonrpc_request(app, request):
         assert request['id'] == json_response['id']
         assert isinstance(json_response, dict)
         assert 'error' not in json_response
+
+
+def test_all_steemd_calls(app, all_steemd_jrpc_calls):
+    _, response = app.test_client.post(
+        '/', json=all_steemd_jrpc_calls, server_kwargs=dict(workers=1))
+    assert response.status == 200
+    assert response.headers['Content-Type'] == 'application/json'
+    json_response = ujson.loads(response.body.decode())
+    assert 'id' in json_response
+    assert 'result' in json_response

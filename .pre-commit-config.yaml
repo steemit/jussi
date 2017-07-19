@@ -1,40 +1,43 @@
-- repo: git://github.com/pre-commit/pre-commit-hooks
-  sha: v0.9.1
-  hooks:
-    - id: check-ast
-    - id: trailing-whitespace
-    - id: check-byte-order-marker
-    - id: check-executables-have-shebangs
-    - id: check-json
-    - id: check-yaml
-    - id: check-symlinks
-    - id: check-case-conflict
-    - id: debug-statements
-    - id: check-merge-conflict
-    - id: detect-aws-credentials
-    - id: detect-private-key
-    - id: end-of-file-fixer
-    - id: fix-encoding-pragma
-    - id: check-added-large-files
-- repo: git://github.com/FalconSocial/pre-commit-python-sorter
-  sha: 1.0.4
-  hooks:
-    - id: python-import-sorter
-      args: ['--silent-overwrite']
-- repo: git://github.com/pre-commit/mirrors-yapf
-  sha: v0.16.2
-  hooks:
-    - id: yapf
-      args: ['-p']
-- repo: git://github.com/Lucas-C/pre-commit-hooks
-  sha: v1.0.1
-  hooks:
-    - id: remove-tabs
-      exclude: Makefile
-- repo: local
-  hooks:
-    - id: pylint
-      name: pylint
-      entry: pipenv run pylint
-      language: system
-      types: [python]
+-   repo: git://github.com/pre-commit/pre-commit-hooks
+    sha: v0.9.1
+    hooks:
+    -   id: check-ast
+    -   id: trailing-whitespace
+    -   id: check-byte-order-marker
+    -   id: check-executables-have-shebangs
+    -   id: check-json
+    -   id: check-yaml
+    -   id: check-symlinks
+    -   id: check-case-conflict
+    -   id: debug-statements
+    -   id: check-merge-conflict
+    -   id: detect-aws-credentials
+    -   id: detect-private-key
+    -   id: end-of-file-fixer
+    -   id: fix-encoding-pragma
+    -   id: check-added-large-files
+-   repo: git://github.com/FalconSocial/pre-commit-python-sorter
+    sha: 1.0.4
+    hooks:
+    -   id: python-import-sorter
+        args:
+        - --silent-overwrite
+-   repo: git://github.com/pre-commit/mirrors-yapf
+    sha: v0.16.3
+    hooks:
+    -   id: yapf
+        args:
+        - -p
+-   repo: git://github.com/Lucas-C/pre-commit-hooks
+    sha: v1.0.1
+    hooks:
+    -   id: remove-tabs
+        exclude: Makefile
+-   repo: local
+    hooks:
+    -   id: pylint
+        name: pylint
+        entry: pipenv run pylint
+        language: system
+        types:
+        - python
