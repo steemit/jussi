@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import ujson
 
 import pytest
@@ -96,3 +97,14 @@ def test_all_steemd_calls(app, all_steemd_jrpc_calls):
     json_response = ujson.loads(response.body.decode())
     assert 'id' in json_response
     assert 'result' in json_response
+
+def test_batch_requests(app,random_jrpc_batch):
+    _, response = app.test_client.post(
+        '/', json=random_jrpc_batch, server_kwargs=dict(workers=1))
+    assert response.status == 200
+    assert response.headers['Content-Type'] == 'application/json'
+    json_response = ujson.loads(response.body.decode())
+    assert isinstance(json_response, list)
+    for item in json_response:
+        assert 'id' in item
+        assert 'result' in item

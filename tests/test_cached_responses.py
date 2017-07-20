@@ -45,7 +45,7 @@ async def test_cached_response(jrpc_req, jrpc_resp, dummy_request):
     await cache.set('steemd.database_api.get_block.params=[1000]',jrpc_resp)
     dummy_request.app.config.caches = [cache]
     dummy_request.json = jrpc_req
-    result = await cache_get(dummy_request)
+    result = await cache_get(dummy_request, jrpc_req)
     if 'id' in jrpc_req:
         assert result['id'] == jrpc_req['id']
     else:

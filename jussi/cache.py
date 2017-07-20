@@ -25,12 +25,16 @@ logger = logging.getLogger('sanic')
 @decorator
 async def cacher(call):
     sanic_http_request = call.sanic_http_request
-    json_response = await cache_get(sanic_http_request)
+    jsonrpc_request = call.jsonrpc_request
+    json_response = await cache_get(sanic_http_request,
+                                    jsonrpc_request)
     if json_response:
         return json_response
     json_response = await call()
     asyncio.ensure_future(
-        cache_json_response(sanic_http_request, json_response))
+        cache_json_response(sanic_http_request,
+                            jsonrpc_request,
+                            json_response))
     return json_response
 
 
@@ -86,9 +90,11 @@ def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
 
 
 @ignore_errors_async
-async def cache_get(sanic_http_request: HTTPRequest) -> Optional[dict]:
+async def cache_get(sanic_http_request: HTTPRequest,
+                    single_jsonrpc_request: SingleJsonRpcRequest
+                    ) -> Optional[dict]:
     caches = sanic_http_request.app.config.caches
-    key = jsonrpc_cache_key(single_jsonrpc_request=sanic_http_request.json)
+    key = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
     logger.debug('cache.get(%s)', key)
 
     # happy eyeballs approach supports use of multiple caches, eg,
@@ -99,20 +105,22 @@ async def cache_get(sanic_http_request: HTTPRequest) -> Optional[dict]:
         logger.debug('cache_get response: %s', response)
         if response:
             logger.debug('cache --> %s', response)
-            return merge_cached_response(response, sanic_http_request.json)
+            return merge_cached_response(response, single_jsonrpc_request)
 
 
 @ignore_errors_async
 async def cache_set(sanic_http_request: HTTPRequest,
+                    single_jsonrpc_request: SingleJsonRpcRequest,
                     value: Union[AnyStr, dict],
                     ttl=None,
                     **kwargs):
     last_irreversible_block_num = sanic_http_request.app.config.last_irreversible_block_num
-    ttl = ttl or ttl_from_jsonrpc_request(sanic_http_request.json,
+    ttl = ttl or ttl_from_jsonrpc_request(single_jsonrpc_request,
                                           last_irreversible_block_num,
                                           value)
+
     caches = sanic_http_request.app.config.caches
-    key = jsonrpc_cache_key(single_jsonrpc_request=sanic_http_request.json)
+    key = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
     for cache in caches:
         if isinstance(cache, aiocache.SimpleMemoryCache):
             ttl = memory_cache_ttl(ttl)
@@ -124,6 +132,7 @@ async def cache_set(sanic_http_request: HTTPRequest,
 
 
 async def cache_json_response(sanic_http_request: HTTPRequest,
+                                single_jsonrpc_request: SingleJsonRpcRequest,
                               value: dict) -> None:
     """Don't cache error responses
     """
@@ -132,7 +141,7 @@ async def cache_json_response(sanic_http_request: HTTPRequest,
             'jsonrpc error in response from upstream %s, skipping cache',
             value)
         return
-    asyncio.ensure_future(cache_set(sanic_http_request, value))
+    asyncio.ensure_future(cache_set(sanic_http_request, single_jsonrpc_request,  value))
 
 
 def memory_cache_ttl(ttl: int, max_ttl=60) -> int:

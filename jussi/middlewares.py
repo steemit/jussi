@@ -59,7 +59,7 @@ async def caching_middleware(request: HTTPRequest) -> None:
         return
     key = jsonrpc_cache_key(request.json)
     logger.debug('caching_middleware cache_get %s', key)
-    cached_response = await cache_get(request)
+    cached_response = await cache_get(request, request.json)
 
     if cached_response:
         logger.debug('caching_middleware hit for %s', key)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import random
 import time
 
 import sanic
@@ -740,12 +741,37 @@ def invalid_jrpc_requests(request):
 def all_steemd_jrpc_calls(request):
     yield request.param
 
+@pytest.fixture(scope='module')
+def all_steemd_calls_list():
+    return STEEMD_JSON_RPC_CALLS
 
 @pytest.fixture(scope='function')
 def memory_cache():
     return SimpleMemoryCache()
 
 
-@pytest.yield_fixture(scope='module',params=STEEMD_JSONRPC_CALL_PAIRS)
+@pytest.fixture(scope='module',params=STEEMD_JSONRPC_CALL_PAIRS)
 def steemd_method_pairs(request):
+    yield request.param
+
+@pytest.fixture(scope='module')
+def random_batches(STEEMD_JSON_RPC_CALLS):
+    choices = list(STEEMD_JSON_RPC_CALLS)
+
+    # pylint: disable=len-as-condition
+    while len(choices) > 0:
+        batch_size = random.randint(1, 40)
+        if batch_size > len(choices):
+            batch_size = len(choices)
+        batch = random.choices(choices, k=batch_size)
+        for b in batch:
+            try:
+                choices.remove(b)
+            except Exception as e:
+                print(e)
+        yield batch
+
+
+@pytest.fixture(scope='module',params=random_batches(STEEMD_JSON_RPC_CALLS))
+def random_jrpc_batch(request):
     yield request.param
