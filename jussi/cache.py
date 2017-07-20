@@ -99,7 +99,7 @@ async def cache_get(sanic_http_request: HTTPRequest) -> Optional[dict]:
         logger.debug('cache_get response: %s', response)
         if response:
             logger.debug('cache --> %s', response)
-            return response
+            return merge_cached_response(response, sanic_http_request.json)
 
 
 @ignore_errors_async
@@ -182,3 +182,10 @@ def block_num_from_id(block_hash: str) -> int:
     """return the first 4 bytes (8 hex digits) of the block ID (the block_num)
     """
     return int(str(block_hash)[:8], base=16)
+
+def merge_cached_response(cached_response: dict, jsonrpc_request:dict) -> dict:
+    if 'id' in jsonrpc_request:
+        cached_response['id'] = jsonrpc_request['id']
+    else:
+        del cached_response['id']
+    return cached_response
