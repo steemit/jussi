@@ -9,6 +9,7 @@ import ujson
 from sanic import response
 
 from jussi.cache import cacher
+from jussi.typedefs import BatchJsonRpcRequest
 from jussi.typedefs import HTTPRequest
 from jussi.typedefs import HTTPResponse
 from jussi.typedefs import JsonRpcRequest
@@ -87,7 +88,7 @@ async def dispatch_single(sanic_http_request: HTTPRequest,
 
 
 async def dispatch_batch(sanic_http_request: HTTPRequest,
-                         jsonrpc_requests: JsonRpcRequest) -> list:
+                         jsonrpc_requests: JsonRpcRequest) -> BatchJsonRpcRequest:
     responses = await asyncio.gather(* [
         dispatch_single(sanic_http_request, jsonrpc_request)
         for jrpc_req_index, jsonrpc_request in enumerate(jsonrpc_requests)

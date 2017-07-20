@@ -10,6 +10,7 @@ import aiocache
 import aiocache.plugins
 from funcy.decorators import decorator
 
+import cytoolz
 import jussi.jsonrpc_method_cache_settings
 from jussi.serializers import CompressionSerializer
 from jussi.typedefs import HTTPRequest
@@ -106,7 +107,10 @@ async def cache_set(sanic_http_request: HTTPRequest,
                     value: Union[AnyStr, dict],
                     ttl=None,
                     **kwargs):
-    ttl = ttl or ttl_from_jsonrpc_request(sanic_http_request.json)
+    last_irreversible_block_num = sanic_http_request.app.config.last_irreversible_block_num
+    ttl = ttl or ttl_from_jsonrpc_request(sanic_http_request.json,
+                                          last_irreversible_block_num,
+                                          value)
     caches = sanic_http_request.app.config.caches
     key = jsonrpc_cache_key(single_jsonrpc_request=sanic_http_request.json)
     for cache in caches:
@@ -131,21 +135,50 @@ async def cache_json_response(sanic_http_request: HTTPRequest,
     asyncio.ensure_future(cache_set(sanic_http_request, value))
 
 
-def memory_cache_ttl(ttl: int, max_ttl=60) -> Union[None, int]:
+def memory_cache_ttl(ttl: int, max_ttl=60) -> int:
     # avoid using too much memory, especially beause there may be
     # os.cpu_count() instances running
-    if 0 < ttl < 60:
+    if ttl > max_ttl:
         logger.debug('adjusting memory cache ttl from %s to %s', ttl, max_ttl)
         ttl = max_ttl
     return ttl
 
 
 def ttl_from_jsonrpc_request(
-        single_jsonrpc_request: SingleJsonRpcRequest) -> int:
+        single_jsonrpc_request: SingleJsonRpcRequest,
+        last_irreversible_block_num: int = 0,
+        jsonrpc_response: dict = None) -> int:
     urn = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
-    return ttl_from_urn(urn)
+    ttl = ttl_from_urn(urn)
+    if ttl == jussi.jsonrpc_method_cache_settings.NO_EXPIRE_IF_IRREVERSIBLE:
+        ttl = irreversible_ttl(jsonrpc_response,last_irreversible_block_num)
+    return ttl
 
 
 def ttl_from_urn(urn: str) -> int:
     _, ttl = jussi.jsonrpc_method_cache_settings.TTLS.longest_prefix(urn)
     return ttl
+
+
+def irreversible_ttl(jsonrpc_response: dict = None,
+                     last_irreversible_block_num: int = 0) -> int:
+    try:
+        jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
+        if  last_irreversible_block_num < jrpc_block_num:
+            return jussi.jsonrpc_method_cache_settings.NO_CACHE
+        return jussi.jsonrpc_method_cache_settings.NO_EXPIRE
+    except Exception as e:
+        logger.warning('Unable to cache using last irreversible block: %s', e)
+        return jussi.jsonrpc_method_cache_settings.NO_CACHE
+
+
+
+def block_num_from_jsonrpc_response(jsonrpc_response: dict = None) -> int:
+    # pylint: disable=no-member
+    block_id = cytoolz.get_in(['result','block_id'],jsonrpc_response)
+    return block_num_from_id(block_id)
+
+def block_num_from_id(block_hash: str) -> int:
+    """return the first 4 bytes (8 hex digits) of the block ID (the block_num)
+    """
+    return int(str(block_hash)[:8], base=16)

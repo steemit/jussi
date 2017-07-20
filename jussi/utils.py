@@ -8,7 +8,6 @@ from copy import deepcopy
 from typing import Callable
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 import websockets
 from funcy.decorators import decorator
@@ -82,11 +81,10 @@ def async_exclude_methods(middleware_func: Optional[Callable]=None,
             async_exclude_methods, exclude_http_methods=exclude_http_methods)
 
     @functools.wraps(middleware_func)
-    async def f(request: HTTPRequest) -> Union[None, HTTPResponse]:
+    async def f(request: HTTPRequest) -> Optional[HTTPResponse]:
         if request.method in exclude_http_methods:
             return
         return await middleware_func(request)
-
     return f
 
 
@@ -136,7 +134,7 @@ def method_urn(single_jsonrpc_request: dict) -> str:
         else:
             api = 'database_api'
     if params and params != []:
-        query = ('?params=%s' % params).replace(' ', '')
+        query = ('.params=%s' % params).replace(' ', '')
     return '.'.join([p for p in (namespace, api, method, ) if p]) + query
 
 
@@ -169,12 +167,12 @@ def upstream_url_from_urn(upstream_urls: StringTrie=None,
 
 # pylint: disable=super-init-not-called
 class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
 
 class DummyRequest(AttrDict):
-    def __init__(self, app: WebApp=None, json: dict=None):
+    def __init__(self, app: WebApp=None, json: dict=None) -> None:
         self.app = app
         self.json = json

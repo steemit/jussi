@@ -452,7 +452,7 @@ STEEMD_JSON_RPC_CALLS = [{
     'id': 1,
     'jsonrpc': '2.0',
     'method': 'get_account_votes',
-    'params': ['steemit']
+    'params': ['steemit','test']
 }, {
     'id': 1,
     'jsonrpc': '2.0',
@@ -650,6 +650,13 @@ STEEMD_JSON_RPC_CALLS = [{
     'params': ['steemit', 10]
 }]
 
+STEEMD_JSONRPC_CALL_PAIRS = []
+for c in STEEMD_JSON_RPC_CALLS:
+    if c['method'] == 'call':
+        method = c['params'][1]
+        new_method = [m for m in STEEMD_JSON_RPC_CALLS if m['method'] == method]
+        STEEMD_JSONRPC_CALL_PAIRS.append((c,new_method[0]))
+
 
 # pylint:  disable=unused-variable,unused-argument,attribute-defined-outside-init
 class AttrDict(dict):
@@ -737,3 +744,8 @@ def all_steemd_jrpc_calls(request):
 @pytest.fixture(scope='function')
 def memory_cache():
     return SimpleMemoryCache()
+
+
+@pytest.yield_fixture(scope='module',params=STEEMD_JSONRPC_CALL_PAIRS)
+def steemd_method_pairs(request):
+    yield request.param

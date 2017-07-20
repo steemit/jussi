@@ -44,7 +44,7 @@ def test_parse_namespaced_method(namspaced_method, expected):
     'method':
     'yo.test',
     'params': ['database_api', 'get_account_count', []]
-}, "yo.test?params=['database_api','get_account_count',[]]"), ({
+}, "yo.test.params=['database_api','get_account_count',[]]"), ({
     'id':
     1,
     'jsonrpc':
@@ -56,7 +56,19 @@ def test_parse_namespaced_method(namspaced_method, expected):
         'a': [],
         'f': 1
     }
-}, "yo.test?params={'a':[],'f':1,'z':'val1'}")])
+}, "yo.test.params={'a':[],'f':1,'z':'val1'}"),
+
+    ({"id":"1","jsonrpc":"2.0","method":"get_block","params":[1000]},
+     'steemd.database_api.get_block.params=[1000]')
+])
 def test_urns(jsonrpc_request, expected):
     result = jussi.utils.method_urn(jsonrpc_request)
     assert result == expected
+
+
+def test_urn_pairs(steemd_method_pairs):
+    old, new = steemd_method_pairs
+    old_urn = jussi.utils.method_urn(old)
+    new_urn = jussi.utils.method_urn(new)
+    assert old_urn == new_urn
+    assert old_urn.startswith('steemd.database_api')

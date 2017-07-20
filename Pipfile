@@ -41,6 +41,7 @@ click = "*"
 Sanic = "*"
 aiojobs = "*"
 jsonrpcserver = "*"
+cytoolz = "*"
 
 [requires]
 python_version = "3.6"
