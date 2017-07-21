@@ -8,7 +8,7 @@
     {
       "module": "scalyr_agent.builtin_monitors.linux_process_metrics",
       "id": "jussi-process",
-      "commandline": "*jussi*"
+      "commandline": ".*jussi.*"
     }
   ]
 }

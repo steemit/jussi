@@ -23,6 +23,7 @@ pytest-sanic = "*"
 mypy = "*"
 requests = "*"
 autoflake = "*"
+crayons = "*"
 
 [packages]
 ujson = "*"

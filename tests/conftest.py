@@ -756,21 +756,16 @@ def steemd_method_pairs(request):
 
 @pytest.fixture(scope='module')
 def random_batches(STEEMD_JSON_RPC_CALLS):
-    choices = list(STEEMD_JSON_RPC_CALLS)
-
+    choices = random.sample(STEEMD_JSON_RPC_CALLS, k=len(STEEMD_JSON_RPC_CALLS))
+    batches = []
     # pylint: disable=len-as-condition
     while len(choices) > 0:
-        batch_size = random.randint(1, 40)
+        batch_size = random.randint(1, len(STEEMD_JSON_RPC_CALLS)/2)
         if batch_size > len(choices):
             batch_size = len(choices)
-        batch = random.choices(choices, k=batch_size)
-        for b in batch:
-            try:
-                choices.remove(b)
-            except Exception as e:
-                print(e)
-        yield batch
-
+        batch = [choices.pop() for i in range(batch_size)]
+        batches.append(batch)
+    return batches
 
 @pytest.fixture(scope='module',params=random_batches(STEEMD_JSON_RPC_CALLS))
 def random_jrpc_batch(request):
