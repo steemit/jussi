@@ -6,6 +6,8 @@ import logging
 
 import funcy
 import ujson
+import websockets
+import websockets.exceptions
 from sanic import response
 
 from jussi.cache import cacher
@@ -15,7 +17,6 @@ from jussi.typedefs import HTTPResponse
 from jussi.typedefs import JsonRpcRequest
 from jussi.utils import is_batch_jsonrpc
 from jussi.utils import upstream_url_from_jsonrpc_request
-from jussi.utils import websocket_conn
 
 logger = logging.getLogger('sanic')
 
@@ -50,11 +51,15 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
 
 
 @funcy.log_calls(logger.debug)
-@websocket_conn
+@funcy.retry(2, errors=websockets.exceptions.ConnectionClosed, timeout=0)
 @cacher
 async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: dict) -> dict:
     ws = sanic_http_request.app.config.websocket_client
+    if not ws or not ws.open:
+        logger.info('Reopening closed upstream websocket from fetch_ws')
+        ws = await websockets.connect(**sanic_http_request.app.config.websocket_kwargs)
+        sanic_http_request.app.config.websocket_client = ws
     await ws.send(ujson.dumps(jsonrpc_request).encode())
     json_response = ujson.loads(await ws.recv())
     return json_response

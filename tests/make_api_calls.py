@@ -130,6 +130,6 @@ if __name__ == '__main__':
     jrpc_calls = args.jsonrpc_calls
     url = args.url
 
-    #make_calls(url, jrpc_calls)
-    #make_calls(url, make_random_batches(jrpc_calls))
-    test_batch_speed(url, jrpc_calls)
+    make_calls(url, jrpc_calls)
+    make_calls(url, make_random_batches(jrpc_calls))
+    #test_batch_speed(url, jrpc_calls)

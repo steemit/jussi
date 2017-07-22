@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-
 import asyncio
 
+import pytest
 
+
+@pytest.mark.test_app
 def test_aio_job_scheduled(app_with_wait):
     app = app_with_wait
-    _, _ = app.test_client.get('/wait/1')
+    _, _ = app.test_client.get('/wait/.5')
     assert app.config.last_irreversible_block_num > 10000000
 
 
@@ -15,7 +17,7 @@ def test_aio_job_caching(loop, app_with_wait):
 
     async def wait_middleware(request):
         request.app.config.logger.debug('wait middlware start')
-        await asyncio.sleep(.1)
+        await asyncio.sleep(.3)
         request.app.config.logger.debug('wait middlware finish')
 
     app.request_middleware.insert(0, wait_middleware)

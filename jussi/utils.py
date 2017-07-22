@@ -47,6 +47,7 @@ async def websocket_conn(call: Callable) -> dict:
         # everything ok, noop
         pass
     else:
+        logger.info('Reopening closed upstream websocket from decorator')
         ws = await websockets.connect(**call.sanic_http_request.app.config.websocket_kwargs)
         call.sanic_http_request.app.config.websocket_client = ws
     return await call()

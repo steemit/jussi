@@ -24,6 +24,10 @@ mypy = "*"
 requests = "*"
 autoflake = "*"
 crayons = "*"
+pytest-timeout = "*"
+pytest-xdist = "*"
+pytest-cov = "*"
+pytest-profiling = "*"
 
 [packages]
 ujson = "*"
