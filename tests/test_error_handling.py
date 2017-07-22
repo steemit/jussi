@@ -80,7 +80,7 @@ server_error = {
 }
 
 
-
+@pytest.mark.test_app
 @pytest.mark.parametrize('rpc_req,error,expected', [
     (jrpc_req,
      Exception(),
