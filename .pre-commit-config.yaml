@@ -15,7 +15,6 @@
     -   id: detect-private-key
     -   id: end-of-file-fixer
     -   id: fix-encoding-pragma
-    -   id: check-added-large-files
 -   repo: git://github.com/FalconSocial/pre-commit-python-sorter
     sha: 1.0.4
     hooks:

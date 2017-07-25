@@ -33,13 +33,7 @@ async def handle_jsonrpc(sanic_http_request: HTTPRequest) -> HTTPResponse:
     else:
         jsonrpc_response = await dispatch_single(sanic_http_request,
                                                  jsonrpc_requests)
-
-    if isinstance(jsonrpc_response, bytes):
-        return response.raw(jsonrpc_response, content_type='application/json')
-    elif isinstance(jsonrpc_response, (dict, list)):
-        return response.json(jsonrpc_response)
-
-    return response.text(jsonrpc_response, content_type='application/json')
+    return response.json(jsonrpc_response)
 
 
 # pylint: disable=unused-argument

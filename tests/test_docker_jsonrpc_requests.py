@@ -28,14 +28,16 @@ def test_docker_healtcheck_routes(jussi_docker_service, healthcheck_path):
     utcnow = datetime.datetime.utcnow().isoformat()
     assert response_json['datetime'][:14] == utcnow[:14]
 
-http_methods = ['GET','HEAD','POST','PUT','DELETE','CONNECT','OPTIONS','TRACE','PATCH']
-healthcheck_paths= ['/', '/health/', '/.well-known/healthcheck.json']
-def make_params(path,allowed):
+http_methods = ['GET','HEAD','POST','PUT','DELETE','CONNECT','OPTIONS','PATCH']
+healthcheck_paths= ['/', '/health', '/.well-known/healthcheck.json']
+
+
+def make_params(path,allowed, not_allowed_status_code=403):
     for m in http_methods:
         if m in allowed:
-            yield (path,m,200)
+            yield (path, m, 200)
         else:
-            yield (path,m,405)
+            yield (path, m, not_allowed_status_code)
 
 params1 = make_params('/', ['GET','HEAD','OPTIONS','POST'])
 params2 = make_params('/health', ['GET','HEAD','OPTIONS'])

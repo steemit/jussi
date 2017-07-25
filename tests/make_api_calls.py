@@ -121,6 +121,19 @@ def test_batch_speed(url, jrpc_calls):
     total_batch = resp.elapsed.total_seconds()
     print('%s - %s = %s' % (total_individual,total_batch,total_individual-total_batch))
 
+
+def generate_test_requests_and_responses(url, jrpc_calls):
+    #jrpc_calls += make_random_batches(jrpc_calls)
+    pairs = []
+    for jrpc_call in jrpc_calls:
+        response = make_jrpc_call(url, jrpc_call)
+        response.raise_for_status()
+        assert not has_error(response)
+        pairs.append([jrpc_call, response.json()])
+        #print(json.dumps([jrpc_call, response.json()], ensure_ascii=False).encode())
+    return pairs
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser('jussi jsonrpc test script')
@@ -130,6 +143,8 @@ if __name__ == '__main__':
     jrpc_calls = args.jsonrpc_calls
     url = args.url
 
-    make_calls(url, jrpc_calls)
-    make_calls(url, make_random_batches(jrpc_calls))
+    print(json.dumps(generate_test_requests_and_responses(url, jrpc_calls),ensure_ascii=False))
+
+    #make_calls(url, jrpc_calls)
+    #make_calls(url, make_random_batches(jrpc_calls))
     #test_batch_speed(url, jrpc_calls)
