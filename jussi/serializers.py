@@ -16,14 +16,11 @@ class CompressionSerializer(StringSerializer):
     encoding = None
 
     def dumps(self, value: Union[AnyStr, dict]) -> bytes:
-        if isinstance(value, bytes):
-            return zlib.compress(value)
-        elif isinstance(value, str):
-            return zlib.compress(value.encode())
-        # dict
+        # FIXME handle structs with bytes vals, eg, [1, '2', b'3']
+        # currently self.loads(self.dumps([1, '2', b'3'])) == [1, '2', '3']
         return zlib.compress(ujson.dumps(value).encode())
 
     def loads(self, value: Optional[bytes]) -> Optional[dict]:
         if value:
-            return ujson.loads(zlib.decompress(value).decode())
+            return ujson.loads(zlib.decompress(value))
         return None

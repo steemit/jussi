@@ -9,7 +9,6 @@ from typing import Callable
 from typing import Optional
 from typing import Tuple
 
-import websockets
 from funcy.decorators import decorator
 
 from jussi.typedefs import HTTPRequest
@@ -36,21 +35,6 @@ def apply_single_or_batch(call: Callable) -> JsonRpcRequest:
             results.append(call())
         return results
     return call()
-
-
-@decorator
-async def websocket_conn(call: Callable) -> dict:
-    """Decorate func to make sure func has an open websocket client
-    """
-    ws = call.sanic_http_request.app.config.websocket_client
-    if ws and ws.open:
-        # everything ok, noop
-        pass
-    else:
-        logger.info('Reopening closed upstream websocket from decorator')
-        ws = await websockets.connect(**call.sanic_http_request.app.config.websocket_kwargs)
-        call.sanic_http_request.app.config.websocket_client = ws
-    return await call()
 
 
 @decorator
@@ -102,6 +86,8 @@ def sort_request(
 @apply_single_or_batch
 def is_valid_jsonrpc_request(
         single_jsonrpc_request: SingleJsonRpcRequest=None) -> None:
+    if not isinstance(single_jsonrpc_request, dict):
+        raise ValueError('Not JSONRPC Request')
     assert single_jsonrpc_request.get('jsonrpc') == '2.0'
     assert isinstance(single_jsonrpc_request.get('method'), str)
     if 'id' in single_jsonrpc_request:

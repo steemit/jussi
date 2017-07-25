@@ -70,6 +70,9 @@ with open(os.path.join(TEST_DIR, 'request-schema.json')) as f:
 with open(os.path.join(TEST_DIR, 'response-schema.json')) as f:
     RESPONSE_SCHEMA = ujson.load(f)
 
+with open(os.path.join(TEST_DIR, 'jrpc_requests_and_responses.json')) as f:
+    JRPC_REQUESTS_AND_RESPONSES = ujson.load(f)
+
 INVALID_JRPC_REQUESTS = [
     # bad/missing jsonrpc
     {
@@ -1097,7 +1100,7 @@ def test_cli(loop, app, test_client, unused_port):
 
 @pytest.fixture(
     scope='function',
-    params=['/', '/health/', '/.well-known/healthcheck.json'])
+    params=['/', '/health', '/.well-known/healthcheck.json'])
 def healthcheck_path(request):
     return request.param
 
@@ -1140,6 +1143,10 @@ def steemd_method_pairs(request):
 @pytest.fixture(params=STEEMD_JRPC_BATCHES)
 def random_jrpc_batch(request):
     yield request.param
+
+@pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES)
+def jrpc_response(request):
+    yield request.param[1]
 
 
 def is_responsive(url):

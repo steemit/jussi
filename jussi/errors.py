@@ -56,7 +56,7 @@ def log_request_error(request: HTTPRequest, exception: Exception) -> None:
             amzn_trace_id,
             amzn_request_id,
             exc_info=exception)
-    except BaseException:
+    except Exception:
         logger.error('%s --> %s', request, exception)
         logger.exception('Error while logging exception')
 
