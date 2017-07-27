@@ -6,6 +6,7 @@ import time
 import sanic
 import sanic.response
 import ujson
+from aiocache import caches as aiocaches
 
 import jsonschema
 import jussi.errors
@@ -1081,6 +1082,23 @@ def app():
     app = jussi.listeners.setup_listeners(app)
     yield app
 
+@pytest.fixture(scope='function')
+def caches():
+
+    aiocaches.set_config({
+        'default': {
+            'cache': "aiocache.SimpleMemoryCache",
+            'serializer':{
+            'class':'aiocache.serializers.JsonSerializer'}},
+        'redis': {'cache': "aiocache.SimpleMemoryCache",
+        'serializer': {
+            'class':'aiocache.serializers.JsonSerializer'}
+    }})
+    active_caches = [
+        aiocaches.create(**aiocaches.get_alias_config('default')),
+        aiocaches.create(**aiocaches.get_alias_config('redis'))
+    ]
+    return active_caches
 
 # pylint:;  disable=unused-argument
 @pytest.fixture(scope='function')

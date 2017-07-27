@@ -3,6 +3,10 @@ import aiocache
 
 import pytest
 from jussi.cache import cache_get
+from jussi.cache import cache_get_batch
+from jussi.cache import cacher
+from jussi.cache import jsonrpc_cache_key
+from jussi.cache import merge_cached_responses
 from jussi.serializers import CompressionSerializer
 
 caches_config = {
@@ -32,6 +36,7 @@ jrpc_resp = {
     }
 }
 
+
 @pytest.mark.parametrize('jrpc_req,jrpc_resp', [
     (jrpc_req,jrpc_resp),
     ({"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]},jrpc_resp),
@@ -50,3 +55,58 @@ async def test_cached_response(jrpc_req, jrpc_resp, dummy_request):
         assert result['id'] == jrpc_req['id']
     else:
         assert 'id' not in result
+
+
+batch1_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(10)]
+batch2_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(20,30)]
+
+cached_resp1 = [None for i in batch1_jrpc]
+cached_resp2 = [None,
+                {"id":99,"jsonrpc":"2.0","method":"get_block","params":[1000]},
+                None,
+                {"id":98,"jsonrpc":"2.0","method":"get_block","params":[1000]}]
+expected2 = [None,
+             {"id": 1, "jsonrpc": "2.0", "method": "get_block", "params": [1000]},
+             None,
+             {"id": 3, "jsonrpc": "2.0", "method": "get_block", "params": [1000]},
+]
+
+
+
+
+@pytest.mark.parametrize('jrpc_batch_req,responses, expected', [
+    (batch1_jrpc,cached_resp1,cached_resp1),
+    (batch1_jrpc,batch2_jrpc,batch2_jrpc),
+    (batch1_jrpc[:4],cached_resp2,expected2)
+])
+def test_merge_cached_responses(jrpc_batch_req,responses, expected):
+    assert merge_cached_responses(jrpc_batch_req, responses) == expected
+
+
+@pytest.mark.parametrize('cached,jrpc_batch_req,expected', [
+(batch1_jrpc,batch2_jrpc,batch2_jrpc)
+])
+def test_cache_get_batch(loop, caches,cached,jrpc_batch_req,expected):
+    for cache in caches:
+        loop.run_until_complete(cache.clear())
+
+    for item in cached:
+        key = jsonrpc_cache_key(item)
+        for cache in caches:
+            loop.run_until_complete(
+                cache.set(key, item, ttl=None))
+
+    results = loop.run_until_complete(cache_get_batch(caches,jrpc_batch_req))
+    assert results == expected
+
+
+def test_skip_cacher(loop):
+    # pylint: disable=unused-argument, unexpected-keyword-arg
+    @cacher
+    async def func(sanic_http_request, jsonrpc_request):
+        return 1
+
+    result = loop.run_until_complete(func({},{},
+                                          skip_cacher_get=True,
+                                          skip_cacher_set=True))
+    assert result == 1

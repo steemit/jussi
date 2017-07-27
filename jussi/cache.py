@@ -3,6 +3,7 @@ import asyncio
 import logging
 from typing import Any
 from typing import AnyStr
+from typing import List
 from typing import Optional
 from typing import Union
 
@@ -13,6 +14,7 @@ from funcy.decorators import decorator
 import cytoolz
 import jussi.jsonrpc_method_cache_settings
 from jussi.serializers import CompressionSerializer
+from jussi.typedefs import BatchJsonRpcRequest
 from jussi.typedefs import HTTPRequest
 from jussi.typedefs import SingleJsonRpcRequest
 from jussi.typedefs import WebApp
@@ -24,15 +26,27 @@ logger = logging.getLogger('sanic')
 
 @decorator
 async def cacher(call):
+    # pylint: disable=protected-access
     sanic_http_request = call.sanic_http_request
     jsonrpc_request = call.jsonrpc_request
-    json_response = await cache_get(sanic_http_request,
+    skip_cache_get = call._kwargs.get('skip_cacher_get',False)
+    skip_cache_set = call._kwargs.get('skip_cacher_set',False)
+    if 'skip_cacher_get' in call._kwargs:
+        del call._kwargs['skip_cacher_get']
+    if 'skip_cacher_set' in call._kwargs:
+        del call._kwargs['skip_cacher_set']
+
+    if not skip_cache_get:
+        json_response = await cache_get(sanic_http_request,
                                     jsonrpc_request)
-    if json_response:
-        return json_response
+        if json_response:
+            return json_response
+
     json_response = await call()
-    asyncio.ensure_future(
-        cache_json_response(sanic_http_request,
+
+    if not skip_cache_set:
+        asyncio.ensure_future(
+            cache_json_response(sanic_http_request,
                             jsonrpc_request,
                             json_response))
     return json_response
@@ -122,13 +136,31 @@ async def cache_set(sanic_http_request: HTTPRequest,
     caches = sanic_http_request.app.config.caches
     key = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
     for cache in caches:
-        if isinstance(cache, aiocache.SimpleMemoryCache):
-            ttl = memory_cache_ttl(ttl)
         if ttl == jussi.jsonrpc_method_cache_settings.NO_CACHE:
             logger.debug('skipping non-cacheable value %s', value)
             return
+        if isinstance(cache, aiocache.SimpleMemoryCache):
+            in_memory_ttl = memory_cache_ttl(ttl)
+            logger.debug('cache.set(%s, %s, ttl=%s)', key, value, in_memory_ttl)
+            asyncio.ensure_future(cache.set(key, value, ttl=in_memory_ttl, **kwargs))
         logger.debug('cache.set(%s, %s, ttl=%s)', key, value, ttl)
         asyncio.ensure_future(cache.set(key, value, ttl=ttl, **kwargs))
+
+
+
+async def cache_get_batch(caches: List[Union[aiocache.SimpleMemoryCache,aiocache.RedisCache]], jsonrpc_batch_request:BatchJsonRpcRequest):
+    keys = list(map(jsonrpc_cache_key, jsonrpc_batch_request))
+    batch_response = [None for req in jsonrpc_batch_request]
+    for result in asyncio.as_completed([cache.multi_get(keys) for cache in caches]):
+        logger.debug('cache_get_batch result: %s', result)
+        responses = await result
+        logger.debug('cache_get_batch responses: %s', responses)
+        batch_response = [new or old for old,new in zip(batch_response, responses)]
+        logger.debug('cache_get_batch responses: %s', responses)
+        if all(batch_response):
+            # dont wait if we already have everything
+            return merge_cached_responses(jsonrpc_batch_request, batch_response)
+        return merge_cached_responses(jsonrpc_batch_request, batch_response)
 
 
 async def cache_json_response(sanic_http_request: HTTPRequest,
@@ -149,7 +181,7 @@ def memory_cache_ttl(ttl: int, max_ttl=60) -> int:
     # os.cpu_count() instances running
     if ttl > max_ttl:
         logger.debug('adjusting memory cache ttl from %s to %s', ttl, max_ttl)
-        ttl = max_ttl
+        return max_ttl
     return ttl
 
 
@@ -198,3 +230,12 @@ def merge_cached_response(cached_response: dict, jsonrpc_request:dict) -> dict:
     else:
         del cached_response['id']
     return cached_response
+
+def merge_cached_responses(jsonrpc_batch_request: BatchJsonRpcRequest, responses: list):
+    merged = []
+    for i,response in enumerate(responses):
+        if response:
+            merged.append(merge_cached_response(response, jsonrpc_batch_request[i]))
+        else:
+            merged.append(response)
+    return merged

@@ -1,12 +1,22 @@
 # -*- coding: utf-8 -*-
 import argparse
+import asyncio
 import logging
 import os
 import sys
+import time
 from functools import partial
 from multiprocessing import Pool
 
+import aiohttp
+import ujson
+
 import http_client
+import requests
+import uvloop
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -88,6 +98,32 @@ def block_adder_process_worker(rpc_url, block_nums, max_threads=5):
         print(block)
 
 
+def test_requests(rpc_url, block_nums):
+    s = requests.Session()
+    for block_num in block_nums:
+        yield s.post(rpc_url, json={"method": "get_block", "params": [block_num], "jsonrpc": "2.0", "id": 0}).json()
+
+async def test_aiohttp(rpc_url, block_nums):
+    async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
+        blocks = []
+        for block_num in block_nums:
+            async with session.post(rpc_url, json={"method": "get_block", "params": [block_num], "jsonrpc": "2.0", "id": 0}) as resp:
+                blocks.append(await resp.json())
+        return blocks
+
+def perform_timed_operation(func, rpc_url, block_nums, *args, **kwargs):
+    start = time.perf_counter()
+    responses = list(func(rpc_url, block_nums))
+    end = time.perf_counter()
+    return start, responses, end
+
+def perform_timed_operation_async(func, rpc_url, block_nums, *args, **kwargs):
+    start = time.perf_counter()
+    loop = asyncio.get_event_loop()
+    responses = loop.run_until_complete(func(rpc_url, block_nums))
+    end = time.perf_counter()
+    return start, responses, end
+
 # included only for debugging with pdb, all the above code should be called
 # using the click framework
 if __name__ == '__main__':
@@ -98,9 +134,20 @@ if __name__ == '__main__':
     parser.add_argument('--start', type=int, default=1)
     parser.add_argument('--end', type=int, default=None)
     args = parser.parse_args()
+    block_nums = list(range(100))
+    #start, responses, end = perform_timed_operation(test_requests, args.url, block_nums)
+    start, responses, end = perform_timed_operation_async(test_aiohttp, args.url, block_nums)
+
+    elapsed = end - start
+    spr = elapsed/len(block_nums)
+    rps = len(block_nums)/elapsed
+
+    print('elapsed: %s (%s/request) (%s requests/s)' % (elapsed, spr, rps))
+    '''
     do_test(
         args.url,
         max_procs=args.max_procs,
         max_threads=args.max_threads,
         start=args.start,
         end=args.end)
+    '''
