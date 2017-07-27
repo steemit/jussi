@@ -63,8 +63,16 @@ class SimpleSteemAPIClient(object):
     Returns:
 
     """
-
-    def __init__(self, url=None, **kwargs):
+    # pylint: disable=too-many-arguments
+    def __init__(self,
+                 url=None,
+                 num_pools=2,
+                 max_size=10,
+                 timeout=60,
+                 retries=30,
+                 pool_block=False,
+                 tcp_keepalive=True,
+                 **kwargs):
         url = url or os.environ.get('STEEMD_HTTP_URL',
                                     'https://steemd.steemitdev.com')
         self.url = url
@@ -73,12 +81,11 @@ class SimpleSteemAPIClient(object):
         self.re_raise = kwargs.get('re_raise', False)
         self.max_workers = kwargs.get('max_workers', None)
 
-        num_pools = kwargs.get('num_pools', 10)
-        maxsize = kwargs.get('maxsize', 10)
-        timeout = kwargs.get('timeout', 60)
-        retries = kwargs.get('retries', 30)
-        pool_block = kwargs.get('pool_block', False)
-        tcp_keepalive = kwargs.get('tcp_keepalive', True)
+        maxsize = max_size
+        timeout = timeout
+        retries = retries
+        pool_block = pool_block
+        tcp_keepalive = tcp_keepalive
 
         if tcp_keepalive:
             socket_options = HTTPConnection.default_socket_options + \
@@ -107,8 +114,9 @@ class SimpleSteemAPIClient(object):
         _logger = logging.getLogger('urllib3')
 
     @staticmethod
-    def json_rpc_body(name, *args, as_json=True):
-        body_dict = {"method": name, "params": args, "jsonrpc": "2.0", "id": 0}
+    def json_rpc_body(name, *args, as_json=True, _id=None):
+        _id = _id or int(time.time() * 1000000)
+        body_dict = {"method": name, "params": args, "jsonrpc": "2.0", "id": _id}
         if as_json:
             return json.dumps(body_dict, ensure_ascii=False).encode('utf8')
         return body_dict
@@ -208,45 +216,4 @@ class SimpleSteemAPIClient(object):
                 for item in future.result():
                     yield item
 
-    get_dynamic_global_properties = partialmethod(
-        exec, 'get_dynamic_global_properties')
-
-    get_config = partialmethod(exec, 'get_config')
-
     get_block = partialmethod(exec, 'get_block')
-
-    def last_irreversible_block_num(self):
-        return self.get_dynamic_global_properties()[
-            'last_irreversible_block_num']
-
-    def head_block_height(self):
-        return self.get_dynamic_global_properties()[
-            'last_irreversible_block_num']
-
-    def block_height(self):
-        return self.get_dynamic_global_properties()[
-            'last_irreversible_block_num']
-
-    def block_interval(self):
-        return self.get_config()['STEEMIT_BLOCK_INTERVAL']
-
-    def stream(self, start=None, stop=None, interval=None):
-        start = start or self.block_height()
-        interval = interval or self.block_interval()
-        block_num = start
-        # pylint: disable=bare-except
-        while True:
-            current_height = self.block_height()
-            if block_num > current_height:
-                block_num = current_height
-            try:
-                block = self.get_block(block_num)
-                yield block
-            except:
-                pass
-            else:
-                block_num += 1
-                if stop:
-                    if block_num > stop:
-                        break
-            time.sleep(interval / 2)

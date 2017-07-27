@@ -34,7 +34,7 @@ test:
 	pipenv run pytest
 
 test-without-docker:
-	pipenv run pytest -m'not docker'
+	pipenv run pytest --fulltrace -m'not docker'
 
 lint:
 	pipenv pre-commit run pylint --all-files

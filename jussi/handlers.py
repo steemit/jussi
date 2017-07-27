@@ -10,6 +10,7 @@ import websockets
 import websockets.exceptions
 from sanic import response
 
+from jussi.cache import cache_get_batch
 from jussi.cache import cacher
 from jussi.typedefs import BatchJsonRpcRequest
 from jussi.typedefs import HTTPRequest
@@ -75,21 +76,31 @@ async def fetch_http(sanic_http_request: HTTPRequest=None,
 
 
 async def dispatch_single(sanic_http_request: HTTPRequest,
-                          jsonrpc_request: dict) -> dict:
+                          jsonrpc_request: dict,
+                          skip_cacher_get=False,
+                          skip_cacher_set=False) -> dict:
+
     url = upstream_url_from_jsonrpc_request(
         sanic_http_request.app.config.upstream_urls, jsonrpc_request)
+    # pylint: disable=unexpected-keyword-arg
     if url.startswith('ws'):
-        json_response = await fetch_ws(sanic_http_request, jsonrpc_request)
+        json_response = await fetch_ws(sanic_http_request,
+                                       jsonrpc_request,
+                                       skip_cacher_get=skip_cacher_get,
+                                       skip_cacher_set=skip_cacher_set
+                                       )
     else:
-        json_response = await fetch_http(sanic_http_request, jsonrpc_request,
-                                         url)
+        json_response = await fetch_http(sanic_http_request,
+                                         jsonrpc_request,
+                                         url,
+                                         skip_cacher_get=skip_cacher_get,
+                                         skip_cacher_set=skip_cacher_set)
     return json_response
 
 
 async def dispatch_batch(sanic_http_request: HTTPRequest,
                          jsonrpc_requests: JsonRpcRequest) -> BatchJsonRpcRequest:
-    responses = await asyncio.gather(* [
-        dispatch_single(sanic_http_request, jsonrpc_request)
-        for jrpc_req_index, jsonrpc_request in enumerate(jsonrpc_requests)
-    ])
-    return responses
+    cached_responses = await cache_get_batch(sanic_http_request.app.config.caches, jsonrpc_requests)
+    requests = [dispatch_single(sanic_http_request, jsonrpc_request, skip_cacher_get=True) for i,jsonrpc_request in enumerate(jsonrpc_requests) if not cached_responses[i]]
+    fetched_responses = iter(await asyncio.gather(* requests))
+    return [response or next(fetched_responses) for response in cached_responses]

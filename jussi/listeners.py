@@ -24,8 +24,10 @@ def setup_listeners(app: WebApp) -> WebApp:
         for cache_alias in caches.get_config().keys():
             logger.info('before_server_start -> setup_cache caches=%s',
                         cache_alias)
+        app.config.aiocaches = caches
+
         active_caches = [
-            caches.get(alias) for alias in caches.get_config().keys()
+            caches.get(alias) for alias in sorted(caches.get_config().keys())
         ]
 
         app.config.caches = active_caches
