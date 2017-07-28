@@ -7,7 +7,7 @@ import pytest
 @pytest.mark.test_app
 def test_aio_job_scheduled(app_with_wait):
     app = app_with_wait
-    _, _ = app.test_client.get('/wait/.5')
+    _, _ = app.test_client.get('/wait/1')
     assert app.config.last_irreversible_block_num > 10000000
 
 

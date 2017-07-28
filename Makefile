@@ -65,3 +65,15 @@ curl-check: run
 
 steemd-calls:
 	pipenv run python tests/make_api_calls.py tests/steemd_jsonrpc_calls.json http://localhost:8080
+
+./perf:
+	mkdir $@
+
+%.pstats: perf
+	pipenv run python -m cProfile -o $*.pstats tests/perf/$(notdir $*).py
+
+%.png: %.pstats
+	pipenv run gprof2dot -f pstats $< | dot -Tpng -o $@
+
+clean-perf:
+	rm -rf $(ROOT_DIR)/perf
