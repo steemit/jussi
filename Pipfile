@@ -28,6 +28,9 @@ pytest-timeout = "*"
 pytest-xdist = "*"
 pytest-cov = "*"
 pytest-profiling = "*"
+pyprof2calltree = "*"
+gprof2dot = "*"
+redis = "*"
 
 [packages]
 ujson = "*"

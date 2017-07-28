@@ -46,7 +46,8 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
 
 
 @funcy.log_calls(logger.debug)
-@funcy.retry(2, errors=websockets.exceptions.ConnectionClosed, timeout=0)
+@funcy.retry(3, errors=[websockets.exceptions.ConnectionClosed,
+                        websockets.exceptions.InvalidHandshake], timeout=0)
 @cacher
 async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: dict) -> dict:

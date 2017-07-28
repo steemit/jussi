@@ -12,8 +12,19 @@ WebApp = Sanic
 HTTPRequest = Request
 HTTPResponse = SanicHTTPResponse
 
-
-SingleJsonRpcRequest = Dict
+# JSONRPC Requests
+SingleJsonRpcRequest = Dict[str, Union[str,int,float, None,list,dict]]
 BatchJsonRpcRequest = List[SingleJsonRpcRequest]
 JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
+
+# JSONRPC Responses
+SingleJsonRpcResponse = Dict[str, Union[str,int,float, None,list,dict]]
+BatchJsonRpcResponse = List[SingleJsonRpcResponse]
+JsonRpcResponse = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
+
+# Cached JSONRPC Responses
+CachedSingleResponse = SingleJsonRpcResponse
+CachedBatchResponse = List[Union[None,CachedSingleResponse]]
+CachedResponse = Union[CachedSingleResponse,CachedBatchResponse]
+
 StringTrie = pygtrie.StringTrie

@@ -15,6 +15,8 @@ import cytoolz
 import jussi.jsonrpc_method_cache_settings
 from jussi.serializers import CompressionSerializer
 from jussi.typedefs import BatchJsonRpcRequest
+from jussi.typedefs import CachedBatchResponse
+from jussi.typedefs import CachedSingleResponse
 from jussi.typedefs import HTTPRequest
 from jussi.typedefs import SingleJsonRpcRequest
 from jussi.typedefs import WebApp
@@ -37,18 +39,24 @@ async def cacher(call):
         del call._kwargs['skip_cacher_set']
 
     if not skip_cache_get:
+        logger.debug('cacher querying caches for request',)
         json_response = await cache_get(sanic_http_request,
                                     jsonrpc_request)
         if json_response:
             return json_response
+    else:
+        logger.debug('cacher not querying caches for request')
 
     json_response = await call()
 
     if not skip_cache_set:
+        logger.debug('cacher caching result')
         asyncio.ensure_future(
             cache_json_response(sanic_http_request,
                             jsonrpc_request,
                             json_response))
+    else:
+        logger.debug('cacher not caching result')
     return json_response
 
 
@@ -113,13 +121,13 @@ async def cache_get(sanic_http_request: HTTPRequest,
 
     # happy eyeballs approach supports use of multiple caches, eg,
     # SimpleMemoryCache and RedisCache
-    for result in asyncio.as_completed([cache.get(key) for cache in caches]):
-        logger.debug('cache_get result: %s', result)
-        response = await result
-        logger.debug('cache_get response: %s', response)
-        if response:
-            logger.debug('cache --> %s', response)
-            return merge_cached_response(response, single_jsonrpc_request)
+    for i,result in enumerate(asyncio.as_completed([cache.get(key) for cache in caches])):
+        logger.debug('cache_get result %s: %s', i, result)
+        cached_response = await result
+        logger.debug('cache_get response %s: %s', i, cached_response)
+        if cached_response:
+            logger.debug('cache --> %s', cached_response)
+            return merge_cached_response(cached_response, single_jsonrpc_request)
 
 
 @ignore_errors_async
@@ -132,39 +140,39 @@ async def cache_set(sanic_http_request: HTTPRequest,
     ttl = ttl or ttl_from_jsonrpc_request(single_jsonrpc_request,
                                           last_irreversible_block_num,
                                           value)
-
     caches = sanic_http_request.app.config.caches
     key = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
     for cache in caches:
         if ttl == jussi.jsonrpc_method_cache_settings.NO_CACHE:
-            logger.debug('skipping non-cacheable value %s', value)
+            logger.debug('skipping cache for ttl=%s value %s', ttl, value)
             return
         if isinstance(cache, aiocache.SimpleMemoryCache):
             in_memory_ttl = memory_cache_ttl(ttl)
-            logger.debug('cache.set(%s, %s, ttl=%s)', key, value, in_memory_ttl)
-            asyncio.ensure_future(cache.set(key, value, ttl=in_memory_ttl, **kwargs))
-        logger.debug('cache.set(%s, %s, ttl=%s)', key, value, ttl)
-        asyncio.ensure_future(cache.set(key, value, ttl=ttl, **kwargs))
+            logger.debug('%s.set(%s, %s, ttl=%s)', cache, key, value, in_memory_ttl)
+            asyncio.ensure_future(cache.set(key, value, ttl=convert_no_expire_ttl(in_memory_ttl), **kwargs))
+        logger.debug('%s.set(%s, %s, ttl=%s)', cache, key, value, ttl)
+        asyncio.ensure_future(cache.set(key, value, ttl=convert_no_expire_ttl(ttl), **kwargs))
 
 
 
 async def cache_get_batch(caches: List[Union[aiocache.SimpleMemoryCache,aiocache.RedisCache]], jsonrpc_batch_request:BatchJsonRpcRequest):
     keys = list(map(jsonrpc_cache_key, jsonrpc_batch_request))
     batch_response = [None for req in jsonrpc_batch_request]
-    for result in asyncio.as_completed([cache.multi_get(keys) for cache in caches]):
-        logger.debug('cache_get_batch result: %s', result)
-        responses = await result
-        logger.debug('cache_get_batch responses: %s', responses)
-        batch_response = [new or old for old,new in zip(batch_response, responses)]
-        logger.debug('cache_get_batch responses: %s', responses)
+    for i,result in enumerate(asyncio.as_completed([cache.multi_get(keys) for cache in caches])):
+        cached_responses = await result
+        logger.debug('cache_get_batch cached_responses %s: %s', i, cached_responses)
+        batch_response = [new or old for old,new in zip(batch_response, cached_responses)]
+        logger.debug('cache_get_batch cached_responses %s: %s', i, cached_responses)
         if all(batch_response):
             # dont wait if we already have everything
+            logger.debug('cache_get_batch all requests found in cache')
             return merge_cached_responses(jsonrpc_batch_request, batch_response)
         return merge_cached_responses(jsonrpc_batch_request, batch_response)
 
 
+
 async def cache_json_response(sanic_http_request: HTTPRequest,
-                                single_jsonrpc_request: SingleJsonRpcRequest,
+                              single_jsonrpc_request: SingleJsonRpcRequest,
                               value: dict) -> None:
     """Don't cache error responses
     """
@@ -201,6 +209,11 @@ def ttl_from_urn(urn: str) -> int:
     return ttl
 
 
+def convert_no_expire_ttl(ttl: int) -> Union[int, None]:
+    if ttl == 0:
+        return None
+    return ttl
+
 def irreversible_ttl(jsonrpc_response: dict = None,
                      last_irreversible_block_num: int = 0) -> int:
     try:
@@ -214,7 +227,7 @@ def irreversible_ttl(jsonrpc_response: dict = None,
 
 
 
-def block_num_from_jsonrpc_response(jsonrpc_response: dict = None) -> int:
+def block_num_from_jsonrpc_response(jsonrpc_response: SingleJsonRpcRequest = None) -> int:
     # pylint: disable=no-member
     block_id = cytoolz.get_in(['result','block_id'],jsonrpc_response)
     return block_num_from_id(block_id)
@@ -224,16 +237,16 @@ def block_num_from_id(block_hash: str) -> int:
     """
     return int(str(block_hash)[:8], base=16)
 
-def merge_cached_response(cached_response: dict, jsonrpc_request:dict) -> dict:
+def merge_cached_response(cached_response: CachedSingleResponse, jsonrpc_request:SingleJsonRpcRequest) -> SingleJsonRpcRequest:
     if 'id' in jsonrpc_request:
         cached_response['id'] = jsonrpc_request['id']
     else:
         del cached_response['id']
     return cached_response
 
-def merge_cached_responses(jsonrpc_batch_request: BatchJsonRpcRequest, responses: list):
+def merge_cached_responses(jsonrpc_batch_request: BatchJsonRpcRequest, cached_responses: CachedBatchResponse) -> CachedBatchResponse:
     merged = []
-    for i,response in enumerate(responses):
+    for i,response in enumerate(cached_responses):
         if response:
             merged.append(merge_cached_response(response, jsonrpc_batch_request[i]))
         else:

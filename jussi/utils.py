@@ -20,6 +20,7 @@ from jussi.typedefs import WebApp
 
 logger = logging.getLogger('sanic')
 
+JSONRPC_REQUEST_KEYS = set(['id','jsonrpc','method','params'])
 
 # decorators
 @decorator
@@ -88,12 +89,12 @@ def is_valid_jsonrpc_request(
         single_jsonrpc_request: SingleJsonRpcRequest=None) -> None:
     if not isinstance(single_jsonrpc_request, dict):
         raise ValueError('Not JSONRPC Request')
+    assert JSONRPC_REQUEST_KEYS.issuperset(single_jsonrpc_request.keys())
     assert single_jsonrpc_request.get('jsonrpc') == '2.0'
     assert isinstance(single_jsonrpc_request.get('method'), str)
     if 'id' in single_jsonrpc_request:
         assert isinstance(single_jsonrpc_request['id'], (int, str, type(None)))
-    if 'params' in single_jsonrpc_request:
-        assert isinstance(single_jsonrpc_request, (list, dict))
+
 
 
 def parse_namespaced_method(namespaced_method: str,
