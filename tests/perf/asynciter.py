@@ -25,6 +25,7 @@ def chunkify(iterable, chunksize=10):
 
 class AsyncBlockIterator:
     def __init__(self, url, block_nums, batch_size=100, batches_per_chunk=10):
+
         self.url = url
         self.block_nums = block_nums
         self.batch_size = batch_size
@@ -32,6 +33,7 @@ class AsyncBlockIterator:
         self.requests =  ({"method": "get_block", "params": [block_num], "jsonrpc": "2.0", "id": 0} for block_num in self.block_nums)
         self.batches = chunkify(self.requests, self.batch_size)
         self.batches_per_chunk=batches_per_chunk
+
 
 
     async def fetch_batch(self, batch):
@@ -53,6 +55,7 @@ class AsyncBlockIterator:
         for i,chunk in enumerate(chunked_batches):
             for j,batch in enumerate(asyncio.as_completed(chunk)):
                 print('chunk: %s batch: %s' % (i,j))
+
                 try:
                     data = await batch
                 except Exception as e:
@@ -75,6 +78,7 @@ async def run2(block_nums, url=None, batch_size=None, batches_per_chunk=None):
     async for batch in block_iter.gen_yield():
         count += len(batch)
         print('%s' % count)
+
     return responses
 
 
