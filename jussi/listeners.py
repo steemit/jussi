@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 
 import aiohttp
+import statsd
 import ujson
 import websockets
 
 import aiojobs
+import janus
 import jussi.cache
 import jussi.jobs
 import jussi.jsonrpc_method_cache_settings
 import jussi.jsonrpc_method_upstream_url_settings
+import jussi.stats
 from jussi.typedefs import WebApp
 
 
@@ -72,6 +75,15 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.websocket_client = await websockets.connect(
             **app.config.websocket_kwargs)
 
+    @app.listener('before_server_start')
+    async def setup_statsd(app: WebApp, loop) -> None:
+        """setup statsd client and queue"""
+        logger.info('before_server_start -> setup_statsd')
+        app.config.statsd_client = statsd.StatsClient()
+        stats_queue = janus.Queue(loop=loop)
+        app.config.stats = jussi.stats.QStatsClient(q=stats_queue)
+
+
     # after server start
     @app.listener('after_server_start')
     async def setup_job_scheduler(app: WebApp, loop) -> None:
@@ -80,6 +92,9 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.scheduler = await aiojobs.create_scheduler()
         await app.config.scheduler.spawn(
             jussi.jobs.get_last_irreversible_block(app=app))
+        logger.info('before_server_start -> setup_job_scheduler scheduled jussi.jobs.get_last_irreversible_block')
+        await app.config.scheduler.spawn(jussi.jobs.flush_stats(app=app))
+        logger.info('before_server_start -> setup_job_scheduler scheduled jussi.jobs.flush_stats')
 
     # before server stop
     @app.listener('before_server_stop')

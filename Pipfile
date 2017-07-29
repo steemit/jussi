@@ -50,6 +50,7 @@ Sanic = "*"
 aiojobs = "*"
 jsonrpcserver = "*"
 cytoolz = "*"
+janus = "*"
 
 [requires]
 python_version = "3.6"

@@ -106,7 +106,7 @@ def parse_namespaced_method(namespaced_method: str,
     return parts[0], '.'.join(parts[1:])
 
 
-def method_urn(single_jsonrpc_request: dict) -> str:
+def method_urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
     api = None
     query = ''
     namespace, method = parse_namespaced_method(

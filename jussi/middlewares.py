@@ -17,6 +17,7 @@ from .errors import handle_middleware_exceptions
 from .utils import async_exclude_methods
 from .utils import is_batch_jsonrpc
 from .utils import is_valid_jsonrpc_request
+from .utils import method_urn
 from .utils import sort_request
 
 logger = logging.getLogger('sanic')
@@ -26,6 +27,7 @@ def setup_middlewares(app):
     logger = app.config.logger
     logger.info('before_server_start -> setup_middlewares')
     app.request_middleware.append(validate_jsonrpc_request)
+    app.request_middleware.append(request_stats)
     app.request_middleware.append(caching_middleware)
 
     return app
@@ -49,6 +51,22 @@ async def validate_jsonrpc_request(
         # json failed to parse
         return response.json(
             ServerError(sanic_request=request, exception=e).to_dict())
+
+
+@handle_middleware_exceptions
+@async_exclude_methods(exclude_http_methods=('GET', ))
+async def request_stats(
+        request: HTTPRequest) -> Optional[HTTPResponse]:
+    stats = request.app.config.stats
+    if is_batch_jsonrpc(sanic_http_request=request):
+        stats.incr('jsonrpc.batch_requests')
+        for req in request.json:
+            urn = method_urn(req)
+            stats.incr('jsonrpc.requests.%s' % urn)
+        return
+    urn = method_urn(request.json)
+    stats.incr('jsonrpc.single_requests')
+    stats.incr('jsonrpc.requests.%s' % urn)
 
 
 @handle_middleware_exceptions

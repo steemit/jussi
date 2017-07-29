@@ -115,3 +115,4 @@ tests/failed_blocks/
 /tests/envdir-to-envfile.sh
 /deploy/
 /tests/async_deco.py
+/tests/perf/*.json

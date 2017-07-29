@@ -31,6 +31,7 @@ async def handle_jsonrpc(sanic_http_request: HTTPRequest) -> HTTPResponse:
     if is_batch_jsonrpc(sanic_http_request=sanic_http_request):
         jsonrpc_response = await dispatch_batch(sanic_http_request,
                                                 jsonrpc_requests)
+
     else:
         jsonrpc_response = await dispatch_single(sanic_http_request,
                                                  jsonrpc_requests)
@@ -52,12 +53,14 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
 async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: dict) -> dict:
     ws = sanic_http_request.app.config.websocket_client
+    stats = sanic_http_request.app.config.stats
     if not ws or not ws.open:
         logger.info('Reopening closed upstream websocket from fetch_ws')
         ws = await websockets.connect(**sanic_http_request.app.config.websocket_kwargs)
         sanic_http_request.app.config.websocket_client = ws
     await ws.send(ujson.dumps(jsonrpc_request).encode())
     json_response = ujson.loads(await ws.recv())
+    stats.incr('upstream.websocket_requests')
     return json_response
 
 

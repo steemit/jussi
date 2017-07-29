@@ -28,7 +28,7 @@ build-then-run: build
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
 run-local:
-	pipenv run python3 jussi/serve.py  --server_workers=1
+	env LOG_LEVEL=DEBUG pipenv run python3 jussi/serve.py  --server_workers=1
 
 test:
 	pipenv run pytest
