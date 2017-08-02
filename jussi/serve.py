@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import argparse
-import logging
 import os
 
 from sanic import Sanic
@@ -12,7 +11,7 @@ import jussi.logging_config
 import jussi.middlewares
 from jussi.typedefs import WebApp
 
-logger = logging.getLogger('sanic')
+#logger = logging.getLogger('sanic')
 
 
 def setup_routes(app: WebApp) -> WebApp:
@@ -57,7 +56,7 @@ if __name__ == '__main__':
     app = jussi.errors.setup_error_handlers(app)
     app = jussi.listeners.setup_listeners(app)
 
-    logger.info('app.run')
+    app.config.logger.info('app.run')
     app.run(
         host=app.config.args.server_host,
         port=app.config.args.server_port,

@@ -6,6 +6,7 @@ ENV LC_ALL en_US.UTF-8
 ENV PIPENV_VENV_IN_PROJECT 1
 ENV APP_ROOT /app
 ENV APP_CMD ${APP_ROOT}/jussi/serve.py
+
 # all nginx env vars must also be changed in service/nginx/nginx.conf
 ENV NGINX_SERVER_PORT 8080
 ENV JUSSI_SERVER_HOST 0.0.0.0
@@ -13,7 +14,9 @@ ENV JUSSI_SERVER_PORT 9000
 ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
 ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
 ENV JUSSI_REDIS_PORT 6379
-ENV ENVIRONMENT PROD
+ENV ENVIRONMENT DEV
+ENV SANIC_REQUEST_TIMEOUT = 120
+ENV SANIC_REQUEST_MAX_SIZE = 10000000
 
 RUN \
     apt-get update && \
@@ -38,7 +41,8 @@ RUN \
         nginx \
         runit \
         tk-dev \
-        wget
+        wget \
+        golang-go
 
 
 RUN \
@@ -47,6 +51,15 @@ RUN \
     cd Python-3.6.2/ && \
     ./configure && \
     make altinstall
+
+# add statsd server
+RUN mkdir /root/go && \
+    cd /root/go && \
+    export GOPATH=/root/go && \
+    go get github.com/raintank/statsdaemon/cmd/statsdaemon && \
+    mv /root/go/bin/statsdaemon /usr/local/bin && \
+    cd / && \
+    rm -rf /root/go
 
 
 # add scalyr agent
@@ -89,21 +102,20 @@ RUN \
     pipenv install && \
     pipenv run python3.6 setup.py install
 
-RUN chown -R www-data .
-    #apt-get remove -y \
-    #    build-essential \
-    #    libffi-dev \
-    #    libssl-dev
-
-    #apt-get autoremove -y && \
-    #rm -rf \
-    #    /root/.cache \
-    #    /var/lib/apt/lists/* \
-    #    /tmp/* \
-    #    /var/tmp/* \
-    #    /var/cache/* \
-    #    /usr/include \
-    #    /usr/local/include \
+RUN chown -R www-data . && \
+    apt-get remove -y \
+        build-essential \
+        libffi-dev \
+        libssl-dev && \
+    apt-get autoremove -y && \
+    rm -rf \
+        /root/.cache \
+        /var/lib/apt/lists/* \
+        /tmp/* \
+        /var/tmp/* \
+        /var/cache/* \
+        /usr/include \
+        /usr/local/include \
 
 
 EXPOSE ${NGINX_SERVER_PORT}

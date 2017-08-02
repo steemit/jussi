@@ -117,17 +117,16 @@ async def cache_get(sanic_http_request: HTTPRequest,
                     ) -> Optional[dict]:
     caches = sanic_http_request.app.config.caches
     key = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
-    logger.debug('cache.get(%s)', key)
+    logger.debug('cache_get key=%s', key)
 
-    # happy eyeballs approach supports use of multiple caches, eg,
-    # SimpleMemoryCache and RedisCache
-    for i,result in enumerate(asyncio.as_completed([cache.get(key) for cache in caches])):
-        logger.debug('cache_get result %s: %s', i, result)
-        cached_response = await result
-        logger.debug('cache_get response %s: %s', i, cached_response)
+
+    # caches should be sorted from fastest to slowest, ie, [SimpleMemoryCache, RedisCache]
+    for cache in caches:
+        cached_response = await cache.get(key)
         if cached_response:
-            logger.debug('cache --> %s', cached_response)
+            logger.debug('cache_get response %s: %s', cache, cached_response)
             return merge_cached_response(cached_response, single_jsonrpc_request)
+    logger.debug('cache_get miss with key=%s', key)
 
 
 @ignore_errors_async
@@ -158,11 +157,11 @@ async def cache_set(sanic_http_request: HTTPRequest,
 async def cache_get_batch(caches: List[Union[aiocache.SimpleMemoryCache,aiocache.RedisCache]], jsonrpc_batch_request:BatchJsonRpcRequest):
     keys = list(map(jsonrpc_cache_key, jsonrpc_batch_request))
     batch_response = [None for req in jsonrpc_batch_request]
-    for i,result in enumerate(asyncio.as_completed([cache.multi_get(keys) for cache in caches])):
-        cached_responses = await result
-        logger.debug('cache_get_batch cached_responses %s: %s', i, cached_responses)
+    for cache in caches:
+        cached_responses = await cache.multi_get(keys)
+        logger.debug('cache_get_batch cached_responses %s: %s', cache, cached_responses)
         batch_response = [new or old for old,new in zip(batch_response, cached_responses)]
-        logger.debug('cache_get_batch cached_responses %s: %s', i, cached_responses)
+        logger.debug('cache_get_batch cached_responses %s: %s', cache, cached_responses)
         if all(batch_response):
             # dont wait if we already have everything
             logger.debug('cache_get_batch all requests found in cache')
@@ -200,7 +199,7 @@ def ttl_from_jsonrpc_request(
     urn = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
     ttl = ttl_from_urn(urn)
     if ttl == jussi.jsonrpc_method_cache_settings.NO_EXPIRE_IF_IRREVERSIBLE:
-        ttl = irreversible_ttl(jsonrpc_response,last_irreversible_block_num)
+        ttl = irreversible_ttl(jsonrpc_response, last_irreversible_block_num)
     return ttl
 
 
@@ -219,12 +218,12 @@ def irreversible_ttl(jsonrpc_response: dict = None,
     try:
         jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
         if  last_irreversible_block_num < jrpc_block_num:
+            logger.debug('skipping cache for block_num > last_irreversible')
             return jussi.jsonrpc_method_cache_settings.NO_CACHE
         return jussi.jsonrpc_method_cache_settings.NO_EXPIRE
     except Exception as e:
         logger.warning('Unable to cache using last irreversible block: %s', e)
         return jussi.jsonrpc_method_cache_settings.NO_CACHE
-
 
 
 def block_num_from_jsonrpc_response(jsonrpc_response: SingleJsonRpcRequest = None) -> int:

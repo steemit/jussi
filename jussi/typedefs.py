@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Union
@@ -12,15 +13,28 @@ WebApp = Sanic
 HTTPRequest = Request
 HTTPResponse = SanicHTTPResponse
 
+# JSONRPC Request fields
+JsonRpcRequestIdField = Union[str,float,None]
+JsonRpcRequestParamsField = Union[str,int,float, None,list,dict]
+JsonRpcRequestVersionField = str
+JsonRpcRequestMethodField = str
+
 # JSONRPC Requests
-SingleJsonRpcRequest = Dict[str, Union[str,int,float, None,list,dict]]
+SingleJsonRpcRequest = Dict[str, Any]
 BatchJsonRpcRequest = List[SingleJsonRpcRequest]
 JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
 
+
+
 # JSONRPC Responses
-SingleJsonRpcResponse = Dict[str, Union[str,int,float, None,list,dict]]
+SingleJsonRpcResponse = SingleJsonRpcRequest
 BatchJsonRpcResponse = List[SingleJsonRpcResponse]
-JsonRpcResponse = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
+JsonRpcResponse = Union[SingleJsonRpcResponse, BatchJsonRpcResponse]
+
+# JSONRPC Errors
+JsonRpcErrorObject  = Dict[str, Union[int, str, dict]]
+JsonRpcErrorResponse = Dict[str, Any]
+
 
 # Cached JSONRPC Responses
 CachedSingleResponse = SingleJsonRpcResponse

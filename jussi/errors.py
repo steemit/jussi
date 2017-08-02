@@ -10,6 +10,7 @@ from sanic import response
 
 from jussi.typedefs import HTTPRequest
 from jussi.typedefs import HTTPResponse
+from jussi.typedefs import JsonRpcErrorResponse
 from jussi.typedefs import WebApp
 
 logger = logging.getLogger('sanic')
@@ -36,12 +37,12 @@ def log_request_error(request: HTTPRequest, exception: Exception) -> None:
         try:
             amzn_trace_id = request.headers.get('X-Amzn-Trace-Id')
         except Exception as e:
-            logger.warning('No X-Amzn-Trace-Id in request: %s', e)
+            logger.debug('No X-Amzn-Trace-Id in request: %s', e)
             amzn_trace_id = ''
         try:
             amzn_request_id = request.headers.get('X-Amzn-RequestId')
         except Exception as e:
-            logger.warning('No X-Amzn-RequestId in request: %s', e)
+            logger.debug('No X-Amzn-RequestId in request: %s', e)
             amzn_request_id = ''
 
         message = getattr(exception, 'message', 'Internal Error')
@@ -103,14 +104,16 @@ class JsonRpcError(Exception):
         except BaseException:
             return None
 
-    def to_dict(self) -> dict:
+
+    def to_dict(self) ->  JsonRpcErrorResponse:
         base_error = {
             'jsonrpc': '2.0',
             'error': {
                 'code': self.code,
                 'message': self.message
             }
-        }
+        } # type:  JsonRpcErrorResponse
+
         if self._id:
             base_error['id'] = self._id
         if self.data:
@@ -121,7 +124,6 @@ class JsonRpcError(Exception):
             except Exception:
                 logger.exception('Error generating jsonrpc error response')
                 return base_error
-
         return base_error
 
     def to_sanic_response(self) -> HTTPResponse:

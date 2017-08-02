@@ -1075,6 +1075,7 @@ def app():
     # run app
     app = sanic.Sanic('testApp')
     app.config.args = args
+    app.config.args.server_port = 42101
     app = jussi.logging_config.setup_logging(app)
     app = jussi.serve.setup_routes(app)
     app = jussi.middlewares.setup_middlewares(app)

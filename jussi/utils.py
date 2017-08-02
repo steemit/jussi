@@ -9,6 +9,7 @@ from typing import Callable
 from typing import Optional
 from typing import Tuple
 
+from funcy.decorators import Call
 from funcy.decorators import decorator
 
 from jussi.typedefs import HTTPRequest
@@ -24,7 +25,7 @@ JSONRPC_REQUEST_KEYS = set(['id','jsonrpc','method','params'])
 
 # decorators
 @decorator
-def apply_single_or_batch(call: Callable) -> JsonRpcRequest:
+def apply_single_or_batch(call: Call) -> JsonRpcRequest:
     """Decorate func to apply func to single or batch jsonrpc_requests
     """
     if isinstance(call.single_jsonrpc_request, list):
@@ -39,20 +40,20 @@ def apply_single_or_batch(call: Callable) -> JsonRpcRequest:
 
 
 @decorator
-async def ignore_errors_async(call: Callable) -> Optional[dict]:
+async def ignore_errors_async(call: Call) -> Optional[dict]:
     try:
         # pylint: disable=protected-access
         if not asyncio.iscoroutinefunction(call._func):
             loop = asyncio.get_event_loop()
             executor = ThreadPoolExecutor(max_workers=1)
-            return await loop.run_in_executor(executor, func=call)
+            return await loop.run_in_executor(executor, call)
         return await call()
     except Exception as e:
         logger.exception('Error ignored %s', e)
 
 
 def async_exclude_methods(middleware_func: Optional[Callable]=None,
-                          exclude_http_methods: Tuple[str]=None):
+                          exclude_http_methods: Tuple[str]=None) -> Optional[Callable]:
     """Exclude specified HTTP methods from middleware
 
     Args:
@@ -79,8 +80,8 @@ def sort_request(
         single_jsonrpc_request: SingleJsonRpcRequest=None) -> OrderedDict:
     params = single_jsonrpc_request.get('params')
     if isinstance(params, dict):
-        single_jsonrpc_request['params'] = OrderedDict(
-            sorted(single_jsonrpc_request['params']))
+        single_jsonrpc_request['params'] = dict(
+            sorted(single_jsonrpc_request['params'].items()))
     return OrderedDict(sorted(single_jsonrpc_request.items()))
 
 
@@ -116,6 +117,7 @@ def method_urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
         params = dict(sorted(params.items()))
     if namespace == 'steemd':
         if method == 'call':
+            assert isinstance(params, list)
             api = params[0]
             method = params[1]
             params = params[2]

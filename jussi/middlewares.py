@@ -10,6 +10,7 @@ from jussi.typedefs import HTTPResponse
 
 from .cache import cache_get
 from .cache import jsonrpc_cache_key
+from .cache import merge_cached_response
 from .errors import InvalidRequest
 from .errors import ParseError
 from .errors import ServerError
@@ -29,7 +30,7 @@ def setup_middlewares(app):
     app.request_middleware.append(validate_jsonrpc_request)
     app.request_middleware.append(request_stats)
     app.request_middleware.append(caching_middleware)
-
+    app.response_middleware.append(finalize_request_stats)
     return app
 
 
@@ -67,6 +68,8 @@ async def request_stats(
     urn = method_urn(request.json)
     stats.incr('jsonrpc.single_requests')
     stats.incr('jsonrpc.requests.%s' % urn)
+    request['timer'] = stats.timer('jsonrpc.requests.%s' % urn)
+    request['timer'].start()
 
 
 @handle_middleware_exceptions
@@ -87,7 +90,9 @@ async def caching_middleware(request: HTTPRequest) -> None:
 
     logger.debug('caching_middleware no hit for %s', key)
 
-
-def merge_cached_response(cached_response, jsonrpc_request):
-    cached_response['id'] = jsonrpc_request['id']
-    return cached_response
+# pylint: disable=unused-argument
+@handle_middleware_exceptions
+async def finalize_request_stats(
+        request: HTTPRequest, response: HTTPResponse) -> None:
+    if 'timer' in request:
+        request['timer'].stop()

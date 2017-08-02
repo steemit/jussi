@@ -1,6 +1,7 @@
 {
-  "api_key": "REPLACE_THIS",
-  "server_attributes":{"tier": "production"},
+  "import_vars": [ "SCALYR_API_KEY","ENVIRONMENT" ],
+  "api_key": "$SCALYR_API_KEY",
+  "server_attributes":{"tier": "$ENVIRONMENT"},
   "monitors": [
     {
       "module": "scalyr_agent.builtin_monitors.graphite_monitor"

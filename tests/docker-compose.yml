@@ -6,8 +6,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: INFO
       JUSSI_REDIS_HOST: redis
+    env_file:
+      - ../.env
     links:
       - redis
   redis:

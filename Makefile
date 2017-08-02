@@ -8,6 +8,10 @@ PROJECT_DOCKER_RUN_ARGS := -p8080:8080
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
 
+ENVFILE := .env
+ENVDIR := envd
+ENVVARS = $(wildcard $(ENVDIR)/* )
+
 default: build
 
 .PHONY: init build run run-local test lint fmt pre-commit pre-commit-all build-then-run check-all steemd-calls
@@ -54,6 +58,14 @@ check-all: pre-commit-all test
 
 mypy:
 	pipenv run mypy --ignore-missing-imports $(PROJECT_NAME)
+
+$(ENVFILE): $(ENVDIR)
+	for f in $(notdir $(ENVVARS)) ; do \
+    	echo $$f=`cat $(ENVDIR)/$$f` >> $@ ; \
+    done; \
+
+$(ENVDIR):
+	-mkdir $@
 
 curl-check: run
 	curl http://localhost:8080/

@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+# https://github.com/raintank/statsdaemon (vimeo)
+#
+
+exec statsdaemon --config_file=/etc/service/config.ini

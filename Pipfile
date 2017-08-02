@@ -31,6 +31,7 @@ pytest-profiling = "*"
 pyprof2calltree = "*"
 gprof2dot = "*"
 redis = "*"
+awscli = "*"
 
 [packages]
 ujson = "*"

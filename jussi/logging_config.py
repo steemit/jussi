@@ -10,10 +10,12 @@ from jussi.typedefs import WebApp
 
 def setup_logging(app: WebApp) -> WebApp:
     # init logging
+    root_logger = logging.getLogger()
+    root_logger.handlers = []
     LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
     LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
-    app.config.logger = logging.getLogger('sanic')
+    app.config.logger = logging.getLogger('jussi')
     return app
 
 
@@ -69,7 +71,7 @@ LOGGING = {
         },
         'network': {
             'level': logging.DEBUG,
-            'handlers': ['accessStream', 'errorStream']
+            'handlers': ['accessStream']
         }
     }
 }

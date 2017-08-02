@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import logging
+import os
 
 import aiohttp
 import statsd
@@ -11,13 +13,27 @@ import jussi.cache
 import jussi.jobs
 import jussi.jsonrpc_method_cache_settings
 import jussi.jsonrpc_method_upstream_url_settings
+import jussi.logging_config
 import jussi.stats
 from jussi.typedefs import WebApp
 
 
 def setup_listeners(app: WebApp) -> WebApp:
-    logger = app.config.logger
+
     # pylint: disable=unused-argument, unused-variable
+
+    @app.listener('before_server_start')
+    def setup_logging(app: WebApp, loop) -> WebApp:
+        # init logging
+        root_logger = logging.getLogger()
+        root_logger.handlers = []
+        LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
+        jussi.logging_config.LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
+        jussi.logging_config.LOGGING['loggers']['network']['level'] = LOG_LEVEL
+        app.config.logger = logging.getLogger('jussi')
+        return app
+
+    logger = app.config.logger
 
     @app.listener('before_server_start')
     def setup_cache(app: WebApp, loop) -> None:
@@ -81,7 +97,8 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('before_server_start -> setup_statsd')
         app.config.statsd_client = statsd.StatsClient()
         stats_queue = janus.Queue(loop=loop)
-        app.config.stats = jussi.stats.QStatsClient(q=stats_queue)
+        app.config.status_queue = stats_queue
+        app.config.stats = jussi.stats.QStatsClient(q=stats_queue, prefix='jussi')
 
 
     # after server start
@@ -98,20 +115,31 @@ def setup_listeners(app: WebApp) -> WebApp:
 
     # before server stop
     @app.listener('before_server_stop')
+    async def stop_job_scheduler(app: WebApp, loop) -> None:
+        logger.info('before_server_stop -> stop_job_scheduler')
+        await app.config.scheduler.close()
+
+    @app.listener('before_server_stop')
+    def close_websocket_connection(app: WebApp, loop) -> None:
+        logger.info('before_server_stop -> close_websocket_connection')
+        client = app.config.websocket_client
+        client.close()
+
+    @app.listener('before_server_stop')
     def close_aiohttp_session(app: WebApp, loop) -> None:
         logger.info('before_server_stop -> close_aiohttp_session')
         session = app.config.aiohttp['session']
         session.close()
 
     @app.listener('before_server_stop')
-    def close_websocket_connection(app: WebApp, loop) -> None:
-        logger.info('before_server_stop -> close_aiohttp_session')
-        session = app.config.aiohttp['session']
-        session.close()
+    async def close_stats_queue(app: WebApp, loop) -> None:
+        logger.info('before_server_stop -> close_stats_queue')
+        if not app.config.scheduler.closed:
+            await app.config.scheduler.close()
+        stats = app.config.stats
+        statsd_client = app.config.statsd_client
+        await stats.final_flush(statsd_client)
 
-    @app.listener('before_server_stop')
-    async def stop_job_scheduler(app: WebApp, loop) -> None:
-        logger.info('before_server_stop -> stop_job_scheduler')
-        await app.config.scheduler.close()
+
 
     return app
