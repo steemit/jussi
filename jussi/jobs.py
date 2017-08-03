@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import logging
-from concurrent.futures._base import CancelledError
+
+from jussi.handlers import fetch_ws
+from jussi.utils import DummyRequest
 
 logger = logging.getLogger('sanic')
 
@@ -16,28 +18,21 @@ async def get_last_irreversible_block(app=None, block_interval=3):
         "jsonrpc": "2.0",
         "method": "get_dynamic_global_properties"
     }
-
     while True:
         try:
-            url = 'http://localhost:%s' % app.config.args.server_port
-            session = app.config.aiohttp['session']
-            async with session.post(url, json=jsonrpc_request) as resp:
-
-                json_response = await resp.json()
-                logger.debug('get_last_irreversible_block json_response:%s', json_response)
-            last_irreversible_block_num = json_response['result']['last_irreversible_block_num']
-            if isinstance(last_irreversible_block_num, int):
-                app.config.last_irreversible_block_num = last_irreversible_block_num
+            request = DummyRequest(
+                app=app, json=jsonrpc_request)  # required for proper caching
+            response = await fetch_ws(
+                sanic_http_request=request, jsonrpc_request=jsonrpc_request)
+            app.config.last_irreversible_block_num = response['result'][
+                'last_irreversible_block_num']
             logger.debug(
                 'get_last_irreversible_block set "last_irreversible_block_num" to %s',
                 app.config.last_irreversible_block_num)
-        except CancelledError:
-            logger.debug('get_last_irreversible_block ignored CancelledError')
         except Exception as e:
             logger.exception(e)
         logger.debug('get_last_irreversible_block is sleeping for %s',
                      block_interval)
-
         await asyncio.sleep(block_interval)
 
 

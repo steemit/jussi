@@ -15,15 +15,20 @@ import cytoolz
 import jussi.jsonrpc_method_cache_settings
 from jussi.serializers import CompressionSerializer
 from jussi.typedefs import BatchJsonRpcRequest
+from jussi.typedefs import BatchJsonRpcResponse
 from jussi.typedefs import CachedBatchResponse
 from jussi.typedefs import CachedSingleResponse
 from jussi.typedefs import HTTPRequest
 from jussi.typedefs import SingleJsonRpcRequest
+from jussi.typedefs import SingleJsonRpcResponse
 from jussi.typedefs import WebApp
 from jussi.utils import ignore_errors_async
+from jussi.utils import is_jsonrpc_error_response
 from jussi.utils import method_urn
 
 logger = logging.getLogger('sanic')
+
+Caches = List[Union[aiocache.SimpleMemoryCache,aiocache.RedisCache]]
 
 
 @decorator
@@ -52,9 +57,9 @@ async def cacher(call):
     if not skip_cache_set:
         logger.debug('cacher caching result')
         asyncio.ensure_future(
-            cache_json_response(sanic_http_request,
-                            jsonrpc_request,
-                            json_response))
+            cache_jsonrpc_response(sanic_http_request,
+                                   jsonrpc_request,
+                                   json_response))
     else:
         logger.debug('cacher not caching result')
     return json_response
@@ -154,7 +159,7 @@ async def cache_set(sanic_http_request: HTTPRequest,
 
 
 
-async def cache_get_batch(caches: List[Union[aiocache.SimpleMemoryCache,aiocache.RedisCache]], jsonrpc_batch_request:BatchJsonRpcRequest):
+async def cache_get_batch(caches: Caches, jsonrpc_batch_request:BatchJsonRpcRequest) -> BatchJsonRpcResponse:
     keys = list(map(jsonrpc_cache_key, jsonrpc_batch_request))
     batch_response = [None for req in jsonrpc_batch_request]
     for cache in caches:
@@ -170,17 +175,17 @@ async def cache_get_batch(caches: List[Union[aiocache.SimpleMemoryCache,aiocache
 
 
 
-async def cache_json_response(sanic_http_request: HTTPRequest,
-                              single_jsonrpc_request: SingleJsonRpcRequest,
-                              value: dict) -> None:
+async def cache_jsonrpc_response(sanic_http_request: HTTPRequest,
+                                 single_jsonrpc_request: SingleJsonRpcRequest,
+                                 jsonrpc_response: SingleJsonRpcResponse) -> None:
     """Don't cache error responses
     """
-    if 'error' in value:
-        logger.error(
+    if is_jsonrpc_error_response(jsonrpc_response):
+        logger.warning(
             'jsonrpc error in response from upstream %s, skipping cache',
-            value)
+            jsonrpc_response)
         return
-    asyncio.ensure_future(cache_set(sanic_http_request, single_jsonrpc_request,  value))
+    asyncio.ensure_future(cache_set(sanic_http_request, single_jsonrpc_request, jsonrpc_response))
 
 
 def memory_cache_ttl(ttl: int, max_ttl=60) -> int:
@@ -207,6 +212,10 @@ def ttl_from_urn(urn: str) -> int:
     _, ttl = jussi.jsonrpc_method_cache_settings.TTLS.longest_prefix(urn)
     return ttl
 
+def adjust_irreversible_ttl(jsonrpc_response:SingleJsonRpcRequest, last_irreversible_block_num: int, ttl: int) -> int:
+    if ttl == jussi.jsonrpc_method_cache_settings.NO_EXPIRE_IF_IRREVERSIBLE:
+        ttl = irreversible_ttl(jsonrpc_response, last_irreversible_block_num)
+    return ttl
 
 def convert_no_expire_ttl(ttl: int) -> Union[int, None]:
     if ttl == 0:

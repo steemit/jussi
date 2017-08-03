@@ -16,6 +16,7 @@ from jussi.typedefs import HTTPRequest
 from jussi.typedefs import HTTPResponse
 from jussi.typedefs import JsonRpcRequest
 from jussi.typedefs import SingleJsonRpcRequest
+from jussi.typedefs import SingleJsonRpcResponse
 from jussi.typedefs import StringTrie
 from jussi.typedefs import WebApp
 
@@ -140,6 +141,15 @@ def is_batch_jsonrpc(
         sanic_http_request: HTTPRequest=None, ) -> bool:
     return isinstance(jsonrpc_request, list) or isinstance(
         sanic_http_request.json, list)
+
+def is_jsonrpc_error_response(jsonrpc_response: SingleJsonRpcResponse) -> bool:
+    if not jsonrpc_response:
+        return True
+    if not isinstance(jsonrpc_response, dict):
+        return True
+    if 'error' in jsonrpc_response:
+        return True
+    return False
 
 
 def upstream_url_from_jsonrpc_request(
