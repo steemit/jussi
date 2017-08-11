@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 
-from sanic.defaultFilter import DefaultFilter
+from sanic.log import DefaultFilter
 
 from jussi.typedefs import WebApp
 
