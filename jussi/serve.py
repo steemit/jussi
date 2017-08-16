@@ -61,7 +61,7 @@ if __name__ == '__main__':
         host=app.config.args.server_host,
         port=app.config.args.server_port,
         workers=app.config.args.server_workers,
-        log_config=jussi.logging_config.LOGGING))
+        log_config=jussi.logging_config.LOGGING)
     loop = asyncio.get_event_loop()
     task = asyncio.ensure_future(server)
     loop.run_forever()
