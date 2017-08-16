@@ -2,6 +2,7 @@
 import argparse
 import os
 
+import asyncio
 from sanic import Sanic
 
 import jussi.errors
