@@ -97,8 +97,7 @@ WORKDIR /app
 RUN \
     python3.6 -m pip install --upgrade pip && \
     python3.6 -m pip install pipenv && \
-    pipenv install && \
-    pipenv run python3.6 setup.py install
+    pipenv install
 
 RUN chown -R www-data . && \
     apt-get remove -y \
