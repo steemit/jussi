@@ -2,6 +2,7 @@
 import argparse
 import os
 
+import asyncio
 from sanic import Sanic
 
 import jussi.errors
@@ -57,8 +58,10 @@ if __name__ == '__main__':
     app = jussi.listeners.setup_listeners(app)
 
     app.config.logger.info('app.run')
-    app.run(
+    server = app.create_server(
         host=app.config.args.server_host,
         port=app.config.args.server_port,
-        workers=app.config.args.server_workers,
         log_config=jussi.logging_config.LOGGING)
+    loop = asyncio.get_event_loop()
+    task = asyncio.ensure_future(server)
+    loop.run_forever()

@@ -15,8 +15,6 @@ ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
 ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
 ENV JUSSI_REDIS_PORT 6379
 ENV ENVIRONMENT DEV
-ENV SANIC_REQUEST_TIMEOUT = 120
-ENV SANIC_REQUEST_MAX_SIZE = 10000000
 
 RUN \
     apt-get update && \
@@ -99,8 +97,7 @@ WORKDIR /app
 RUN \
     python3.6 -m pip install --upgrade pip && \
     python3.6 -m pip install pipenv && \
-    pipenv install && \
-    pipenv run python3.6 setup.py install
+    pipenv install
 
 RUN chown -R www-data . && \
     apt-get remove -y \
