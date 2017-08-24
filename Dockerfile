@@ -35,6 +35,8 @@ RUN \
         libssl-dev \
         libxml2-dev \
         libxslt-dev \
+        python3-dev \
+        python3-pip \
         make \
         nginx \
         runit \
@@ -94,10 +96,31 @@ RUN \
 
 WORKDIR /app
 
-RUN \
-    python3.6 -m pip install --upgrade pip && \
-    python3.6 -m pip install pipenv && \
-    pipenv install
+# This updates the distro-provided pip and gives us pip3.6 binary
+RUN python3.6 -m pip install --upgrade pip
+
+
+WORKDIR ${APP_ROOT}
+
+# Just enough to build dependencies
+COPY ./Pipfile ${APP_ROOT}/Pipfile
+COPY ./Makefile ${APP_ROOT}/Makefile
+
+# Install those dependencies
+RUN cd ${APP_ROOT} && \
+    make requirements.txt && \
+    pip3.6 install -r requirements.txt
+
+# Copy rest of the code into a suitable place
+COPY . ${APP_ROOT}/src
+WORKDIR ${APP_ROOT/src
+
+# Build+install
+RUN cd ${APP_ROOT}/src && \
+    make build-without-docker && \
+    pip3.6 install -e .
+
+
 
 RUN chown -R www-data . && \
     apt-get remove -y \

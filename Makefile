@@ -22,7 +22,17 @@ init:
 	pipenv run python3 setup.py develop
 	pipenv pre-commit install
 
-build:
+docker-image: requirements.txt
+	docker build -t $(PROJECT_DOCKER_TAG) .
+
+Pipfile.lock: Pipfile
+	python3.6 -m pipenv --python 3.6 lock --three --hashes
+
+requirements.txt: Pipfile.lock
+	python3.6 -m pipenv lock -r >requirements.txt
+
+
+build: docker-image
 	docker build -t $(PROJECT_DOCKER_TAG) .
 
 run:
@@ -36,6 +46,12 @@ run-local:
 
 test:
 	pipenv run pytest
+
+build-without-docker:
+	python3.6 -m pipenv install --python 3.6 --three --dev
+	python3.6 -m pipenv run python3.6 scripts/doc_rst_convert.py
+	python3.6 -m pipenv run python3.6 setup.py build
+
 
 test-without-docker:
 	pipenv run pytest --fulltrace -m'not docker'
