@@ -7,7 +7,7 @@ CPU_COUNT="$(grep processor /proc/cpuinfo | wc -l)"
 cd "${APP_ROOT}"
 exec 2>&1 \
   chpst -u www-data \
-    run python3.6 "${APP_CMD}" \
+    python3.6 "${APP_CMD}" \
       --server_host "${JUSSI_SERVER_HOST}" \
       --server_port "${JUSSI_SERVER_PORT}" \
       --server_workers "${JUSSI_SERVER_WORKERS:-$CPU_COUNT}" \
