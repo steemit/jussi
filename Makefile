@@ -48,10 +48,10 @@ clean-pyc:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 
-install-pipenv: clean
+install-pipenv:
 	python3.6 -m pipenv run pip3.6 install -e .
 
-install-global: clean
+install-global:
 	python3.6 scripts/doc_rst_convert.py
 	pip3.6 install -e .
 
