@@ -105,20 +105,6 @@ RUN cd ${APP_ROOT} && \
     make build-without-docker && \
     make install-pipenv
 
-RUN chown -R www-data . && \
-    apt-get remove -y \
-        build-essential \
-        libffi-dev \
-        libssl-dev && \
-    apt-get autoremove -y && \
-    rm -rf \
-        /root/.cache \
-        /var/lib/apt/lists/* \
-        /tmp/* \
-        /var/tmp/* \
-        /var/cache/* \
-        /usr/include \
-        /usr/local/include \
 
 
 EXPOSE ${NGINX_SERVER_PORT}
