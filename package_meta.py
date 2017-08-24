@@ -58,17 +58,8 @@ for package_name in pipfile_data['dev-packages']:
     else:
        dev_requirements.append('%s==%s' % (package_name,str(package_ver)))
 
-if os.path.exists(lockfile_path):
-   with open(lockfile_path) as lockfile:
-        lockfile_data = json.load(lockfile)
-
-   required_python_ver = lockfile_data['_meta']['requires']['python_version']
-   default_requirements = []
-   for k,v in lockfile_data['default'].items():
-       default_requirements.append('%s%s' % (k,v['version']))
-else:
-   required_python_ver = '3.5'
-   default_requirements = [str(ir.req) for ir in parse_requirements(requires_file_path,session=PipSession())]
+required_python_ver = '3.6'
+default_requirements = [str(ir.req) for ir in parse_requirements(requires_file_path,session=PipSession())]
 
 required_python_major,required_python_minor = [int(x) for x in required_python_ver.split('.')[:2]]
 
