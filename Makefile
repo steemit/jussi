@@ -16,13 +16,12 @@ Pipfile.lock: Pipfile
 	python3.6 -m pipenv --python /usr/local/bin/python3.6 lock --three --hashes
 
 requirements.txt: Pipfile.lock
-	python3.6 -m pipenv --python /usr/local/bin/python3.6 lock -r >requirements.txt
+	python3.6 -m pipenv --python /usr/local/bin/python3.6 lock -r | grep -v Using | >requirements.txt
 
 build-without-docker: requirements.txt Pipfile.lock
 	mkdir -p build/wheel
 	python3.6 -m pipenv install --python /usr/local/bin/python3.6 --three --dev
 	python3.6 -m pipenv run python3.6 setup.py build
-	rm README.rst
 
 dockerised-test: docker-image
 	docker run -ti $(PROJECT_DOCKER_TAG) make -C /buildroot/src build-without-docker install-pipenv test-without-build
