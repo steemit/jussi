@@ -26,7 +26,7 @@ def setup_listeners(app: WebApp) -> WebApp:
     def setup_logging(app: WebApp, loop) -> WebApp:
         # init logging
         root_logger = logging.getLogger()
-        root_logger.handlers = []
+#        root_logger.handlers = []
         LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
         jussi.logging_config.LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
         jussi.logging_config.LOGGING['loggers']['network']['level'] = LOG_LEVEL

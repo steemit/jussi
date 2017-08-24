@@ -1,91 +1,61 @@
-SHELL := /bin/bash
-ROOT_DIR := $(shell pwd)
+ROOT_DIR := .
+DOCS_DIR := $(ROOT_DIR)/docs
+DOCS_BUILD_DIR := $(DOCS_DIR)/_build
 
-PROJECT_NAME := $(notdir $(ROOT_DIR))
+PROJECT_NAME := jussi
 PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
-PROJECT_DOCKER_RUN_ARGS := -p8080:8080
 
-PIPENV_VENV_IN_PROJECT := 1
-export PIPENV_VENV_IN_PROJECT
+default: install-global
 
-ENVFILE := .env
-ENVDIR := envd
-ENVVARS = $(wildcard $(ENVDIR)/* )
+.PHONY: docker-image build-without-docker test-without-lint test-pylint test-without-build install-pipenv install-global clean clean-build
 
-default: build
-
-.PHONY: init build run run-local test lint fmt pre-commit pre-commit-all build-then-run check-all steemd-calls
-
-init:
-	pip3 install pipenv
-	pipenv install --three --dev
-	pipenv run python3 setup.py develop
-	pipenv pre-commit install
-
-build:
+docker-image: clean
 	docker build -t $(PROJECT_DOCKER_TAG) .
 
-run:
-	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
+Pipfile.lock: Pipfile
+	python3.6 -m pipenv --python /usr/local/bin/python3.6 lock --three --hashes
 
-build-then-run: build
-	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
+requirements.txt: Pipfile.lock
+	python3.6 -m pipenv --python /usr/local/bin/python3.6 lock -r | grep -v Using | >requirements.txt
 
-run-local:
-	env LOG_LEVEL=DEBUG pipenv run python3 jussi/serve.py  --server_workers=1
+build-without-docker: requirements.txt Pipfile.lock
+	mkdir -p build/wheel
+	python3.6 -m pipenv install --python /usr/local/bin/python3.6 --three --dev
+	python3.6 -m pipenv run pip3.6 install -U setuptools
+	python3.6 -m pipenv run python3.6 setup.py build
 
-test:
-	pipenv run pytest
+dockerised-test: docker-image
+	docker run -ti $(PROJECT_DOCKER_TAG) make -C /buildroot/src build-without-docker install-pipenv test-without-build
 
-test-without-docker:
-	pipenv run pytest --fulltrace -m'not docker'
+test: build-without-docker test-without-build
 
-lint:
-	pipenv pre-commit run pylint --all-files
+test-without-build: test-without-lint test-pylint
 
-fmt:
-	pipenv run yapf --in-place --style pep8 --parallel --recursive $(PROJECT_NAME)
-	pipenv run autopep8 --aggressive --in-place  --jobs 0 --recursive $(PROJECT_NAME)
-	pipenv run autoflake --remove-all-unused-imports --recursive $(PROJECT_NAME)
+test-without-lint:
+	pipenv run pytest -v
 
-pre-commit:
-	pipenv run pre-commit run
+test-pylint:
+	pipenv run pytest -v --pylint
 
-pre-commit-all:
-	pipenv run pre-commit run --all-files
+clean: clean-build clean-pyc
+	rm -rf requirements.txt
 
-check-all: pre-commit-all test
+clean-build:
+	rm -fr build/ dist/ *.egg-info .eggs/ .tox/ __pycache__/ .cache/ .coverage htmlcov src
 
-mypy:
-	pipenv run mypy --ignore-missing-imports $(PROJECT_NAME)
+clean-pyc:
+	find . -name '*.pyc' -exec rm -f {} +
+	find . -name '*.pyo' -exec rm -f {} +
+	find . -name '*~' -exec rm -f {} +
 
-$(ENVFILE): $(ENVDIR)
-	for f in $(notdir $(ENVVARS)) ; do \
-    	echo $$f=`cat $(ENVDIR)/$$f` >> $@ ; \
-    done; \
+install-pipenv:
+	python3.6 -m pipenv run pip3.6 install -e .
 
-$(ENVDIR):
-	-mkdir $@
+install-global:
+	python3.6 scripts/doc_rst_convert.py
+	pip3.6 install -e .
 
-curl-check: run
-	curl http://localhost:8080/
-	curl http://localhost:8080/health
-	curl http://localhost:8080/.well-known/healthcheck.json
-	curl -d '{"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]}' \
-	-H'Content-Type:application/json' \
-	localhost:8080
-
-steemd-calls:
-	pipenv run python tests/make_api_calls.py tests/steemd_jsonrpc_calls.json http://localhost:8080
-
-./perf:
-	mkdir $@
-
-%.pstats: perf
-	pipenv run python -m cProfile -o $*.pstats tests/perf/$(notdir $*).py
-
-%.png: %.pstats
-	pipenv run gprof2dot -f pstats $< | dot -Tpng -o $@
-
-clean-perf:
-	rm -rf $(ROOT_DIR)/perf
+pypi:
+	python3.6 setup.py bdist_wheel --universal
+	python3.6 setup.py sdist bdist_wheel upload
+	rm README.rst

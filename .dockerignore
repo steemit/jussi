@@ -7,6 +7,9 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+Pipfile.lock
+requirements.txt
+.venv/
 .Python
 env/
 build/

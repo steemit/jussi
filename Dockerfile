@@ -35,6 +35,8 @@ RUN \
         libssl-dev \
         libxml2-dev \
         libxslt-dev \
+        python3-dev \
+        python3-pip \
         make \
         nginx \
         runit \
@@ -86,7 +88,7 @@ RUN \
   touch /var/run/nginx.pid && \
   chown www-data:www-data /var/run/nginx.pid
 
-ADD . /app
+COPY . /app
 
 RUN \
     mv /app/service/* /etc/service && \
@@ -94,25 +96,15 @@ RUN \
 
 WORKDIR /app
 
-RUN \
-    python3.6 -m pip install --upgrade pip && \
-    python3.6 -m pip install pipenv && \
-    pipenv install
+# This updates the distro-provided pip and gives us pip3.6 binary
+RUN python3.6 -m pip install --upgrade pip
 
-RUN chown -R www-data . && \
-    apt-get remove -y \
-        build-essential \
-        libffi-dev \
-        libssl-dev && \
-    apt-get autoremove -y && \
-    rm -rf \
-        /root/.cache \
-        /var/lib/apt/lists/* \
-        /tmp/* \
-        /var/tmp/* \
-        /var/cache/* \
-        /usr/include \
-        /usr/local/include \
+RUN python3.6 -m pip install pipenv
+
+RUN cd ${APP_ROOT} && \
+    make build-without-docker && \
+    make install-pipenv
+
 
 
 EXPOSE ${NGINX_SERVER_PORT}
