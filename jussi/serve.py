@@ -58,10 +58,6 @@ if __name__ == '__main__':
     app = jussi.listeners.setup_listeners(app)
 
     app.config.logger.info('app.run')
-    server = app.create_server(
-        host=app.config.args.server_host,
-        port=app.config.args.server_port,
-        log_config=jussi.logging_config.LOGGING)
-    loop = asyncio.get_event_loop()
-    task = asyncio.ensure_future(server)
-    loop.run_forever()
+    app.run(host=app.config.args.server_host,
+            port=app.config.args.server_port,
+            log_config=jussi.logging_config.LOGGING)
