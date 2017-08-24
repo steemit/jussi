@@ -108,7 +108,6 @@ COPY ./Makefile ${APP_ROOT}/Makefile
 
 # Install those dependencies
 RUN cd ${APP_ROOT} && \
-    make requirements.txt && \
     pip3.6 install -r requirements.txt
 
 
