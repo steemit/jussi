@@ -88,7 +88,7 @@ RUN \
   touch /var/run/nginx.pid && \
   chown www-data:www-data /var/run/nginx.pid
 
-ADD . /app
+COPY . /app
 
 RUN \
     mv /app/service/* /etc/service && \
@@ -99,23 +99,11 @@ WORKDIR /app
 # This updates the distro-provided pip and gives us pip3.6 binary
 RUN python3.6 -m pip install --upgrade pip
 
+RUN python3.6 -m pip install pipenv
 
-WORKDIR ${APP_ROOT}
-
-# Just enough to build dependencies
-COPY ./Pipfile ${APP_ROOT}/Pipfile
-COPY ./Makefile ${APP_ROOT}/Makefile
-
-# Install those dependencies
 RUN cd ${APP_ROOT} && \
-    pip3.6 install -r requirements.txt
-
-
-# Build+install
-RUN cd ${APP_ROOT} && \
-    pip3.6 install -e .
-
-RUN pip3.6 install sanic
+    make build-without-docker && \
+    make install-pipenv
 
 RUN chown -R www-data . && \
     apt-get remove -y \
