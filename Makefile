@@ -21,7 +21,7 @@ requirements.txt: Pipfile.lock
 build-without-docker: requirements.txt Pipfile.lock
 	mkdir -p build/wheel
 	python3.6 -m pipenv install --python /usr/local/bin/python3.6 --three --dev
-	python3.6 -m pipenv run pip3.6 install setuptools
+	python3.6 -m pipenv run pip3.6 install -U setuptools
 	python3.6 -m pipenv run python3.6 setup.py build
 
 dockerised-test: docker-image
