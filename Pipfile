@@ -32,6 +32,7 @@ pyprof2calltree = "*"
 gprof2dot = "*"
 redis = "*"
 awscli = "*"
+pipenv = "*"
 
 [packages]
 ujson = "*"
