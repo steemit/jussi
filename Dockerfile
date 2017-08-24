@@ -111,16 +111,12 @@ RUN cd ${APP_ROOT} && \
     make requirements.txt && \
     pip3.6 install -r requirements.txt
 
-# Copy rest of the code into a suitable place
-COPY . ${APP_ROOT}/src
-WORKDIR ${APP_ROOT/src
 
 # Build+install
-RUN cd ${APP_ROOT}/src && \
-    make build-without-docker && \
+RUN cd ${APP_ROOT} && \
     pip3.6 install -e .
 
-
+RUN pip3.6 install sanic
 
 RUN chown -R www-data . && \
     apt-get remove -y \

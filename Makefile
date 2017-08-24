@@ -48,9 +48,7 @@ test:
 	pipenv run pytest
 
 build-without-docker:
-	python3.6 -m pipenv install --python 3.6 --three --dev
-	python3.6 -m pipenv run python3.6 scripts/doc_rst_convert.py
-	python3.6 -m pipenv run python3.6 setup.py build
+	python3.6 setup.py build
 
 
 test-without-docker:
