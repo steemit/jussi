@@ -18,8 +18,8 @@ from .errors import handle_middleware_exceptions
 from .utils import async_exclude_methods
 from .utils import is_batch_jsonrpc
 from .utils import is_valid_jsonrpc_request
-from .utils import method_urn
 from .utils import sort_request
+from .utils import stats_key
 
 logger = logging.getLogger('sanic')
 
@@ -56,19 +56,18 @@ async def validate_jsonrpc_request(
 
 @handle_middleware_exceptions
 @async_exclude_methods(exclude_http_methods=('GET', ))
-async def request_stats(
-        request: HTTPRequest) -> Optional[HTTPResponse]:
+async def request_stats(request: HTTPRequest) -> Optional[HTTPResponse]:
     stats = request.app.config.stats
     if is_batch_jsonrpc(sanic_http_request=request):
         stats.incr('jsonrpc.batch_requests')
         for req in request.json:
-            urn = method_urn(req)
-            stats.incr('jsonrpc.requests.%s' % urn)
+            key = stats_key(req)
+            stats.incr('jsonrpc.requests.%s' % key)
         return
-    urn = method_urn(request.json)
+    key = stats_key(request.json)
     stats.incr('jsonrpc.single_requests')
-    stats.incr('jsonrpc.requests.%s' % urn)
-    request['timer'] = stats.timer('jsonrpc.requests.%s' % urn)
+    stats.incr('jsonrpc.requests.%s' % key)
+    request['timer'] = stats.timer('jsonrpc.requests.%s' % key)
     request['timer'].start()
 
 
@@ -90,9 +89,10 @@ async def caching_middleware(request: HTTPRequest) -> None:
 
     logger.debug('caching_middleware no hit for %s', key)
 
+
 # pylint: disable=unused-argument
 @handle_middleware_exceptions
-async def finalize_request_stats(
-        request: HTTPRequest, response: HTTPResponse) -> None:
+async def finalize_request_stats(request: HTTPRequest,
+                                 response: HTTPResponse) -> None:
     if 'timer' in request:
         request['timer'].stop()

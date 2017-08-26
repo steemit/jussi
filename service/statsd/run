@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+
+if [[ -n ${SCALYR_API_KEY+x} ]]; then
+    exec nodejs /statsd/stats.js /etc/service/statsd/config.json
+fi

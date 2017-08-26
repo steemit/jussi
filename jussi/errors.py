@@ -104,15 +104,14 @@ class JsonRpcError(Exception):
         except BaseException:
             return None
 
-
-    def to_dict(self) ->  JsonRpcErrorResponse:
+    def to_dict(self) -> JsonRpcErrorResponse:
         base_error = {
             'jsonrpc': '2.0',
             'error': {
                 'code': self.code,
                 'message': self.message
             }
-        } # type:  JsonRpcErrorResponse
+        }  # type:  JsonRpcErrorResponse
 
         if self._id:
             base_error['id'] = self._id

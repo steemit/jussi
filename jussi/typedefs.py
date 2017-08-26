@@ -14,8 +14,8 @@ HTTPRequest = Request
 HTTPResponse = SanicHTTPResponse
 
 # JSONRPC Request fields
-JsonRpcRequestIdField = Union[str,float,None]
-JsonRpcRequestParamsField = Union[str,int,float, None,list,dict]
+JsonRpcRequestIdField = Union[str, float, None]
+JsonRpcRequestParamsField = Union[str, int, float, None, list, dict]
 JsonRpcRequestVersionField = str
 JsonRpcRequestMethodField = str
 
@@ -24,21 +24,18 @@ SingleJsonRpcRequest = Dict[str, Any]
 BatchJsonRpcRequest = List[SingleJsonRpcRequest]
 JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
 
-
-
 # JSONRPC Responses
 SingleJsonRpcResponse = SingleJsonRpcRequest
 BatchJsonRpcResponse = List[SingleJsonRpcResponse]
 JsonRpcResponse = Union[SingleJsonRpcResponse, BatchJsonRpcResponse]
 
 # JSONRPC Errors
-JsonRpcErrorObject  = Dict[str, Union[int, str, dict]]
+JsonRpcErrorObject = Dict[str, Union[int, str, dict]]
 JsonRpcErrorResponse = Dict[str, Any]
-
 
 # Cached JSONRPC Responses
 CachedSingleResponse = SingleJsonRpcResponse
-CachedBatchResponse = List[Union[None,CachedSingleResponse]]
-CachedResponse = Union[CachedSingleResponse,CachedBatchResponse]
+CachedBatchResponse = List[Union[None, CachedSingleResponse]]
+CachedResponse = Union[CachedSingleResponse, CachedBatchResponse]
 
 StringTrie = pygtrie.StringTrie

@@ -123,7 +123,7 @@ server_error = {
     ),
 
 ])
-def test_middleware_error_handler(loop, rpc_req, error, expected):
+def test_middleware_error_handler(rpc_req, error, expected):
     app = sanic.Sanic('test_text')
     # pylint: disable=unused-argument,unused-variable
     @app.post('/')
@@ -138,5 +138,4 @@ def test_middleware_error_handler(loop, rpc_req, error, expected):
     req, response = app.test_client.post('/', json=rpc_req)
     assert response.headers['Content-Type'] == 'application/json'
     assert response.status == 200
-    response_json = loop.run_until_complete(response.json())
-    assert response_json == expected
+    assert response.json == expected

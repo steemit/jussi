@@ -2,7 +2,6 @@
 import argparse
 import os
 
-import asyncio
 from sanic import Sanic
 
 import jussi.errors
@@ -11,8 +10,6 @@ import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 from jussi.typedefs import WebApp
-
-#logger = logging.getLogger('sanic')
 
 
 def setup_routes(app: WebApp) -> WebApp:
@@ -46,6 +43,25 @@ def parse_args(args: list=None):
     return parser.parse_args(args=args)
 
 
+def main():
+    args = parse_args()
+    # run app
+    app = Sanic(__name__)
+    app.config.args = args
+    app = jussi.logging_config.setup_logging(app)
+    app = setup_routes(app)
+    app = jussi.middlewares.setup_middlewares(app)
+    app = jussi.errors.setup_error_handlers(app)
+    app = jussi.listeners.setup_listeners(app)
+
+    app.config.logger.info('app.run')
+    app.run(
+        host=app.config.args.server_host,
+        port=app.config.args.server_port,
+        log_config=jussi.logging_config.LOGGING,
+        workers=app.config.args.server_workers)
+
+
 if __name__ == '__main__':
     args = parse_args()
     # run app
@@ -58,10 +74,8 @@ if __name__ == '__main__':
     app = jussi.listeners.setup_listeners(app)
 
     app.config.logger.info('app.run')
-    server = app.create_server(
+    app.run(
         host=app.config.args.server_host,
         port=app.config.args.server_port,
-        log_config=jussi.logging_config.LOGGING)
-    loop = asyncio.get_event_loop()
-    task = asyncio.ensure_future(server)
-    loop.run_forever()
+        log_config=jussi.logging_config.LOGGING,
+        workers=app.config.args.server_workers)
