@@ -35,7 +35,7 @@ server_error = {
 }
 
 
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(10)
 @pytest.mark.parametrize('jrpc_request, expected',[
         # single jsonrpc steemd request
     (dict(id=1, method='get_block', params=[1000]),invalid_request_error),

@@ -22,7 +22,7 @@ URLS = pygtrie.StringTrie(URL_SETTINGS, separator='.')
 
 
 def deref_urls(url_mapping: dict,
-               url_settings: Tuple[Tuple[str, str],...]=URL_SETTINGS
+               url_settings: Tuple[Tuple[str, str], ...]=URL_SETTINGS
                ) -> pygtrie.StringTrie:
     dereferenced_urls = []
     for prefix, url_ref in url_settings:

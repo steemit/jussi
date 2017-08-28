@@ -5,7 +5,7 @@ ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 ENV PIPENV_VENV_IN_PROJECT 1
 ENV APP_ROOT /app
-ENV APP_CMD ${APP_ROOT}/jussi/serve.py
+ENV APP_CMD jussi.serve
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
 ENV NGINX_SERVER_PORT 8080
@@ -40,7 +40,8 @@ RUN \
         runit \
         tk-dev \
         wget \
-        golang-go
+        nodejs \
+        git
 
 
 RUN \
@@ -48,17 +49,13 @@ RUN \
     tar xvf Python-3.6.2.tar.xz && \
     cd Python-3.6.2/ && \
     ./configure && \
-    make altinstall
+    make altinstall && \
+    cd .. && \
+    rm -rf Python-3.6.2.tar.xz Python-3.6.2/
 
 # add statsd server
-RUN mkdir /root/go && \
-    cd /root/go && \
-    export GOPATH=/root/go && \
-    go get github.com/raintank/statsdaemon/cmd/statsdaemon && \
-    mv /root/go/bin/statsdaemon /usr/local/bin && \
-    cd / && \
-    rm -rf /root/go
-
+RUN mkdir /statsd && \
+    git clone https://github.com/etsy/statsd /statsd
 
 # add scalyr agent
 RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstrap_1.2.1_all.deb && \
@@ -86,7 +83,11 @@ RUN \
   touch /var/run/nginx.pid && \
   chown www-data:www-data /var/run/nginx.pid
 
-ADD . /app
+RUN \
+    python3.6 -m pip install --upgrade pip && \
+    python3.6 -m pip install pipenv
+
+COPY . /app
 
 RUN \
     mv /app/service/* /etc/service && \
@@ -94,16 +95,18 @@ RUN \
 
 WORKDIR /app
 
-RUN \
-    python3.6 -m pip install --upgrade pip && \
-    python3.6 -m pip install pipenv && \
-    pipenv install
+RUN pipenv install --dev
 
 RUN chown -R www-data . && \
     apt-get remove -y \
         build-essential \
         libffi-dev \
-        libssl-dev && \
+        libssl-dev \
+        golang-go \
+        git \
+        make \
+        checkinstall && \
+    apt-get clean && \
     apt-get autoremove -y && \
     rm -rf \
         /root/.cache \
@@ -112,7 +115,8 @@ RUN chown -R www-data . && \
         /var/tmp/* \
         /var/cache/* \
         /usr/include \
-        /usr/local/include \
+        /usr/local/include
 
+RUN pipenv run pytest -m'not docker'
 
 EXPOSE ${NGINX_SERVER_PORT}
