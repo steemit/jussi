@@ -1,9 +1,16 @@
 {
-  "import_vars": [ "SCALYR_API_KEY","ENVIRONMENT","scalyr_hostname" ],
+  "import_vars": [
+        "SCALYR_API_KEY",
+        "ENVIRONMENT",
+        "SCALYR_HOSTNAME",
+        "JUSSI_REDIS_HOST",
+        "JUSSI_REDIS_PORT"
+  ],
+
   "api_key": "$SCALYR_API_KEY",
   "server_attributes":{
     "tier": "$ENVIRONMENT",
-    "serverHost": "$scalyr_hostname"
+    "serverHost": "$SCALYR_HOSTNAME"
   },
   "monitors": [
     {
@@ -13,6 +20,18 @@
       "module": "scalyr_agent.builtin_monitors.linux_process_metrics",
       "id": "jussi-process",
       "commandline": ".*jussi.*"
+    },
+    {
+      "module": "scalyr_agent.builtin_monitors.redis_monitor",
+      "hosts": [
+       { "host": "$JUSSI_REDIS_HOST", "port": "$JUSSI_REDIS_PORT" }
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "path": "/var/log/nginx/access.log",
+      "parser": "json"
     }
   ]
 }
