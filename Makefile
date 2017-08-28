@@ -14,15 +14,22 @@ ENVVARS = $(wildcard $(ENVDIR)/* )
 
 default: build
 
-.PHONY: init build run run-local test lint fmt pre-commit pre-commit-all build-then-run check-all steemd-calls
+.PHONY: init clean build run run-local test lint fmt pre-commit pre-commit-all build-then-run check-all steemd-calls
 
 init:
 	pip3 install pipenv
 	pipenv install --three --dev
-	pipenv run python3 setup.py develop
-	pipenv pre-commit install
+	pipenv run pre-commit install
 
-build:
+clean:
+	find . -name "__pycache__" | xargs rm -rf
+	-rm -rf .cache
+	-rm -rf .eggs
+	-rm -rf .mypy_cache
+	-rm -rf *.egg-info
+	-rm -rf *.log
+
+build: clean clean-perf
 	docker build -t $(PROJECT_DOCKER_TAG) .
 
 run:
@@ -32,7 +39,7 @@ build-then-run: build
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
 run-local:
-	env LOG_LEVEL=DEBUG pipenv run python3 jussi/serve.py  --server_workers=1
+	env LOG_LEVEL=DEBUG pipenv run python3 -m jussi.serve  --server_workers=1
 
 test:
 	pipenv run pytest
@@ -67,7 +74,7 @@ $(ENVFILE): $(ENVDIR)
 $(ENVDIR):
 	-mkdir $@
 
-curl-check: run
+curl-check:
 	curl http://localhost:8080/
 	curl http://localhost:8080/health
 	curl http://localhost:8080/.well-known/healthcheck.json

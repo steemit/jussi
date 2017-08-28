@@ -41,18 +41,12 @@ Session.vim
 blocks.json
 
 # sqlite db for testing
-local.db
-/tests/fastest-test.sh
-/tests/sbds-install.sh
-/tests/test.sh
-/tests/fast-test.sh
-/tests/sync.sh
-/tests/failed_blocks/
-/envd
-!/sbds.egg-info/
-/tests/envdir-to-envfile.sh
+envd/
 *.db
 envfile
-/deploy
-
+deploy/
 .venv/
+.mypy_cache/
+.cache/
+perf/
+*.log

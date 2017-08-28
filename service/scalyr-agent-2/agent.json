@@ -1,7 +1,10 @@
 {
-  "import_vars": [ "SCALYR_API_KEY","ENVIRONMENT" ],
+  "import_vars": [ "SCALYR_API_KEY","ENVIRONMENT","scalyr_hostname" ],
   "api_key": "$SCALYR_API_KEY",
-  "server_attributes":{"tier": "$ENVIRONMENT"},
+  "server_attributes":{
+    "tier": "$ENVIRONMENT",
+    "serverHost": "$scalyr_hostname"
+  },
   "monitors": [
     {
       "module": "scalyr_agent.builtin_monitors.graphite_monitor"

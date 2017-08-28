@@ -36,7 +36,6 @@ async def get_last_irreversible_block(app=None, block_interval=3):
         await asyncio.sleep(block_interval)
 
 
-
 async def flush_stats(app=None, flush_interval=5):
     while True:
         try:
@@ -46,6 +45,6 @@ async def flush_stats(app=None, flush_interval=5):
                 pipe = qclient.add_stats_to_pipeline(pipe)
             logger.debug('flush_stats pipe.send() if necessary')
         except Exception as e:
-            logger.exception('flush_stats ERROR: %s',e, exc_info=True)
+            logger.exception('flush_stats ERROR: %s', e, exc_info=True)
         logger.debug('flush_stats sleeping for %s', flush_interval)
         await asyncio.sleep(flush_interval)

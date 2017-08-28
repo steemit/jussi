@@ -22,7 +22,8 @@ from jussi.typedefs import WebApp
 
 logger = logging.getLogger('sanic')
 
-JSONRPC_REQUEST_KEYS = set(['id','jsonrpc','method','params'])
+JSONRPC_REQUEST_KEYS = set(['id', 'jsonrpc', 'method', 'params'])
+
 
 # decorators
 @decorator
@@ -53,8 +54,9 @@ async def ignore_errors_async(call: Call) -> Optional[dict]:
         logger.exception('Error ignored %s', e)
 
 
-def async_exclude_methods(middleware_func: Optional[Callable]=None,
-                          exclude_http_methods: Tuple[str]=None) -> Optional[Callable]:
+def async_exclude_methods(
+        middleware_func: Optional[Callable]=None,
+        exclude_http_methods: Tuple[str]=None) -> Optional[Callable]:
     """Exclude specified HTTP methods from middleware
 
     Args:
@@ -73,6 +75,7 @@ def async_exclude_methods(middleware_func: Optional[Callable]=None,
         if request.method in exclude_http_methods:
             return
         return await middleware_func(request)
+
     return f
 
 
@@ -96,7 +99,6 @@ def is_valid_jsonrpc_request(
     assert isinstance(single_jsonrpc_request.get('method'), str)
     if 'id' in single_jsonrpc_request:
         assert isinstance(single_jsonrpc_request['id'], (int, str, type(None)))
-
 
 
 def parse_namespaced_method(namespaced_method: str,
@@ -126,7 +128,31 @@ def method_urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
             api = 'database_api'
     if params and params != []:
         query = ('.params=%s' % params).replace(' ', '')
-    return '.'.join([p for p in (namespace, api, method, ) if p]) + query
+    return '.'.join([p for p in (
+        namespace,
+        api,
+        method, ) if p]) + query
+
+
+def stats_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
+    api = None
+    namespace, method = parse_namespaced_method(
+        single_jsonrpc_request['method'])
+    params = single_jsonrpc_request.get('params', None)
+    if isinstance(params, dict):
+        params = dict(sorted(params.items()))
+    if namespace == 'steemd':
+        if method == 'call':
+            assert isinstance(params, list)
+            api = params[0]
+            method = params[1]
+            params = params[2]
+        else:
+            api = 'database_api'
+    return '.'.join([p for p in (
+        namespace,
+        api,
+        method, ) if p])
 
 
 def get_upstream(upstreams, single_jsonrpc_request: SingleJsonRpcRequest
@@ -141,6 +167,7 @@ def is_batch_jsonrpc(
         sanic_http_request: HTTPRequest=None, ) -> bool:
     return isinstance(jsonrpc_request, list) or isinstance(
         sanic_http_request.json, list)
+
 
 def is_jsonrpc_error_response(jsonrpc_response: SingleJsonRpcResponse) -> bool:
     if not jsonrpc_response:

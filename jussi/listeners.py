@@ -87,7 +87,10 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('before_server_start -> setup_ws_client')
         args = app.config.args
         app.config.websocket_kwargs = dict(
-            uri=args.steemd_websocket_url, max_size=None, max_queue=0, timeout=5)
+            uri=args.steemd_websocket_url,
+            max_size=None,
+            max_queue=0,
+            timeout=5)
         app.config.websocket_client = await websockets.connect(
             **app.config.websocket_kwargs)
 
@@ -98,8 +101,8 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.statsd_client = statsd.StatsClient()
         stats_queue = janus.Queue(loop=loop)
         app.config.status_queue = stats_queue
-        app.config.stats = jussi.stats.QStatsClient(q=stats_queue, prefix='jussi')
-
+        app.config.stats = jussi.stats.QStatsClient(
+            q=stats_queue, prefix='jussi')
 
     # after server start
     @app.listener('after_server_start')
@@ -109,9 +112,13 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.scheduler = await aiojobs.create_scheduler()
         await app.config.scheduler.spawn(
             jussi.jobs.get_last_irreversible_block(app=app))
-        logger.info('before_server_start -> setup_job_scheduler scheduled jussi.jobs.get_last_irreversible_block')
+        logger.info(
+            'before_server_start -> setup_job_scheduler scheduled jussi.jobs.get_last_irreversible_block'
+        )
         await app.config.scheduler.spawn(jussi.jobs.flush_stats(app=app))
-        logger.info('before_server_start -> setup_job_scheduler scheduled jussi.jobs.flush_stats')
+        logger.info(
+            'before_server_start -> setup_job_scheduler scheduled jussi.jobs.flush_stats'
+        )
 
     # before server stop
     @app.listener('before_server_stop')
@@ -139,7 +146,5 @@ def setup_listeners(app: WebApp) -> WebApp:
         stats = app.config.stats
         statsd_client = app.config.statsd_client
         await stats.final_flush(statsd_client)
-
-
 
     return app
