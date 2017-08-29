@@ -30,7 +30,7 @@ async def get_last_irreversible_block(app=None, block_interval=3):
                 'get_last_irreversible_block set "last_irreversible_block_num" to %s',
                 app.config.last_irreversible_block_num)
         except Exception as e:
-            logger.exception(e)
+            logger.error(f'Unable to update last irreversible block:{e}')
         logger.debug('get_last_irreversible_block is sleeping for %s',
                      block_interval)
         await asyncio.sleep(block_interval)

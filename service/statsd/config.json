@@ -3,5 +3,9 @@
     "graphiteHost": "127.0.0.1",
     "port": 8125,
     "backends": [ "./backends/graphite" ],
-    "legacyNamespace": false
+    "graphite": {
+        "legacyNamespace": false
+    },
+    "flushInterval": 60000,
+    "debug":false
 }

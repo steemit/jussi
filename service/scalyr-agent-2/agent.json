@@ -12,7 +12,12 @@
     "tier": "$ENVIRONMENT",
     "serverHost": "$SCALYR_HOSTNAME"
   },
+  "implicit_agent_process_metrics_monitor": false,
   "monitors": [
+    {
+       "module": "scalyr_agent.builtin_monitors.nginx_monitor",
+       "status_url": "http://localhost:8080/nginx_status"
+    },
     {
       "module": "scalyr_agent.builtin_monitors.graphite_monitor"
     },
@@ -30,8 +35,12 @@
   ],
   "logs": [
     {
-      "path": "/var/log/nginx/access.log",
+      "path": "/var/log/nginx/access.json",
       "parser": "json"
-    }
+    },
+    {
+     "path": "/var/log/nginx/access.log",
+     "attributes": {"parser": "accessLog", "serverType": "nginx"}
+   }
   ]
 }

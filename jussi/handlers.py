@@ -24,7 +24,6 @@ from jussi.typedefs import JsonRpcRequest
 from jussi.typedefs import SingleJsonRpcRequest
 from jussi.typedefs import SingleJsonRpcResponse
 from jussi.utils import is_batch_jsonrpc
-from jussi.utils import method_urn
 from jussi.utils import stats_key
 from jussi.utils import upstream_url_from_jsonrpc_request
 

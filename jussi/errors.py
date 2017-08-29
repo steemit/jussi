@@ -7,6 +7,7 @@ from typing import Union
 import ujson
 from funcy.decorators import decorator
 from sanic import response
+from sanic.exceptions import SanicException
 
 from jussi.typedefs import HTTPRequest
 from jussi.typedefs import HTTPResponse
@@ -21,8 +22,8 @@ logger = logging.getLogger('sanic')
 def setup_error_handlers(app: WebApp) -> WebApp:
     # pylint: disable=unused-variable
 
-    @app.exception(Exception)
-    def handle_errors(request: HTTPRequest, exception: Exception) -> None:
+    @app.exception(SanicException)
+    def handle_errors(request: HTTPRequest, exception: SanicException) -> None:
         """handles all errors"""
         log_request_error(request, exception)
 
@@ -31,31 +32,24 @@ def setup_error_handlers(app: WebApp) -> WebApp:
 
 def log_request_error(request: HTTPRequest, exception: Exception) -> None:
     try:
+        # only log exception is no request data is present
+        if not request:
+            logger.error(f'Request error with request: {exception}')
+            return
+        # assemble request data
         method = getattr(request, 'method', 'HTTP Method:None')
         path = getattr(request, 'path', 'Path:None')
         body = getattr(request, 'body', 'Body:None')
-        try:
-            amzn_trace_id = request.headers.get('X-Amzn-Trace-Id')
-        except Exception as e:
-            logger.debug('No X-Amzn-Trace-Id in request: %s', e)
-            amzn_trace_id = ''
-        try:
-            amzn_request_id = request.headers.get('X-Amzn-RequestId')
-        except Exception as e:
-            logger.debug('No X-Amzn-RequestId in request: %s', e)
-            amzn_request_id = ''
+        if request.headers:
+            amzn_trace_id = request.headers.get('X-Amzn-Trace-Id', None)
+            amzn_request_id = request.headers.get('X-Amzn-RequestId', None)
 
+        # assemble exception data
         message = getattr(exception, 'message', 'Internal Error')
         data = getattr(exception, 'data', 'None')
+
         logger.exception(
-            '%s %s %s --> %s data:%s TraceId:%s, RequestId:%s',
-            method,
-            path,
-            body,
-            message,
-            data,
-            amzn_trace_id,
-            amzn_request_id,
+            f'Method:{method} Path:{path} Body:{body} --> Error:{message} data:{data} TraceId:{amzn_trace_id}, RequestId:{amzn_request_id}',
             exc_info=exception)
     except Exception:
         logger.error('%s --> %s', request, exception)

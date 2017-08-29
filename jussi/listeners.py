@@ -87,10 +87,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('before_server_start -> setup_ws_client')
         args = app.config.args
         app.config.websocket_kwargs = dict(
-            uri=args.steemd_websocket_url,
-            max_size=None,
-            max_queue=0,
-            timeout=5)
+            uri=args.steemd_websocket_url, max_size=None, max_queue=0)
         app.config.websocket_client = await websockets.connect(
             **app.config.websocket_kwargs)
 

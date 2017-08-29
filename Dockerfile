@@ -78,8 +78,9 @@ RUN \
   chown -R www-data:www-data /var/lib/nginx && \
   mkdir -p /var/log/nginx && \
   touch /var/log/nginx/access.log && \
+  touch /var/log/nginx/access.json && \
   touch /var/log/nginx/error.log && \
-  chown www-data:www-data /var/log/nginx/*.log && \
+  chown www-data:www-data /var/log/nginx/* && \
   touch /var/run/nginx.pid && \
   chown www-data:www-data /var/run/nginx.pid
 
