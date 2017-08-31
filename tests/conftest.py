@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import os
 import random
-import time
 
+import jsonschema
+import pytest
+import requests
+import requests.exceptions
 import sanic
 import sanic.response
 import ujson
 from aiocache import caches as aiocaches
 
-import jsonschema
 import jussi.errors
 import jussi.handlers
 import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
-import pytest
-import requests
-import requests.exceptions
 
 
 def pytest_collection_modifyitems(items):
@@ -1081,11 +1081,11 @@ def app():
     app = jussi.middlewares.setup_middlewares(app)
     app = jussi.errors.setup_error_handlers(app)
     app = jussi.listeners.setup_listeners(app)
-    yield app
+    return app
+
 
 @pytest.fixture(scope='function')
-def caches():
-
+def caches(loop):
     aiocaches.set_config({
         'default': {
             'cache': "aiocache.SimpleMemoryCache",
@@ -1099,14 +1099,16 @@ def caches():
         aiocaches.create(**aiocaches.get_alias_config('default')),
         aiocaches.create(**aiocaches.get_alias_config('redis'))
     ]
-    return active_caches
+    yield active_caches
+    loop.run_until_complete(aiocaches.get('default').clear())
+    loop.run_until_complete(aiocaches.get('redis').clear())
 
 # pylint:;  disable=unused-argument
 @pytest.fixture(scope='function')
 def app_with_wait(loop, app):
     @app.route('/wait/<seconds:number>')
     async def wait_route(request, seconds):
-        time.sleep(seconds)
+        await asyncio.sleep(seconds)
         return sanic.response.text('OK')
 
     yield app

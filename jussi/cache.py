@@ -167,6 +167,7 @@ async def cache_get_batch(caches: Caches,
                           jsonrpc_batch_request: BatchJsonRpcRequest
                           ) -> BatchJsonRpcResponse:
     keys = list(map(jsonrpc_cache_key, jsonrpc_batch_request))
+    logger.debug(f'cache_get_batch keys:{keys}')
     batch_response = [None for req in jsonrpc_batch_request]
     for cache in caches:
         cached_responses = await cache.multi_get(keys)

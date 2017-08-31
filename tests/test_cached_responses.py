@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import aiocache
-
 import pytest
+
 from jussi.cache import cache_get
 from jussi.cache import cache_get_batch
 from jussi.cache import cacher
@@ -55,7 +55,7 @@ async def test_cached_response(jrpc_req, jrpc_resp, dummy_request):
         assert result['id'] == jrpc_req['id']
     else:
         assert 'id' not in result
-
+    await cache.clear()
 
 batch1_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(10)]
 batch2_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(20,30)]
@@ -86,7 +86,7 @@ def test_merge_cached_responses(jrpc_batch_req,responses, expected):
 @pytest.mark.parametrize('cached,jrpc_batch_req,expected', [
 (batch1_jrpc,batch2_jrpc,batch2_jrpc)
 ])
-def test_cache_get_batch(loop, caches,cached,jrpc_batch_req,expected):
+def test_cache_get_batch(loop,caches,cached,jrpc_batch_req,expected):
     for cache in caches:
         loop.run_until_complete(cache.clear())
 

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import logging
 import os
 
@@ -86,8 +87,10 @@ def setup_listeners(app: WebApp) -> WebApp:
         """
         logger.info('before_server_start -> setup_ws_client')
         args = app.config.args
-        app.config.websocket_kwargs = dict(
-            uri=args.steemd_websocket_url, max_size=None, max_queue=0)
+        app.config.websocket_kwargs = dict(uri=args.steemd_websocket_url,
+                                           max_size=None,
+                                           max_queue=0,
+                                           timeout=5)
         app.config.websocket_client = await websockets.connect(
             **app.config.websocket_kwargs)
 
@@ -104,44 +107,46 @@ def setup_listeners(app: WebApp) -> WebApp:
     # after server start
     @app.listener('after_server_start')
     async def setup_job_scheduler(app: WebApp, loop) -> None:
-        logger.info('before_server_start -> setup_job_scheduler')
+        logger.info('after_server_start -> setup_job_scheduler')
         app.config.last_irreversible_block_num = 0
         app.config.scheduler = await aiojobs.create_scheduler()
         await app.config.scheduler.spawn(
             jussi.jobs.get_last_irreversible_block(app=app))
         logger.info(
-            'before_server_start -> setup_job_scheduler scheduled jussi.jobs.get_last_irreversible_block'
+            'after_server_start -> setup_job_scheduler scheduled jussi.jobs.get_last_irreversible_block'
         )
         await app.config.scheduler.spawn(jussi.jobs.flush_stats(app=app))
         logger.info(
-            'before_server_start -> setup_job_scheduler scheduled jussi.jobs.flush_stats'
+            'after_server_start -> setup_job_scheduler scheduled jussi.jobs.flush_stats'
         )
 
-    # before server stop
-    @app.listener('before_server_stop')
+    # after server stop
+    @app.listener('after_server_stop')
     async def stop_job_scheduler(app: WebApp, loop) -> None:
         logger.info('before_server_stop -> stop_job_scheduler')
-        await app.config.scheduler.close()
+        await asyncio.shield(app.config.scheduler.close())
 
-    @app.listener('before_server_stop')
-    def close_websocket_connection(app: WebApp, loop) -> None:
-        logger.info('before_server_stop -> close_websocket_connection')
+    @app.listener('after_server_stop')
+    async def close_websocket_connection(app: WebApp, loop) -> None:
+        logger.info('after_server_stop -> close_websocket_connection')
         client = app.config.websocket_client
-        client.close()
+        await asyncio.shield(client.close())
 
-    @app.listener('before_server_stop')
-    def close_aiohttp_session(app: WebApp, loop) -> None:
-        logger.info('before_server_stop -> close_aiohttp_session')
-        session = app.config.aiohttp['session']
-        session.close()
-
-    @app.listener('before_server_stop')
-    async def close_stats_queue(app: WebApp, loop) -> None:
-        logger.info('before_server_stop -> close_stats_queue')
+    @app.listener('after_server_stop')
+    async def close_aiohttp_session(app: WebApp, loop) -> None:
+        logger.info('after_server_stop -> close_aiohttp_session')
         if not app.config.scheduler.closed:
-            await app.config.scheduler.close()
+            await asyncio.shield(app.config.scheduler.close())
+        session = app.config.aiohttp['session']
+        await asyncio.shield(session.close())
+
+    @app.listener('after_server_stop')
+    async def close_stats_queue(app: WebApp, loop) -> None:
+        logger.info('after_server_stop -> close_stats_queue')
+        if not app.config.scheduler.closed:
+            await asyncio.shield(app.config.scheduler.close())
         stats = app.config.stats
         statsd_client = app.config.statsd_client
-        await stats.final_flush(statsd_client)
+        await asyncio.shield(stats.final_flush(statsd_client))
 
     return app

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
+import pytest
 import ujson
 
-import pytest
+from jussi.utils import method_urn
 
 CORRECT_GET_BLOCK_1000_RESPONSE = {
     "id": 1,
@@ -27,7 +28,7 @@ CORRECT_GET_BLOCK_1000_RESPONSE = {
     }
 }
 
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(10)
 @pytest.mark.parametrize(
     'request',
     [
@@ -70,10 +71,9 @@ CORRECT_GET_BLOCK_1000_RESPONSE = {
                 method='call',
                 params=['database_api', 'get_block', [1000]]),
         ]
-    ])
+    ], ids=method_urn)
 def test_jsonrpc_request(app, request):
-    _, response = app.test_client.post(
-        '/', json=request, server_kwargs=dict(workers=1))
+    _, response = app.test_client.post('/', json=request)
     assert response.status == 200
     assert response.headers['Content-Type'] == 'application/json'
     json_response = ujson.loads(response.body.decode())
@@ -88,7 +88,7 @@ def test_jsonrpc_request(app, request):
         assert isinstance(json_response, dict)
         assert 'error' not in json_response
 
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(10)
 def test_batch_jsonrpc_requests(app, random_jrpc_batch):
     _, response = app.test_client.post(
         '/', json=random_jrpc_batch, server_kwargs=dict(workers=1))
