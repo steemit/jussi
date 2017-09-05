@@ -3,10 +3,11 @@ import asyncio
 import logging
 import os
 
+import aiocache
 import aiohttp
 import statsd
 import ujson
-import websockets
+from websockets import connect as websockets_connect
 
 import aiojobs
 import janus
@@ -15,6 +16,7 @@ import jussi.jobs
 import jussi.jsonrpc_method_cache_settings
 import jussi.jsonrpc_method_upstream_url_settings
 import jussi.logging_config
+import jussi.serializers
 import jussi.stats
 from jussi.typedefs import WebApp
 
@@ -26,29 +28,31 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('before_server_start')
     def setup_logging(app: WebApp, loop) -> WebApp:
         # init logging
-        root_logger = logging.getLogger()
-        root_logger.handlers = []
+        #root_logger = logging.getLogger()
+        #root_logger.handlers = []
         LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
         jussi.logging_config.LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
         jussi.logging_config.LOGGING['loggers']['network']['level'] = LOG_LEVEL
-        app.config.logger = logging.getLogger('jussi')
+        app.config.logger = logging.getLogger('sanic')
         return app
 
-    logger = app.config.logger
+    logger = logging.getLogger('sanic')
 
     @app.listener('before_server_start')
     def setup_cache(app: WebApp, loop) -> None:
         logger.info('before_server_start -> setup_cache')
 
-        caches = jussi.cache.setup_caches(app, loop)
-        for cache_alias in caches.get_config().keys():
+        caches_config = jussi.cache.setup_caches(app, loop)
+        aiocache.caches.set_config(caches_config)
+        active_caches = []
+        for cache_alias in sorted(aiocache.caches.get_config().keys()):
+            cache = aiocache.caches.create(alias=cache_alias)
             logger.info('before_server_start -> setup_cache caches=%s',
                         cache_alias)
-        app.config.aiocaches = caches
-
-        active_caches = [
-            caches.get(alias) for alias in sorted(caches.get_config().keys())
-        ]
+            logger.info(f'{cache}.serializer is {type(cache.serializer)}')
+            assert isinstance(cache.serializer, jussi.serializers.CompressionSerializer)
+            active_caches.append(cache)
+        app.config.aiocaches = aiocache.caches
 
         app.config.caches = active_caches
 
@@ -91,7 +95,7 @@ def setup_listeners(app: WebApp) -> WebApp:
                                            max_size=None,
                                            max_queue=0,
                                            timeout=5)
-        app.config.websocket_client = await websockets.connect(
+        app.config.websocket_client = await websockets_connect(
             **app.config.websocket_kwargs)
 
     @app.listener('before_server_start')
@@ -121,9 +125,12 @@ def setup_listeners(app: WebApp) -> WebApp:
         )
 
     # after server stop
+
+
+
     @app.listener('after_server_stop')
     async def stop_job_scheduler(app: WebApp, loop) -> None:
-        logger.info('before_server_stop -> stop_job_scheduler')
+        logger.info('after_server_stop -> stop_job_scheduler')
         await asyncio.shield(app.config.scheduler.close())
 
     @app.listener('after_server_stop')
@@ -148,5 +155,11 @@ def setup_listeners(app: WebApp) -> WebApp:
         stats = app.config.stats
         statsd_client = app.config.statsd_client
         await asyncio.shield(stats.final_flush(statsd_client))
+
+    @app.listener('after_server_stop')
+    async def close_cache_connections(app: WebApp, loop) -> None:
+        logger.info('after_server_stop -> close_cache_connections')
+        for cache in app.config.caches:
+            await cache.close()
 
     return app

@@ -21,9 +21,13 @@ class CompressionSerializer(StringSerializer):
     def dumps(self, value: Union[AnyStr, dict]) -> bytes:
         # FIXME handle structs with bytes vals, eg, [1, '2', b'3']
         # currently self.loads(self.dumps([1, '2', b'3'])) == [1, '2', '3']
+        logger.debug(f'dumps dumping {type(value)}')
         return zlib.compress(ujson.dumps(value).encode())
 
     def loads(self, value) -> Optional[dict]:
         if value:
-            return ujson.loads(zlib.decompress(value))
+            logger.debug(f'loads loading {type(value)}')
+            value =  ujson.loads(zlib.decompress(value).decode())
+            logger.debug(f'loads loaded {type(value)}')
+            return value
         return None

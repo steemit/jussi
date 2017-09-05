@@ -31,6 +31,9 @@ pyprof2calltree = "*"
 gprof2dot = "*"
 redis = "*"
 awscli = "*"
+pytest-mock = "*"
+pytest-asyncio = "*"
+asynctest = "*"
 
 [packages]
 ujson = "*"

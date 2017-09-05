@@ -71,7 +71,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
     ws = sanic_http_request.app.config.websocket_client
     stats = sanic_http_request.app.config.stats
     key = stats_key(jsonrpc_request)
-    timer = stats.timer('jsonrpc.requests.%s' % key)
+    timer = stats.timer(f'jsonrpc.requests.{key}')
     timer.start()
     if not ws or not ws.open:
         logger.info('Reopening closed upstream websocket from fetch_ws')

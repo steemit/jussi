@@ -11,7 +11,8 @@ from jussi.serializers import CompressionSerializer
 
 caches_config = {
         'default': {
-            'cache':aiocache.SimpleMemoryCache,
+            'cache':
+            aiocache.SimpleMemoryCache,
             'serializer': {
                 'class': CompressionSerializer
             }
@@ -19,8 +20,8 @@ caches_config = {
 }
 
 
-jrpc_req = {"id":"1","jsonrpc":"2.0","method":"get_block","params":[1000]}
-jrpc_resp = {
+jrpc_req_1 = {"id":"1","jsonrpc":"2.0","method":"get_block","params":[1000]}
+jrpc_resp_1 = {
     "id": 2,
     "result": {
         "previous": "000003e7c4fd3221cf407efcf7c1730e2ca54b05",
@@ -38,24 +39,25 @@ jrpc_resp = {
 
 
 @pytest.mark.parametrize('jrpc_req,jrpc_resp', [
-    (jrpc_req,jrpc_resp),
-    ({"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]},jrpc_resp),
-    ({"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]},jrpc_resp),
-    ({"jsonrpc":"2.0","method":"get_block","params":[1000]},jrpc_resp),
+    (jrpc_req_1,jrpc_resp_1),
+    ({"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]},jrpc_resp_1),
+    ({"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]},jrpc_resp_1)
 ])
-async def test_cached_response(jrpc_req, jrpc_resp, dummy_request):
-
+async def test_cached_response_id_replacement(jrpc_req, jrpc_resp, dummy_request):
     aiocache.caches.set_config(caches_config)
-    cache = aiocache.caches.get('default')
-    await cache.set('steemd.database_api.get_block.params=[1000]',jrpc_resp)
-    dummy_request.app.config.caches = [cache]
-    dummy_request.json = jrpc_req
-    result = await cache_get(dummy_request, jrpc_req)
-    if 'id' in jrpc_req:
-        assert result['id'] == jrpc_req['id']
-    else:
-        assert 'id' not in result
+    cache = aiocache.caches.create(alias='default')
+    assert isinstance(cache.serializer, CompressionSerializer)
     await cache.clear()
+    assert await cache.get('steemd.database_api.get_block.params=[1000]') is None
+    await cache.set('steemd.database_api.get_block.params=[1000]', jrpc_resp, ttl=None)
+
+    dummy_request.app.config.caches = [cache]
+    dummy_request.app.config.last_irreversible_block_num = 10000000
+
+    result = await cache_get(dummy_request, jrpc_req)
+    assert result is not None
+    assert result['id'] == jrpc_req['id']
+
 
 batch1_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(10)]
 batch2_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(20,30)]

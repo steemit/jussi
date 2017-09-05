@@ -10,12 +10,26 @@ from jussi.utils import is_jsonrpc_error_response
 logger = logging.getLogger('sanic')
 
 
+# extracted this method for easier testing and future re-use
+async def requester(method='POST', url=None, **kwargs):
+    if 'headers' not in kwargs:
+        kwargs['headers']= {'Content-Type': 'application/json'}
+    async with aiohttp.request(method, url, **kwargs) as response:
+        logger.debug(f'requester: HTTP {method} --> {url}')
+        response_text = await response.text()
+        logger.debug(f'HTTP {method} {url} <-- HTTP {response.status}')
+    if 'json' in kwargs:
+        logger.debug('requester: decoding response json')
+        return ujson.loads(response_text)
+    return response_text
+
+
+
 async def get_last_irreversible_block(app=None, delay=3):
     name = 'get_last_irreversible_block'
     scheduler = app.config.scheduler
     logger.debug(
         f'{name}, "last_irreversible_block_num" is {app.config.last_irreversible_block_num}')
-
     jsonrpc_request = {
         "id": 1,
         "jsonrpc": "2.0",
@@ -28,9 +42,7 @@ async def get_last_irreversible_block(app=None, delay=3):
         response = None
         try:
             url = 'https://steemd.steemit.com'
-            async with aiohttp.request('POST', url, json=jsonrpc_request, headers={'Content-Type': 'application/json'}) as jrpc_response:
-                response = ujson.loads(await jrpc_response.text())
-                logger.debug(f'{name} response:{response}')
+            response = await requester('POST', url, json=jsonrpc_request)
             last_irr_block_num = response['result']['last_irreversible_block_num']
             if last_irr_block_num >= app.config.last_irreversible_block_num:
                 app.config.last_irreversible_block_num = last_irr_block_num

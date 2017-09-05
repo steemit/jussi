@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import inspect
 import logging
 from copy import deepcopy
 from typing import Optional
@@ -34,7 +35,7 @@ def log_request_error(request: HTTPRequest, exception: Exception) -> None:
     try:
         # only log exception is no request data is present
         if not request:
-            logger.error(f'Request error with request: {exception}')
+            logger.error(f'Request error without request: {exception}')
             return
         # assemble request data
         method = getattr(request, 'method', 'HTTP Method:None')
