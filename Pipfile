@@ -52,6 +52,11 @@ aiojobs = "*"
 jsonrpcserver = "*"
 cytoolz = "*"
 janus = "*"
+yapf = "*"
+python-json-logger = "*"
+progress = "*"
+pre_commit = "*"
+
 
 [requires]
 python_version = "3.6"

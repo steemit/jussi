@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import concurrent.futures
 import json
 import logging
 import os
@@ -205,15 +204,6 @@ class SimpleSteemAPIClient(object):
             for resp in batch_response:
                 yield json.dumps(resp)
 
-    def exec_batch_with_futures(self, name, params, max_workers=None):
-        with concurrent.futures.ThreadPoolExecutor(
-                max_workers=max_workers) as executor:
-            futures = []
-            for chunk in chunkify(params):
-                futures.append(executor.submit(self.exec_batch, name, chunk))
 
-            for future in concurrent.futures.as_completed(futures):
-                for item in future.result():
-                    yield item
 
     get_block = partialmethod(exec, 'get_block')
