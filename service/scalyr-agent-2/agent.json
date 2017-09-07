@@ -5,7 +5,12 @@
     "tier": "$ENVIRONMENT",
     "serverHost": "$scalyr_hostname"
   },
+  "implicit_agent_process_metrics_monitor": false,
   "monitors": [
+    {
+      "module": "scalyr_agent.builtin_monitors.nginx_monitor",
+      "status_url": "http://localhost:80/nginx_status"
+    },
     {
       "module": "scalyr_agent.builtin_monitors.graphite_monitor"
     },
@@ -13,6 +18,12 @@
       "module": "scalyr_agent.builtin_monitors.linux_process_metrics",
       "id": "jussi-process",
       "commandline": ".*jussi.*"
+    }
+  ],
+  "logs": [
+    {
+      "path": "/var/log/nginx/access.log",
+      "parser": "json"
     }
   ]
 }
