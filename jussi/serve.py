@@ -58,7 +58,6 @@ def main():
     app.run(
         host=app.config.args.server_host,
         port=app.config.args.server_port,
-        log_config=jussi.logging_config.LOGGING,
         workers=app.config.args.server_workers)
 
 

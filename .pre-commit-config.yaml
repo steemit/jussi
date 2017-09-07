@@ -21,12 +21,6 @@
     -   id: python-import-sorter
         args:
         - --silent-overwrite
--   repo: git://github.com/pre-commit/mirrors-yapf
-    sha: v0.16.3
-    hooks:
-    -   id: yapf
-        args:
-        - -p
 -   repo: git://github.com/Lucas-C/pre-commit-hooks
     sha: v1.0.1
     hooks:

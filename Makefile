@@ -28,6 +28,7 @@ clean:
 	-rm -rf .mypy_cache
 	-rm -rf *.egg-info
 	-rm -rf *.log
+	-rm -rf service/*/supervise
 
 build: clean clean-perf
 	docker build -t $(PROJECT_DOCKER_TAG) .
@@ -39,7 +40,7 @@ build-then-run: build
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
 run-local:
-	env LOG_LEVEL=DEBUG pipenv run python3 -m jussi.serve  --server_workers=1
+	pipenv run python3 -m jussi.serve  --server_workers=1
 
 test:
 	pipenv run pytest
