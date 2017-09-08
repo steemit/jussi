@@ -20,6 +20,6 @@ class CompressionSerializer(StringSerializer):
         # currently self.loads(self.dumps([1, '2', b'3'])) == [1, '2', '3']
         return zlib.compress(ujson.dumps(value).encode())
 
-    def loads(self, value: Optional[bytes]) -> Optional[dict]:
+    def loads(self, value) -> Optional[dict]:
         if value:
             return ujson.loads(zlib.decompress(value))

@@ -14,6 +14,10 @@ services:
       - redis
     volumes:
       - ../jussi:/app/jussi
+      - ../service/jussi:/etc/service/jussi
+      - ../service/nginx:/etc/service/nginx
+      - ../service/scalyr-agent-2:/etc/service/scalyr-agent-2
+      - ../service/statsd:/etc/service/statsd
   redis:
     image: "redis:3.2"
     ports:

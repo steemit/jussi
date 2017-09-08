@@ -65,24 +65,21 @@ async def cacher(call):
 
 # pylint: disable=unused-argument
 def setup_caches(app: WebApp, loop) -> Any:
-    logger.info('before_server_start -> setup_cache')
+    logger.info('before_server_start -> cache.setup_cache')
     args = app.config.args
 
     caches_config = {
         'default': {
-            'cache':
-            aiocache.SimpleMemoryCache,
+            'cache': aiocache.SimpleMemoryCache,
             'serializer': {
-                'class': CompressionSerializer
+                'class': 'jussi.serializers.CompressionSerializer'
             },
             'plugins': [{
                 'class': aiocache.plugins.HitMissRatioPlugin
             }, {
                 'class': aiocache.plugins.TimingPlugin
             }]
-        }
-    }
-    redis_cache_config = {
+        },
         'redis': {
             'cache':
             aiocache.RedisCache,
@@ -93,7 +90,7 @@ def setup_caches(app: WebApp, loop) -> Any:
             'timeout':
             3,
             'serializer': {
-                'class': CompressionSerializer
+                'class': 'jussi.serializers.CompressionSerializer'
             },
             'plugins': [{
                 'class': aiocache.plugins.HitMissRatioPlugin
@@ -102,11 +99,10 @@ def setup_caches(app: WebApp, loop) -> Any:
             }]
         }
     }
-    if args.redis_host:
-        caches_config.update(redis_cache_config)
-
-    aiocache.caches.set_config(caches_config)
-    return aiocache.caches
+    if not args.redis_host:
+        del caches_config['redis']
+    logger.debug(f'caches config: {aiocache.caches.get_config()}')
+    return caches_config
     # pylint: enable=unused-argument
 
 
@@ -167,6 +163,7 @@ async def cache_get_batch(caches: Caches,
                           jsonrpc_batch_request: BatchJsonRpcRequest
                           ) -> BatchJsonRpcResponse:
     keys = list(map(jsonrpc_cache_key, jsonrpc_batch_request))
+    logger.debug(f'cache_get_batch keys:{keys}')
     batch_response = [None for req in jsonrpc_batch_request]
     for cache in caches:
         cached_responses = await cache.multi_get(keys)
@@ -184,6 +181,13 @@ async def cache_get_batch(caches: Caches,
                                           batch_response)
         return merge_cached_responses(jsonrpc_batch_request, batch_response)
 
+async def cache_get_batch_all_or_nothing(caches: Caches,
+                                         jsonrpc_batch_request: BatchJsonRpcRequest
+                                         ) -> Union[BatchJsonRpcResponse,None]:
+    batch_response = await cache_get_batch(caches, jsonrpc_batch_request)
+    if all(batch_response):
+        return batch_response
+    return None
 
 async def cache_jsonrpc_response(
         sanic_http_request: HTTPRequest,
@@ -222,6 +226,7 @@ def ttl_from_jsonrpc_request(single_jsonrpc_request: SingleJsonRpcRequest,
 
 def ttl_from_urn(urn: str) -> int:
     _, ttl = jussi.jsonrpc_method_cache_settings.TTLS.longest_prefix(urn)
+    logger.debug(f'ttl from urn:{urn} ttl:{ttl}')
     return ttl
 
 
@@ -255,8 +260,15 @@ def irreversible_ttl(jsonrpc_response: dict=None,
 def block_num_from_jsonrpc_response(
         jsonrpc_response: SingleJsonRpcRequest=None) -> int:
     # pylint: disable=no-member
+    # for get_block
     block_id = cytoolz.get_in(['result', 'block_id'], jsonrpc_response)
-    return block_num_from_id(block_id)
+    if block_id:
+        return block_num_from_id(block_id)
+
+    # for get_block_header
+    previous = cytoolz.get_in(['result', 'previous'], jsonrpc_response)
+    return block_num_from_id(previous) + 1
+
 
 
 def block_num_from_id(block_hash: str) -> int:
@@ -268,10 +280,11 @@ def block_num_from_id(block_hash: str) -> int:
 def merge_cached_response(
         cached_response: CachedSingleResponse,
         jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcRequest:
+    logger.debug(f'merge_cached_response merging response into {type(cached_response)}({cached_response})')
+    if 'id' in cached_response:
+        del cached_response['id']
     if 'id' in jsonrpc_request:
         cached_response['id'] = jsonrpc_request['id']
-    else:
-        del cached_response['id']
     return cached_response
 
 
@@ -284,5 +297,5 @@ def merge_cached_responses(
             merged.append(
                 merge_cached_response(response, jsonrpc_batch_request[i]))
         else:
-            merged.append(response)
+            merged.append(None)
     return merged
