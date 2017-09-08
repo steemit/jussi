@@ -24,7 +24,6 @@ from jussi.typedefs import JsonRpcRequest
 from jussi.typedefs import SingleJsonRpcRequest
 from jussi.typedefs import SingleJsonRpcResponse
 from jussi.utils import is_batch_jsonrpc
-from jussi.utils import method_urn
 from jussi.utils import stats_key
 from jussi.utils import upstream_url_from_jsonrpc_request
 
@@ -72,7 +71,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
     ws = sanic_http_request.app.config.websocket_client
     stats = sanic_http_request.app.config.stats
     key = stats_key(jsonrpc_request)
-    timer = stats.timer('jsonrpc.requests.%s' % key)
+    timer = stats.timer(f'jsonrpc.requests.{key}')
     timer.start()
     if not ws or not ws.open:
         logger.info('Reopening closed upstream websocket from fetch_ws')
@@ -127,8 +126,12 @@ async def dispatch_single(sanic_http_request: HTTPRequest,
 async def dispatch_batch(sanic_http_request: HTTPRequest,
                          jsonrpc_requests: BatchJsonRpcRequest
                          ) -> BatchJsonRpcResponse:
-    cached_responses = await cache_get_batch(
-        sanic_http_request.app.config.caches, jsonrpc_requests)
+    cached_responses = sanic_http_request.get('cached_response')
+    if not cached_responses:
+        logger.warning(
+            'dispatch_batch encountered batch request with no cached_response attr')
+        cached_responses = cache_get_batch(
+            sanic_http_request.app.config.caches, jsonrpc_requests)
     requests = [
         dispatch_single(
             sanic_http_request, jsonrpc_request, skip_cacher_get=True)

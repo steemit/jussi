@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      LOG_LEVEL: WARNING
+      LOG_LEVEL: INFO
       JUSSI_REDIS_HOST: redis
     env_file:
       - ../.env
@@ -14,6 +14,10 @@ services:
       - redis
     volumes:
       - ../jussi:/app/jussi
+      - ../service/jussi:/etc/service/jussi
+      - ../service/nginx:/etc/service/nginx
+      - ../service/scalyr-agent-2:/etc/service/scalyr-agent-2
+      - ../service/statsd:/etc/service/statsd
   redis:
     image: "redis:3.2"
     ports:

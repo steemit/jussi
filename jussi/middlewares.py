@@ -12,6 +12,7 @@ from jussi.typedefs import HTTPRequest
 from jussi.typedefs import HTTPResponse
 
 from .cache import cache_get
+from .cache import cache_get_batch
 from .cache import jsonrpc_cache_key
 from .cache import merge_cached_response
 from .errors import InvalidRequest
@@ -109,9 +110,21 @@ async def request_stats(request: HTTPRequest) -> Optional[HTTPResponse]:
 @handle_middleware_exceptions
 @async_exclude_methods(exclude_http_methods=('GET', ))
 async def caching_middleware(request: HTTPRequest) -> None:
+    # return cached response from cache if all requests were in cache
     if is_batch_jsonrpc(sanic_http_request=request):
-        logger.debug('skipping cache for jsonrpc batch request')
+        logger.debug(
+            'caching_middleware attemping to load batch request from cache')
+        cached_response = await cache_get_batch(request.app.config.caches, request.json)
+        if all(cached_response):
+            logger.debug('caching_middleware loaded batch request from cache')
+            return response.json(cached_response, headers={
+                                 'x-jussi-cache-hit': 'batch'})
+        else:
+            request['cached_response'] = cached_response
+        logger.debug(
+            'caching_middleware unable to load batch request from cache')
         return
+
     key = jsonrpc_cache_key(request.json)
     logger.debug('caching_middleware cache_get %s', key)
     cached_response = await cache_get(request, request.json)

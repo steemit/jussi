@@ -18,7 +18,6 @@ from jussi.typedefs import JsonRpcRequest
 from jussi.typedefs import SingleJsonRpcRequest
 from jussi.typedefs import SingleJsonRpcResponse
 from jussi.typedefs import StringTrie
-from jussi.typedefs import WebApp
 
 logger = logging.getLogger('sanic')
 
@@ -190,16 +189,3 @@ def upstream_url_from_urn(upstream_urls: StringTrie=None,
                           urn: str=None) -> str:
     _, url = upstream_urls.longest_prefix(urn)
     return url
-
-
-# pylint: disable=super-init-not-called
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs) -> None:
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-
-class DummyRequest(AttrDict):
-    def __init__(self, app: WebApp=None, json: dict=None) -> None:
-        self.app = app
-        self.json = json
