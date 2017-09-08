@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+import gzip
 import logging
+import zlib
+from io import BytesIO
 from typing import Optional
 
 from sanic import response
@@ -25,14 +28,46 @@ from .utils import stats_key
 logger = logging.getLogger('sanic')
 
 
+def decode_gzip(data):
+    gzipper = gzip.GzipFile(fileobj=BytesIO(data))
+    return gzipper.read()
+
+
+def decode_deflate(data):
+    try:
+        return zlib.decompress(data)
+    except zlib.error:
+        return zlib.decompress(data, -zlib.MAX_WBITS)
+
+
+CONTENT_DECODERS = {
+    'gzip': decode_gzip,
+    'deflate': decode_deflate,
+}
+
+
 def setup_middlewares(app):
     logger = app.config.logger
     logger.info('before_server_start -> setup_middlewares')
+    app.request_middleware.append(handle_gzip)
     app.request_middleware.append(validate_jsonrpc_request)
     app.request_middleware.append(request_stats)
     app.request_middleware.append(caching_middleware)
     app.response_middleware.append(finalize_request_stats)
     return app
+
+
+@handle_middleware_exceptions
+async def handle_gzip(request: HTTPRequest) -> Optional[HTTPResponse]:
+    content_encoding = request.headers.get('content-encoding')
+    decoder = CONTENT_DECODERS.get(content_encoding)
+    try:
+        if decoder:
+            request.body = decoder(request.body)
+    except (IOError, zlib.error) as e:
+        logger.error(e)
+        return response.json(
+            ParseError(sanic_request=request, exception=e).to_dict())
 
 
 @handle_middleware_exceptions

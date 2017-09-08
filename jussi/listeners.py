@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import logging
-import os
 
 import aiocache
 import aiohttp
+import aiojobs
+import janus
 import statsd
 import ujson
 from websockets import connect as websockets_connect
 
-import aiojobs
-import janus
 import jussi.cache
 import jussi.jobs
 import jussi.jsonrpc_method_cache_settings
@@ -24,22 +22,9 @@ from jussi.typedefs import WebApp
 def setup_listeners(app: WebApp) -> WebApp:
 
     # pylint: disable=unused-argument, unused-variable
-
-    @app.listener('before_server_start')
-    def setup_logging(app: WebApp, loop) -> WebApp:
-        # init logging
-        #root_logger = logging.getLogger()
-        #root_logger.handlers = []
-        LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
-        jussi.logging_config.LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
-        jussi.logging_config.LOGGING['loggers']['network']['level'] = LOG_LEVEL
-        app.config.logger = logging.getLogger('sanic')
-        return app
-
-    logger = logging.getLogger('sanic')
-
     @app.listener('before_server_start')
     def setup_cache(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('before_server_start -> setup_cache')
 
         caches_config = jussi.cache.setup_caches(app, loop)
@@ -58,12 +43,14 @@ def setup_listeners(app: WebApp) -> WebApp:
 
     @app.listener('before_server_start')
     def setup_jsonrpc_method_cache_settings(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info(
             'before_server_start -> setup_jsonrpc_method_cache_settings')
         app.config.method_ttls = jussi.jsonrpc_method_cache_settings.TTLS
 
     @app.listener('before_server_start')
     def setup_jsonrpc_method_url_settings(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('before_server_start -> setup_jsonrpc_method_url_settings')
         args = app.config.args
         mapping = {}
@@ -77,6 +64,7 @@ def setup_listeners(app: WebApp) -> WebApp:
     def setup_aiohttp_session(app: WebApp, loop) -> None:
         """use one session for http connection pooling
         """
+        logger = app.config.logger
         logger.info('before_server_start -> setup_aiohttp_session')
         aio = dict(session=aiohttp.ClientSession(
             skip_auto_headers=['User-Agent'],
@@ -89,6 +77,7 @@ def setup_listeners(app: WebApp) -> WebApp:
     async def setup_websocket_connection(app: WebApp, loop) -> None:
         """use one ws connection (per worker) to avoid reconnection
         """
+        logger = app.config.logger
         logger.info('before_server_start -> setup_ws_client')
         args = app.config.args
         app.config.websocket_kwargs = dict(uri=args.steemd_websocket_url,
@@ -101,6 +90,7 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('before_server_start')
     async def setup_statsd(app: WebApp, loop) -> None:
         """setup statsd client and queue"""
+        logger = app.config.logger
         logger.info('before_server_start -> setup_statsd')
         app.config.statsd_client = statsd.StatsClient()
         stats_queue = janus.Queue(loop=loop)
@@ -111,7 +101,9 @@ def setup_listeners(app: WebApp) -> WebApp:
     # after server start
     @app.listener('after_server_start')
     async def setup_job_scheduler(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('after_server_start -> setup_job_scheduler')
+
         app.config.last_irreversible_block_num = 0
         app.config.scheduler = await aiojobs.create_scheduler()
         await app.config.scheduler.spawn(
@@ -125,22 +117,24 @@ def setup_listeners(app: WebApp) -> WebApp:
         )
 
     # after server stop
-
-
-
     @app.listener('after_server_stop')
     async def stop_job_scheduler(app: WebApp, loop) -> None:
         logger.info('after_server_stop -> stop_job_scheduler')
         await asyncio.shield(app.config.scheduler.close())
 
+
     @app.listener('after_server_stop')
     async def close_websocket_connection(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('after_server_stop -> close_websocket_connection')
+        if not app.config.scheduler.closed:
+            await asyncio.shield(app.config.scheduler.close())
         client = app.config.websocket_client
         await asyncio.shield(client.close())
 
     @app.listener('after_server_stop')
     async def close_aiohttp_session(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('after_server_stop -> close_aiohttp_session')
         if not app.config.scheduler.closed:
             await asyncio.shield(app.config.scheduler.close())
@@ -149,6 +143,7 @@ def setup_listeners(app: WebApp) -> WebApp:
 
     @app.listener('after_server_stop')
     async def close_stats_queue(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('after_server_stop -> close_stats_queue')
         if not app.config.scheduler.closed:
             await asyncio.shield(app.config.scheduler.close())
@@ -158,6 +153,7 @@ def setup_listeners(app: WebApp) -> WebApp:
 
     @app.listener('after_server_stop')
     async def close_cache_connections(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('after_server_stop -> close_cache_connections')
         for cache in app.config.caches:
             await cache.close()

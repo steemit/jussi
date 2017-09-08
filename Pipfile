@@ -34,6 +34,7 @@ awscli = "*"
 pytest-mock = "*"
 pytest-asyncio = "*"
 asynctest = "*"
+yapf = "*"
 
 [packages]
 ujson = "*"
@@ -54,7 +55,9 @@ aiojobs = "*"
 jsonrpcserver = "*"
 cytoolz = "*"
 janus = "*"
-yapf = "*"
+python-json-logger = "*"
+progress = "*"
+
 
 [requires]
 python_version = "3.6"
