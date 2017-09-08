@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      LOG_LEVEL: WARNING
+      LOG_LEVEL: INFO
       JUSSI_REDIS_HOST: redis
     env_file:
       - ../.env

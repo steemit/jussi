@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-import inspect
 import logging
-from copy import deepcopy
 from typing import Optional
 from typing import Union
 
 import ujson
 from funcy.decorators import decorator
 from sanic import response
+from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
 
 from jussi.typedefs import HTTPRequest
@@ -23,17 +22,26 @@ logger = logging.getLogger('sanic')
 def setup_error_handlers(app: WebApp) -> WebApp:
     # pylint: disable=unused-variable
 
+    @app.exception(RequestTimeout)
+    def handle_timeout_errors(request: HTTPRequest,
+                              exception: SanicException) -> None:
+        """handles noisy request timeout errors"""
+        # pylint: disable=unused-argument
+        return JsonRpcError(sanic_request=request,
+                            exception=None).to_sanic_response()
+
     @app.exception(SanicException)
     def handle_errors(request: HTTPRequest, exception: SanicException) -> None:
         """handles all errors"""
-        log_request_error(request, exception)
+        return JsonRpcError(sanic_request=request,
+                            exception=exception).to_sanic_response()
 
     return app
 
 
 def log_request_error(request: HTTPRequest, exception: Exception) -> None:
     try:
-        # only log exception is no request data is present
+        # only log exception i no request data is present
         if not request:
             logger.error(f'Request error without request: {exception}')
             return
@@ -96,11 +104,11 @@ class JsonRpcError(Exception):
     def jrpc_request_id(self) -> Optional[Union[str, int]]:
         try:
             return self.sanic_request.json['id']
-        except BaseException:
+        except Exception:
             return None
 
     def to_dict(self) -> JsonRpcErrorResponse:
-        base_error = {
+        error = {
             'jsonrpc': '2.0',
             'error': {
                 'code': self.code,
@@ -109,16 +117,15 @@ class JsonRpcError(Exception):
         }  # type:  JsonRpcErrorResponse
 
         if self._id:
-            base_error['id'] = self._id
+            error['id'] = self._id
         if self.data:
             try:
-                error = deepcopy(base_error)
                 error['error']['data'] = self.data
                 return error
             except Exception:
-                logger.exception('Error generating jsonrpc error response')
-                return base_error
-        return base_error
+                logger.exception(
+                    'Error generating jsonrpc error response data from %s', self.data)
+        return error
 
     def to_sanic_response(self) -> HTTPResponse:
         return response.json(self.to_dict())

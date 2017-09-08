@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import aiocache
-import pytest
 
+import pytest
 from jussi.cache import cache_get
 from jussi.cache import cache_get_batch
 from jussi.cache import cacher

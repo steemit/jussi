@@ -13,7 +13,7 @@ logger = logging.getLogger('sanic')
 # extracted this method for easier testing and future re-use
 async def requester(method='POST', url=None, **kwargs):
     if 'headers' not in kwargs:
-        kwargs['headers']= {'Content-Type': 'application/json'}
+        kwargs['headers'] = {'Content-Type': 'application/json'}
     async with aiohttp.request(method, url, **kwargs) as response:
         logger.debug(f'requester: HTTP {method} --> {url}')
         response_text = await response.text()
@@ -22,7 +22,6 @@ async def requester(method='POST', url=None, **kwargs):
         logger.debug('requester: decoding response json')
         return ujson.loads(response_text)
     return response_text
-
 
 
 async def get_last_irreversible_block(app=None, delay=3):

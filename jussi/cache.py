@@ -9,11 +9,10 @@ from typing import Union
 
 import aiocache
 import aiocache.plugins
+import cytoolz
 from funcy.decorators import decorator
 
-import cytoolz
 import jussi.jsonrpc_method_cache_settings
-from jussi.serializers import CompressionSerializer
 from jussi.typedefs import BatchJsonRpcRequest
 from jussi.typedefs import BatchJsonRpcResponse
 from jussi.typedefs import CachedBatchResponse
@@ -169,6 +168,8 @@ async def cache_get_batch(caches: Caches,
         cached_responses = await cache.multi_get(keys)
         logger.debug('cache_get_batch cached_responses %s: %s', cache,
                      cached_responses)
+        logger.debug('cache_get_batch %s: %s hits for %s keys',
+                     cache, len([r for r in cached_responses if r]), len(keys))
         batch_response = [
             new or old for old, new in zip(batch_response, cached_responses)
         ]
@@ -179,15 +180,19 @@ async def cache_get_batch(caches: Caches,
             logger.debug('cache_get_batch all requests found in cache')
             return merge_cached_responses(jsonrpc_batch_request,
                                           batch_response)
-        return merge_cached_responses(jsonrpc_batch_request, batch_response)
+    logger.debug('cache_get_batch final: %s hits for %s keys',
+                 len([r for r in batch_response if r]), len(keys))
+    return merge_cached_responses(jsonrpc_batch_request, batch_response)
+
 
 async def cache_get_batch_all_or_nothing(caches: Caches,
                                          jsonrpc_batch_request: BatchJsonRpcRequest
-                                         ) -> Union[BatchJsonRpcResponse,None]:
+                                         ) -> Union[BatchJsonRpcResponse, None]:
     batch_response = await cache_get_batch(caches, jsonrpc_batch_request)
     if all(batch_response):
         return batch_response
     return None
+
 
 async def cache_jsonrpc_response(
         sanic_http_request: HTTPRequest,
@@ -270,7 +275,6 @@ def block_num_from_jsonrpc_response(
     return block_num_from_id(previous) + 1
 
 
-
 def block_num_from_id(block_hash: str) -> int:
     """return the first 4 bytes (8 hex digits) of the block ID (the block_num)
     """
@@ -280,7 +284,8 @@ def block_num_from_id(block_hash: str) -> int:
 def merge_cached_response(
         cached_response: CachedSingleResponse,
         jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcRequest:
-    logger.debug(f'merge_cached_response merging response into {type(cached_response)}({cached_response})')
+    logger.debug(
+        f'merge_cached_response merging response into {type(cached_response)}({cached_response})')
     if 'id' in cached_response:
         del cached_response['id']
     if 'id' in jsonrpc_request:

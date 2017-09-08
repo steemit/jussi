@@ -31,7 +31,8 @@ class RateBar(Bar):
 
     @property
     def rate(self):
-        elapsed = self.elapsed or 0.000000001
+        if not self.elapsed:
+            return 0
         return self.index/elapsed
 
 def chunkify(iterable, chunksize=3000):
@@ -185,6 +186,20 @@ if __name__ == '__main__':
     loop.set_debug(True)
 
 
+    def verify_response(response):
+        try:
+            assert 'result' in response
+            assert 'error' not in response
+            return True
+        except Exception as e:
+            print(f'error:{e} response:{response}')
+        return False
+
+    def verify(response):
+        if isinstance(response, list):
+            return all(verify_response(r) for r in response)
+        else:
+            return verify_response(response)
 
     async def run(block_nums, url=None, batch_request_size=None, concurrent_tasks_limit=None, concurrent_connections=None):
         client = SimpleSteemAPIClient(url=url,
@@ -201,7 +216,7 @@ if __name__ == '__main__':
             async for result in client.get_blocks(block_nums):
                 if result:
                     bar.next(n=len(result))
-                    #responses.extend(result)
+                    verify(result)
 
 
         except Exception as e:

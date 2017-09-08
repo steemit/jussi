@@ -2,8 +2,9 @@
 
 import json
 
-import pytest
 import ujson
+
+import pytest
 
 
 async def return_value_async(val, mocked=None):
@@ -143,8 +144,8 @@ def test_jsonrpc_request(jsonrpc_request, expected, app, mocker, steemd_jrpc_res
             self.send_data = None
 
         @classmethod
-        async def connect(kls):
-            return kls()
+        async def connect(cls):
+            return cls()
 
         async def close(self):
             return None
@@ -176,8 +177,8 @@ def test_mocked_steemd_calls(app, steemd_jrpc_response_validator, mocker, steemd
             self.send_data = None
 
         @classmethod
-        async def connect(kls):
-            return kls()
+        async def connect(cls):
+            return cls()
 
         async def close(self):
             return None
@@ -192,9 +193,9 @@ def test_mocked_steemd_calls(app, steemd_jrpc_response_validator, mocker, steemd
     mocked = mocker.patch('jussi.jobs.requester')
 
     if jrpc_req['method'] == 'get_dynamic_global_properties':
-        mocked.return_value == return_value_async(jrpc_resp,mocked)
+        mocked.return_value = return_value_async(jrpc_resp,mocked)
     elif jrpc_req['method'] == 'call' and jrpc_req['params'][1] == 'get_dynamic_global_properties':
-        mocked.return_value == return_value_async(jrpc_resp)
+        mocked.return_value = return_value_async(jrpc_resp)
     else:
         mocked.return_value = return_value_async(GDGP_RESULT)
 

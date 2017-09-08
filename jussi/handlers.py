@@ -126,8 +126,12 @@ async def dispatch_single(sanic_http_request: HTTPRequest,
 async def dispatch_batch(sanic_http_request: HTTPRequest,
                          jsonrpc_requests: BatchJsonRpcRequest
                          ) -> BatchJsonRpcResponse:
-    cached_responses = await cache_get_batch(
-        sanic_http_request.app.config.caches, jsonrpc_requests)
+    cached_responses = sanic_http_request.get('cached_response')
+    if not cached_responses:
+        logger.warning(
+            'dispatch_batch encountered batch request with no cached_response attr')
+        cached_responses = cache_get_batch(
+            sanic_http_request.app.config.caches, jsonrpc_requests)
     requests = [
         dispatch_single(
             sanic_http_request, jsonrpc_request, skip_cacher_get=True)

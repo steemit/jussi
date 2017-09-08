@@ -1,24 +1,22 @@
 # -*- coding: utf-8 -*-
-import asyncio
 import os
-import random
 
-import jsonschema
-import pytest
-import requests
-import requests.exceptions
 import sanic
 import sanic.response
 import ujson
 from aiocache import caches as aiocaches
 from funcy.funcs import rpartial
 
+import jsonschema
 import jussi.errors
 import jussi.handlers
 import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
+import pytest
+import requests
+import requests.exceptions
 
 
 def pytest_collection_modifyitems(items):

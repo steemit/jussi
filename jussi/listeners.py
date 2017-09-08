@@ -35,7 +35,9 @@ def setup_listeners(app: WebApp) -> WebApp:
             logger.info('before_server_start -> setup_cache caches=%s',
                         cache_alias)
             logger.info(f'{cache}.serializer is {type(cache.serializer)}')
-            assert isinstance(cache.serializer, jussi.serializers.CompressionSerializer)
+            assert isinstance(
+                cache.serializer,
+                jussi.serializers.CompressionSerializer)
             active_caches.append(cache)
         app.config.aiocaches = aiocache.caches
 
@@ -119,9 +121,9 @@ def setup_listeners(app: WebApp) -> WebApp:
     # after server stop
     @app.listener('after_server_stop')
     async def stop_job_scheduler(app: WebApp, loop) -> None:
+        logger = app.config.logger
         logger.info('after_server_stop -> stop_job_scheduler')
         await asyncio.shield(app.config.scheduler.close())
-
 
     @app.listener('after_server_stop')
     async def close_websocket_connection(app: WebApp, loop) -> None:

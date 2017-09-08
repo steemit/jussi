@@ -38,8 +38,8 @@ GDGP_RESULT = {
 
 class WSProto:
     @classmethod
-    async def connect(kls):
-        return kls()
+    async def connect(cls):
+        return cls()
 
     async def close(self):
         return None
