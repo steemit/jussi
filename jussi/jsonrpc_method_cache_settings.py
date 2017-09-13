@@ -15,36 +15,41 @@ Method Settings
    - `NO_EXPIRE_IF_IRREVERSIBLE` == -2
 
 """
+from enum import Enum
+
 import pygtrie
 
-DEFAULT_TTL = 3
-NO_EXPIRE = 0
-NO_CACHE = -1
-NO_EXPIRE_IF_IRREVERSIBLE = -2
+
+class TTL(Enum):
+    DEFAULT_TTL = 3
+    NO_EXPIRE = None
+    NO_CACHE = -1
+    NO_EXPIRE_IF_IRREVERSIBLE = -2
+
 
 METHOD_SETTINGS = (
     # global default
-    ('', DEFAULT_TTL),
+    ('', TTL.DEFAULT_TTL),
 
     # steemd default
-    ('steemd', DEFAULT_TTL),
+    ('steemd', TTL.DEFAULT_TTL),
 
     # steemd login_api
-    ('steemd.login_api', NO_CACHE),
+    ('steemd.login_api', TTL.NO_CACHE),
 
     # steemd network_broadcast_api
-    ('steemd.network_broadcast_api', NO_CACHE),
+    ('steemd.network_broadcast_api', TTL.NO_CACHE),
 
     # steemd follow_api
-    ('steemd.follow_api', 3),
+    ('steemd.follow_api', TTL.DEFAULT_TTL),
 
     # steemd market_history_api
     ('steemd.market_history_api', 1),
 
     # steemd database_api
-    ('steemd.database_api', 3),
-    ('steemd.database_api.get_block', NO_EXPIRE_IF_IRREVERSIBLE),
-    ('steemd.database_api.get_block_header', NO_EXPIRE_IF_IRREVERSIBLE),
+    ('steemd.database_api', TTL.DEFAULT_TTL),
+    ('steemd.database_api.get_block', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
+    ('steemd.database_api.get_block_header', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
     ('steemd.database_api.get_state', 1),
     ('steemd.database_api.get_dynamic_global_properties', 1),
 
@@ -52,6 +57,6 @@ METHOD_SETTINGS = (
     ('sbds', 10),
 
     # yo default
-    ('yo', NO_CACHE))
+    ('yo', TTL.NO_CACHE))
 
 TTLS = pygtrie.StringTrie(METHOD_SETTINGS, separator='.')

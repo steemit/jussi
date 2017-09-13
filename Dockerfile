@@ -15,6 +15,8 @@ ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
 ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
 ENV JUSSI_REDIS_PORT 6379
 ENV ENVIRONMENT DEV
+ARG SOURCE_COMMIT
+ENV SOURCE_COMMIT ${SOURCE_COMMIT}
 
 RUN \
     apt-get update && \
@@ -118,6 +120,6 @@ RUN chown -R www-data . && \
         /usr/include \
         /usr/local/include
 
-RUN pipenv run pytest -m'not docker'
+RUN pipenv run pytest
 
 EXPOSE ${NGINX_SERVER_PORT}

@@ -7,20 +7,25 @@ from statsd.client import StatsClientBase
 
 from jussi.utils import stats_key
 
-logger = logging.getLogger('sanic')
+logger = logging.getLogger(__name__)
 
 
 @decorator
-async def time_async_jsonrpc_function(call: Callable):
-    jrpc = getattr(call, 'jsonrpc_request')
-    stat = getattr(call, 'sanic_http_request')
-    if stat and jrpc:
-        key = stats_key(jrpc)
-        timer = stat('jsonrpc.requests.%s' % key)
+async def time_jsonrpc(call: Callable):
+    jsonrpc_request = getattr(call, 'jsonrpc_request')
+    sanic_http_request = getattr(call, 'sanic_http_request')
+    stats = None
+    timer = None
+    if sanic_http_request:
+        stats = sanic_http_request.app.config.stats
+    if stats and jsonrpc_request:
+        key = stats_key(jsonrpc_request)
+        timer = stats.timer(f'jsonrpc.requests.{key}')
         timer.start()
-        result = await call()
+    result = await call()
+    if timer:
         timer.stop()
-        return result
+    return result
 
 
 class QStatsClient(StatsClientBase):

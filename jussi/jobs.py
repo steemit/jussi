@@ -7,7 +7,7 @@ import ujson
 
 from jussi.utils import is_jsonrpc_error_response
 
-logger = logging.getLogger('sanic')
+logger = logging.getLogger(__name__)
 
 
 # extracted this method for easier testing and future re-use

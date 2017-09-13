@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-
 import datetime
+import itertools
 
-import ujson
+import pytest
+import requests
 
 
-def test_health_check_get(app, healthcheck_path):
-    _, response = app.test_client.get(
-        healthcheck_path, server_kwargs=dict(workers=1))
-    assert response.status == 200
+@pytest.mark.live
+def test_healtcheck_routes(healthcheck_url):
+    session = requests.Session()
+    response = session.get(healthcheck_url)
+    assert response.status_code == 200
     assert response.headers['Content-Type'] == 'application/json'
-    json_response = ujson.loads(response.body.decode())
-    assert json_response['status'] == 'OK'
+    response_json = response.json()
+    assert response_json['status'] == 'OK'
     utcnow = datetime.datetime.utcnow().isoformat()
-    assert json_response['datetime'][:14] == utcnow[:14]
+    assert response_json['datetime'][:14] == utcnow[:14]

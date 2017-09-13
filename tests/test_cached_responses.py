@@ -7,15 +7,11 @@ from jussi.cache import cache_get_batch
 from jussi.cache import cacher
 from jussi.cache import jsonrpc_cache_key
 from jussi.cache import merge_cached_responses
-from jussi.serializers import CompressionSerializer
 
 caches_config = {
         'default': {
             'cache':
-            aiocache.SimpleMemoryCache,
-            'serializer': {
-                'class': CompressionSerializer
-            }
+            'jussi.cache_backends.SimpleLRUMemoryCache'
         }
 }
 
@@ -46,7 +42,6 @@ jrpc_resp_1 = {
 async def test_cached_response_id_replacement(jrpc_req, jrpc_resp, dummy_request):
     aiocache.caches.set_config(caches_config)
     cache = aiocache.caches.create(alias='default')
-    assert isinstance(cache.serializer, CompressionSerializer)
     await cache.clear()
     assert await cache.get('steemd.database_api.get_block.params=[1000]') is None
     await cache.set('steemd.database_api.get_block.params=[1000]', jrpc_resp, ttl=None)

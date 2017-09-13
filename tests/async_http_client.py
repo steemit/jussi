@@ -11,6 +11,7 @@ from itertools import islice
 import aiohttp
 import ujson
 from funcy.colls import get_in
+from funcy.flow import retry
 
 import uvloop
 from progress.bar import Bar
@@ -21,9 +22,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-CORRECT_BATCH_TEST_RESPONSE='''
-[{"id":1,"result":{"previous":"000000b0c668dad57f55172da54899754aeba74b","timestamp":"2016-03-24T16:14:21","witness":"initminer","transaction_merkle_root":"0000000000000000000000000000000000000000","extensions":[],"witness_signature":"2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e","transactions":[],"block_id":"000000b13707dfaad7c2452294d4cfa7c2098db4","signing_key":"STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX","transaction_ids":[]}},{"id":2,"result":{"previous":"000000b0c668dad57f55172da54899754aeba74b","timestamp":"2016-03-24T16:14:21","witness":"initminer","transaction_merkle_root":"0000000000000000000000000000000000000000","extensions":[],"witness_signature":"2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e","transactions":[],"block_id":"000000b13707dfaad7c2452294d4cfa7c2098db4","signing_key":"STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX","transaction_ids":[]}}]
-'''
+CORRECT_BATCH_TEST_RESPONSE= [
+    {"id": 1, "result": {"previous": "000000b0c668dad57f55172da54899754aeba74b", "timestamp": "2016-03-24T16:14:21",
+                         "witness": "initminer", "transaction_merkle_root": "0000000000000000000000000000000000000000",
+                         "extensions": [],
+                         "witness_signature": "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
+                         "transactions": [], "block_id": "000000b13707dfaad7c2452294d4cfa7c2098db4",
+                         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+                         "transaction_ids": []}},
+    {"id": 2, "result": {"previous": "000000b0c668dad57f55172da54899754aeba74b", "timestamp": "2016-03-24T16:14:21",
+                         "witness": "initminer", "transaction_merkle_root": "0000000000000000000000000000000000000000",
+                         "extensions": [],
+                         "witness_signature": "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
+                         "transactions": [], "block_id": "000000b13707dfaad7c2452294d4cfa7c2098db4",
+                         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX", "transaction_ids": []}}
+]
+
+
 NO_BATCH_SUPPORT_RESPONSE = '7 bad_cast_exception: Bad Cast'
 
 class RateBar(Bar):
@@ -33,7 +48,7 @@ class RateBar(Bar):
     def rate(self):
         if not self.elapsed:
             return 0
-        return self.index/elapsed
+        return self.index/self.elapsed
 
 def chunkify(iterable, chunksize=3000):
     i = 0
@@ -49,7 +64,7 @@ def chunkify(iterable, chunksize=3000):
         yield chunk
 
 
-class SimpleSteemAPIClient(object):
+class AsyncClient(object):
     def __init__(self, *, url=None, **kwargs):
         self.url = url or os.environ.get('STEEMD_HTTP_URL', 'https://steemd.steemitdev.com')
         self.kwargs = kwargs
@@ -64,6 +79,8 @@ class SimpleSteemAPIClient(object):
         self._batch_request_size = self.kwargs.get('batch_request_size', 150)
         self._concurrent_tasks_limit = self.kwargs.get('concurrent_tasks_limit', 10)
 
+        self.verify_responses = kwargs.get('verify_responses', False)
+
         self._perf_history = deque(maxlen=2000)
         self._batch_request_count = 0
         self._request_count = 0
@@ -77,6 +94,7 @@ class SimpleSteemAPIClient(object):
         session_kwargs = session_kwargs or self._session_kwargs
         return aiohttp.ClientSession(**session_kwargs)
 
+
     async def fetch(self,request_data):
         if isinstance(request_data, list):
             self._batch_request_count += 1
@@ -84,14 +102,16 @@ class SimpleSteemAPIClient(object):
         async with self.session.post(self.url, json=request_data, compress='gzip') as response:
             try:
                 response_data = await response.json()
+                verify(request_data, response, response_data, _raise=True)
+                return response_data
             except Exception as e:
-                logger.error(e)
+                logger.exception(e)
                 logger.error(await response.text())
-                return
-        return response_data
+
+
 
     async def get_blocks(self, block_nums):
-        requests = ({'jsonrpc':'2.0','id':block_num,'method':'get_block','params':[block_num]} for _id,block_num in enumerate(block_nums))
+        requests = ({'jsonrpc':'2.0','id':block_num, 'method':'get_block','params':[block_num]} for block_num in block_nums)
         batched_requests = chunkify(requests, self.batch_request_size)
         coros = (self.fetch(batch) for batch in batched_requests)
         first_coros = islice(coros,0,self.concurrent_tasks_limit)
@@ -126,9 +146,16 @@ class SimpleSteemAPIClient(object):
                 response_data = await response.text()
             if response_data.startswith(NO_BATCH_SUPPORT_RESPONSE):
                 return False
-            return ujson.loads(response_data) == CORRECT_BATCH_TEST_RESPONSE
+            response_json = ujson.loads(response_data)
+            print(ujson.dumps(response_json))
+            assert len(response_json) == 2
+            assert isinstance(response_json, list)
+            for i,result in enumerate(response_json):
+                print(result)
+                print(CORRECT_BATCH_TEST_RESPONSE[i])
+                assert result == CORRECT_BATCH_TEST_RESPONSE[i]
         except Exception as e:
-            logger.error(e)
+            logger.exception(e)
         return False
 
     @property
@@ -168,76 +195,87 @@ class SimpleSteemAPIClient(object):
         for task in asyncio.Task.all_tasks():
             task.cancel()
 
-if __name__ == '__main__':
-    import argparse
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger('async_http_client_main')
-    parser = argparse.ArgumentParser('jussi perf test script')
-    parser.add_argument('--blocks', type=int, default=20000)
-    parser.add_argument('--offset', type=int, default=0)
-    parser.add_argument('--url', type=str, default='https://api.steemitdev.com')
-    parser.add_argument('--batch_request_size', type=int, default=1000)
-    parser.add_argument('--concurrent_tasks_limit', type=int, default=5)
-    parser.add_argument('--concurrent_connections', type=int, default=0)
-    parser.add_argument('--print', type=bool, default=False)
-    args = parser.parse_args()
-    block_nums = list(range(args.offset, args.blocks))
-    loop = asyncio.get_event_loop()
-    loop.set_debug(True)
+
+GET_BLOCK_RESULT_KEYS = {"previous",
+        "timestamp",
+        "witness",
+        "transaction_merkle_root",
+        "extensions",
+        "witness_signature",
+        "transactions" ,
+        "block_id",
+        "signing_key",
+        "transaction_ids"}
 
 
-    def verify_response(response):
-        try:
-            assert 'result' in response
-            assert 'error' not in response
-            return True
-        except Exception as e:
-            print(f'error:{e} response:{response}')
-        return False
-
-    def verify(response):
-        if isinstance(response, list):
-            return all(verify_response(r) for r in response)
-        else:
-            return verify_response(response)
-
-    async def run(block_nums, url=None, batch_request_size=None, concurrent_tasks_limit=None, concurrent_connections=None):
-        client = SimpleSteemAPIClient(url=url,
-                                      batch_request_size=batch_request_size,
-                                      concurrent_tasks_limit=concurrent_tasks_limit,
-                                      connector_kwargs={'limit':concurrent_connections})
-        logger.debug(f'blocks:{len(block_nums)} {client.batch_request_size} concurrent_tasks_limit:{client.concurrent_tasks_limit} concurrent_connections:{client.concurrent_connections}')
-        responses = []
-        start = time.perf_counter()
-
-        bar = RateBar('Fetching blocks', max=len(block_nums))
-        try:
-            start = time.perf_counter()
-            async for result in client.get_blocks(block_nums):
-                if result:
-                    bar.next(n=len(result))
-                    verify(result)
 
 
-        except Exception as e:
-            logger.error(e)
-        finally:
-            bar.finish()
-            elapsed = time.perf_counter() - start
-            client.close()
 
-        return client, responses, elapsed
+def block_num_from_id(block_hash: str) -> int:
+    """return the first 4 bytes (8 hex digits) of the block ID (the block_num)
+    """
+    return int(str(block_hash)[:8], base=16)
+
+def verify_get_block_response(request_ids, response, response_data, _raise=False):
+    try:
+        response_id = response_data['id']
+        block_num = block_num_from_id(response_data['result']['block_id'])
+        response_keys = set(response_data['result'].keys())
+        assert response_id == block_num
+        assert response_keys == GET_BLOCK_RESULT_KEYS
+        return True
+    except KeyError as e:
+        logger.error(response.headers)
+        logger.exception(f'response:{response_data["result"].keys()}')
+    except AssertionError as e:
+        logger.error(f'{response_id} {block_num}')
+        logger.error(response.headers)
+        logger.exception(f'response:{response_keys}')
+
+    return False
+
+def verify(request_data, response, response_data, _raise=True):
+    if isinstance(response_data, list):
+        request_ids = {r['id'] for r in request_data}
+        for i,data in enumerate(response_data):
+            verify_get_block_response(request_ids, response, data, _raise=_raise)
+    else:
+        verify_get_block_response({request_data['id']}, response, response_data, _raise=_raise)
+
+
+async def test_get_blocks(args):
+    import jsonschema
+    import ujson
+
+    block_nums = range(args.start_block, args.end_block)
+    url = args.url
+    batch_request_size = args.batch_request_size
+    concurrent_tasks_limit = args.concurrent_tasks_limit
+    concurrent_connections = args.concurrent_connections
+
+    client = AsyncClient(url=url,
+                         batch_request_size=batch_request_size,
+                         concurrent_tasks_limit=concurrent_tasks_limit,
+                         connector_kwargs={'limit': concurrent_connections})
+    logger.debug(
+        f'blocks:{len(block_nums)} {client.batch_request_size} concurrent_tasks_limit:{client.concurrent_tasks_limit} concurrent_connections:{client.concurrent_connections}')
+    responses = []
+    errors = []
+    start = time.perf_counter()
+
+    bar = RateBar('Fetching blocks', max=len(block_nums))
 
     try:
-        client, responses, elapsed = loop.run_until_complete(run(block_nums,
-                                                url=args.url,
-                                                batch_request_size=args.batch_request_size,
-                                                concurrent_tasks_limit=args.concurrent_tasks_limit,
-                                                concurrent_connections=args.concurrent_connections))
+        start = time.perf_counter()
+        async for result in client.get_blocks(block_nums):
+            if result:
+                bar.next(n=len(result))
+    except Exception as e:
+        logger.error(e)
     finally:
-        pass
-        #loop.run_until_complete(loop.shutdown_asyncgens())
-        #loop.close()
+        bar.finish()
+        elapsed = time.perf_counter() - start
+        client.close()
 
     history = client._perf_history
     request_count = client._request_count
@@ -246,28 +284,19 @@ if __name__ == '__main__':
     total_get_block_requests = client._request_count
     total_batch_requests = client._batch_request_count
 
-    get_block_time = total_time/total_get_block_requests
-    batch_request_time = total_time/total_batch_requests
+    get_block_time = total_time / total_get_block_requests
+    batch_request_time = total_time / total_batch_requests
 
-    hours_to_sync = (14000000 * get_block_time)/360
-    hours_to_sync2 = ((14000000/args.batch_request_size) * batch_request_time)/360
+    hours_to_sync = (14000000 * get_block_time) / 360
+    hours_to_sync2 = ((14000000 / args.batch_request_size) * batch_request_time) / 360
 
-    concurrency = 1/(total_time / total_time_sequential)
-
-    def verify_response(response):
-        try:
-            assert 'result' in response
-            assert 'error' not in response
-            return True
-        except Exception as e:
-            print(f'error:{e} response:{response}')
-        return False
-
+    concurrency = 1 / (total_time / total_time_sequential)
     print()
-    #print(responses[0])
-    #_ids = set([r['id'] for r in responses])
-    #block_nums = set(block_nums)
-    #print(block_nums - _ids)
+
+    # print(responses[0])
+    # _ids = set([r['id'] for r in responses])
+    # block_nums = set(block_nums)
+    # print(block_nums - _ids)
 
 
     print()
@@ -287,3 +316,89 @@ if __name__ == '__main__':
     print(f'avg batch request time:\t\t{total_time/total_batch_requests}')
     print(f'est. hours to sync: \t\t{hours_to_sync}')
     print(f'est. hours to sync2: \t\t{hours_to_sync2}')
+
+
+async def test_batch_support(args):
+    url = args.url
+    client = AsyncClient(url=url)
+    result = False
+    try:
+        result = await client.test_batch_support(url=url)
+    finally:
+        client.close()
+    if result:
+        print(f'{url} supports batch requests')
+        return result
+    print(f'{url} does not support batch requests')
+    return result
+
+
+async def get_blocks(args):
+    block_nums = range(args.start_block, args.end_block)
+    url = args.url
+    batch_request_size = args.batch_request_size
+    concurrent_tasks_limit = args.concurrent_tasks_limit
+    concurrent_connections = args.concurrent_connections
+
+    client = AsyncClient(url=url,
+                         batch_request_size=batch_request_size,
+                         concurrent_tasks_limit=concurrent_tasks_limit,
+                         connector_kwargs={'limit': concurrent_connections})
+
+    bar = RateBar('Fetching blocks', max=len(block_nums))
+
+    try:
+        async for result in client.get_blocks(block_nums):
+            if result:
+                bar.next(n=len(result))
+                print(result)
+            else:
+                logger.error('encountered missing result')
+    except Exception as e:
+        logger.error(e)
+    finally:
+        loop = asyncio.get_event_loop()
+        bar.finish()
+        await client.close()
+        loop.stop()
+
+
+
+if __name__ == '__main__':
+    import sys
+    import argparse
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger('async_http_client_main')
+
+    parser = argparse.ArgumentParser('jussi client')
+
+    subparsers = parser.add_subparsers()
+
+    parser.add_argument('--url', type=str, default='https://api.steemitdev.com')
+    parser.add_argument('--start_block', type=int, default=1)
+    parser.add_argument('--end_block', type=int, default=15_000_000)
+    parser.add_argument('--batch_request_size', type=int, default=100)
+    parser.add_argument('--concurrent_tasks_limit', type=int, default=5)
+    parser.add_argument('--concurrent_connections', type=int, default=5)
+    parser.add_argument('--print', type=bool, default=False)
+
+    parser_test_batch_support = subparsers.add_parser('test-batch-support')
+    parser_test_batch_support.set_defaults(func=test_batch_support)
+
+    parser_test_get_blocks = subparsers.add_parser('test-get-blocks')
+    parser_test_get_blocks.set_defaults(func=test_get_blocks)
+
+
+    parser_get_blocks = subparsers.add_parser('get-blocks')
+    parser_get_blocks.set_defaults(func=get_blocks)
+
+    args = parser.parse_args()
+    func = getattr(args, 'func', None)
+    if not func:
+        parser.print_help()
+        sys.exit()
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(args.func(args))
+    finally:
+        loop.close()

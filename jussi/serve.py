@@ -31,7 +31,9 @@ def parse_args(args: list=None):
     parser.add_argument('--server_port', type=int, default=9000)
     parser.add_argument('--server_workers', type=int, default=os.cpu_count())
     parser.add_argument(
-        '--steemd_websocket_url', type=str, default='wss://steemd.steemit.com')
+        '--steemd_websocket_url', type=str, default='wss://steemd.steemitdev.com')
+    parser.add_argument('--websocket_pool_minsize', type=int, default=5)
+    parser.add_argument('--websocket_pool_maxsize', type=int, default=5)
     parser.add_argument(
         '--sbds_url', type=str, default='https://sbds.steemit.com')
     parser.add_argument('--redis_host', type=str, default=None)
@@ -40,6 +42,7 @@ def parse_args(args: list=None):
     parser.add_argument('--statsd_host', type=str, default='localhost')
     parser.add_argument('--statsd_port', type=int, default=8125)
     parser.add_argument('--statsd_prefix', type=str, default='jussi')
+    parser.add_argument('--source_commit', type=str, default='')
     return parser.parse_args(args=args)
 
 

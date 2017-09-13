@@ -40,7 +40,8 @@ server_error = {
         # single jsonrpc steemd request
     (dict(id=1, method='get_block', params=[1000]),invalid_request_error),
     ])
-def test_validate_jsonrpc_request_middleware(app, jrpc_request, expected):
+def test_validate_jsonrpc_request_middleware(app_without_ws, jrpc_request, expected):
+    app = app_without_ws
     _, response = app.test_client.post(
         '/', json=jrpc_request, server_kwargs=dict(workers=1))
     assert response.status == 200

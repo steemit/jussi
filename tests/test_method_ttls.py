@@ -4,10 +4,7 @@ from jussi.cache import block_num_from_jsonrpc_response
 from jussi.cache import irreversible_ttl
 from jussi.cache import ttl_from_jsonrpc_request
 from jussi.cache import ttl_from_urn
-from jussi.jsonrpc_method_cache_settings import DEFAULT_TTL
-from jussi.jsonrpc_method_cache_settings import NO_CACHE
-from jussi.jsonrpc_method_cache_settings import NO_EXPIRE
-from jussi.jsonrpc_method_cache_settings import NO_EXPIRE_IF_IRREVERSIBLE
+from jussi.jsonrpc_method_cache_settings import TTL
 
 SBDS_DEFAULT_CACHE = 10
 
@@ -33,15 +30,15 @@ non_ttl_rpc_req = {"id":"1","jsonrpc":"2.0","method":"sbds.get_block","params":[
 
 @pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num,expected', [
     # don't cache when last_block_num < response block_num
-    (ttl_rpc_req, rpc_resp, 0, NO_CACHE),
-    (ttl_rpc_req, rpc_resp, 999, NO_CACHE),
+    (ttl_rpc_req, rpc_resp, 0, TTL.NO_CACHE),
+    (ttl_rpc_req, rpc_resp, 999, TTL.NO_CACHE),
 
     # cache when last_block_num >= response block_num
-    (ttl_rpc_req, rpc_resp, 1000, NO_EXPIRE),
-    (ttl_rpc_req, rpc_resp, 1001, NO_EXPIRE),
+    (ttl_rpc_req, rpc_resp, 1000, TTL.NO_EXPIRE),
+    (ttl_rpc_req, rpc_resp, 1001, TTL.NO_EXPIRE),
 
     # don't cache when bad/missing response block_num
-    (ttl_rpc_req, {}, 2000, NO_CACHE),
+    (ttl_rpc_req, {}, 2000, TTL.NO_CACHE),
 
     # don't adjust ttl for non EXPIRE_IF_IRREVERSIBLE methods
     (non_ttl_rpc_req, rpc_resp, 2000, SBDS_DEFAULT_CACHE),
@@ -53,19 +50,19 @@ def test_ttls(rpc_req, rpc_resp, last_block_num,expected):
     assert ttl == expected
 
 @pytest.mark.parametrize('response, last_block,expected', [
-    (rpc_resp, 0, NO_CACHE),
-    (rpc_resp, 999, NO_CACHE),
-    (rpc_resp, 1000, NO_EXPIRE),
-    (rpc_resp, 1001, NO_EXPIRE),
+    (rpc_resp, 0, TTL.NO_CACHE),
+    (rpc_resp, 999, TTL.NO_CACHE),
+    (rpc_resp, 1000, TTL.NO_EXPIRE),
+    (rpc_resp, 1001, TTL.NO_EXPIRE),
 ])
 def test_irreversible_ttl(response, last_block, expected):
     ttl = irreversible_ttl(response, last_block)
     assert ttl == expected
 
 @pytest.mark.parametrize('urn,expected', [
-    ('steemd.database_api.get_account_count', DEFAULT_TTL),
-    ('steemd.database_api.get_block.params=[1000]', NO_EXPIRE_IF_IRREVERSIBLE),
-    ('steemd.database_api.get_block_header.params=[1000]', NO_EXPIRE_IF_IRREVERSIBLE),
+    ('steemd.database_api.get_account_count', TTL.DEFAULT_TTL),
+    ('steemd.database_api.get_block.params=[1000]', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
+    ('steemd.database_api.get_block_header.params=[1000]', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
 ])
 def test_ttl_from_urn(urn, expected):
     ttl = ttl_from_urn(urn)

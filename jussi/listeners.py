@@ -7,7 +7,6 @@ import aiojobs
 import janus
 import statsd
 import ujson
-from websockets import connect as websockets_connect
 
 import jussi.cache
 import jussi.jobs
@@ -16,6 +15,7 @@ import jussi.jsonrpc_method_upstream_url_settings
 import jussi.logging_config
 import jussi.serializers
 import jussi.stats
+import jussi.ws.pool
 from jussi.typedefs import WebApp
 
 
@@ -30,14 +30,13 @@ def setup_listeners(app: WebApp) -> WebApp:
         caches_config = jussi.cache.setup_caches(app, loop)
         aiocache.caches.set_config(caches_config)
         active_caches = []
+        # caches should be sorted fastest to slowest, ie,
+        # [SimpleMemoryCache,RedisCache]
         for cache_alias in sorted(aiocache.caches.get_config().keys()):
             cache = aiocache.caches.create(alias=cache_alias)
             logger.info('before_server_start -> setup_cache caches=%s',
                         cache_alias)
             logger.info(f'{cache}.serializer is {type(cache.serializer)}')
-            assert isinstance(
-                cache.serializer,
-                jussi.serializers.CompressionSerializer)
             active_caches.append(cache)
         app.config.aiocaches = aiocache.caches
 
@@ -76,18 +75,18 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.aiohttp = aio
 
     @app.listener('before_server_start')
-    async def setup_websocket_connection(app: WebApp, loop) -> None:
-        """use one ws connection (per worker) to avoid reconnection
-        """
+    async def setup_websocket_connection_pool(app: WebApp, loop) -> None:
+
         logger = app.config.logger
-        logger.info('before_server_start -> setup_ws_client')
+        logger.info('before_server_start -> setup_websocket_connection_pool')
         args = app.config.args
-        app.config.websocket_kwargs = dict(uri=args.steemd_websocket_url,
-                                           max_size=None,
-                                           max_queue=0,
-                                           timeout=5)
-        app.config.websocket_client = await websockets_connect(
-            **app.config.websocket_kwargs)
+        app.config.websocket_pool_kwargs = dict(url=args.steemd_websocket_url,
+                                                minsize=args.websocket_pool_minsize,
+                                                maxsize=args.websocket_pool_maxsize,
+                                                timeout=5
+                                                )
+        # pylint: disable=protected-access
+        app.config.websocket_pool = await jussi.ws.pool._create_pool(**app.config.websocket_pool_kwargs)
 
     @app.listener('before_server_start')
     async def setup_statsd(app: WebApp, loop) -> None:
@@ -126,13 +125,12 @@ def setup_listeners(app: WebApp) -> WebApp:
         await asyncio.shield(app.config.scheduler.close())
 
     @app.listener('after_server_stop')
-    async def close_websocket_connection(app: WebApp, loop) -> None:
+    async def close_websocket_connection_pool(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('after_server_stop -> close_websocket_connection')
-        if not app.config.scheduler.closed:
-            await asyncio.shield(app.config.scheduler.close())
-        client = app.config.websocket_client
-        await asyncio.shield(client.close())
+        logger.info('after_server_stop -> close_websocket_connection_pool')
+        pool = app.config.websocket_pool
+        pool.terminate()
+        await asyncio.shield(pool.wait_closed())
 
     @app.listener('after_server_stop')
     async def close_aiohttp_session(app: WebApp, loop) -> None:

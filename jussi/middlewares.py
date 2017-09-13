@@ -25,7 +25,7 @@ from .utils import is_valid_jsonrpc_request
 from .utils import sort_request
 from .utils import stats_key
 
-logger = logging.getLogger('sanic')
+logger = logging.getLogger(__name__)
 
 
 def decode_gzip(data):
@@ -114,13 +114,13 @@ async def caching_middleware(request: HTTPRequest) -> None:
     if is_batch_jsonrpc(sanic_http_request=request):
         logger.debug(
             'caching_middleware attemping to load batch request from cache')
-        cached_response = await cache_get_batch(request.app.config.caches, request.json)
-        if all(cached_response):
+        cached_responses = await cache_get_batch(request.app.config.caches, request.json)
+        if all(cached_responses):
             logger.debug('caching_middleware loaded batch request from cache')
-            return response.json(cached_response, headers={
+            return response.json(cached_responses, headers={
                                  'x-jussi-cache-hit': 'batch'})
         else:
-            request['cached_response'] = cached_response
+            request['cached_responses'] = cached_responses
         logger.debug(
             'caching_middleware unable to load batch request from cache')
         return

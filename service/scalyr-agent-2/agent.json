@@ -32,15 +32,6 @@
        { "host": "$JUSSI_REDIS_HOST", "port": "$JUSSI_REDIS_PORT" }
       ]
     }
-  ],
-  "logs": [
-    {
-      "path": "/var/log/nginx/access.json",
-      "parser": "json"
-    },
-    {
-     "path": "/var/log/nginx/access.log",
-     "attributes": {"parser": "accessLog", "serverType": "nginx"}
-   }
+
   ]
 }

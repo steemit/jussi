@@ -49,7 +49,7 @@ test-without-docker:
 	pipenv run pytest -m'not docker'
 
 lint:
-	pipenv pre-commit run pylint --all-files
+	pipenv run pylint $(PROJECT_NAME)
 
 fmt:
 	#pipenv run yapf --in-place --style pep8 --parallel --recursive $(PROJECT_NAME)
@@ -97,3 +97,6 @@ steemd-calls:
 
 clean-perf:
 	rm -rf $(ROOT_DIR)/perf
+
+install-python-steem-macos:
+	env LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include" pipenv install steem

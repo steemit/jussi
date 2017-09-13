@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import os
 
 import sanic
@@ -17,14 +18,35 @@ import jussi.serve
 import pytest
 import requests
 import requests.exceptions
+from jussi.utils import method_urn
 
 
-def pytest_collection_modifyitems(items):
+def pytest_addoption(parser):
+    parser.addoption("--rundocker", action="store_true",
+                     default=False, help="run docker tests")
+
+    parser.addoption("--jussiurl", action="store",
+                     help="url to use for integration level jussi tests")
+
+def pytest_collection_modifyitems(config, items):
     for item in items:
-        if "docker" in item.nodeid:
-            item.add_marker(pytest.mark.docker)
         if 'route' in item.nodeid:
             item.add_marker(pytest.mark.test_app)
+
+
+    if not config.getoption("--rundocker") and not config.getoption("--jussiurl"):
+        skip_live = pytest.mark.skip(reason="need --rundocker or --jussiurl option to run")
+        for item in items:
+            if "live" in item.keywords:
+                item.add_marker(skip_live)
+
+@pytest.fixture(scope='function')
+def jussi_url(request):
+    if request.config.getoption("--rundocker"):
+        return request.getfixturevalue('jussi_docker_service')
+    else:
+        return request.config.getoption("--jussiurl")
+
 
 
 TEST_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -515,6 +537,8 @@ def app(loop):
     app = sanic.Sanic('testApp')
     app.config.args = args
     app.config.args.server_port = 42101
+    app.config.args.websocket_pool_minsize = 1
+    app.config.args.websocket_pool_maxsize = 1
     app = jussi.logging_config.setup_logging(app)
     app = jussi.serve.setup_routes(app)
     app = jussi.middlewares.setup_middlewares(app)
@@ -525,14 +549,25 @@ def app(loop):
         loop.run_until_complete(aiocaches.get('redis').clear())
     except KeyError:
         pass
-
+    print(app.listeners['before_server_start'])
+    print(app.listeners['after_server_start'])
     yield app
+
     try:
         loop.run_until_complete(aiocaches.get('default').close())
         loop.run_until_complete(aiocaches.get('redis').close())
     except KeyError:
         pass
     del app.config
+
+
+@pytest.fixture(scope='function')
+def app_without_ws(app):
+    listeners = [l for l in app.listeners['before_server_start'] if 'setup_websocket_connection_pool ' not in l.__name__]
+    del app.listeners['before_server_start'][4]
+    del app.listeners['after_server_stop'][1]
+    yield app
+
 
 
 @pytest.fixture(scope='function')
@@ -565,6 +600,12 @@ def caches(loop):
     params=['/', '/health', '/.well-known/healthcheck.json'])
 def healthcheck_path(request):
     return request.param
+
+
+@pytest.fixture
+def healthcheck_url(jussi_url, healthcheck_path):
+    return f'{jussi_url}{healthcheck_path}'
+
 
 
 @pytest.fixture
@@ -604,7 +645,7 @@ def all_steemd_jrpc_calls(request):
 def steemd_method_pairs(request):
     yield request.param
 
-@pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES)
+@pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES, ids=lambda reqresp: method_urn(reqresp[0]))
 def steemd_requests_and_responses(request):
     yield request.param[0],request.param[1]
 
@@ -632,3 +673,17 @@ def jussi_docker_service(docker_ip, docker_services):
         check=lambda: is_responsive(url)
     )
     return url
+
+@pytest.fixture(scope='session')
+def requests_session():
+    session = requests.Session()
+    return session
+
+@pytest.fixture(scope='session')
+def prod_url():
+    return 'https://api.steemitdev.com'
+
+
+@pytest.fixture
+def sanic_server(loop, app, test_server):
+    return loop.run_until_complete(test_server(app))

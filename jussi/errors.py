@@ -14,7 +14,7 @@ from jussi.typedefs import HTTPResponse
 from jussi.typedefs import JsonRpcErrorResponse
 from jussi.typedefs import WebApp
 
-logger = logging.getLogger('sanic')
+logger = logging.getLogger(__name__)
 
 # pylint: disable=bare-except
 
@@ -24,14 +24,15 @@ def setup_error_handlers(app: WebApp) -> WebApp:
 
     @app.exception(RequestTimeout)
     def handle_timeout_errors(request: HTTPRequest,
-                              exception: SanicException) -> None:
+                              exception: SanicException) -> HTTPResponse:
         """handles noisy request timeout errors"""
         # pylint: disable=unused-argument
         return JsonRpcError(sanic_request=request,
                             exception=None).to_sanic_response()
 
     @app.exception(SanicException)
-    def handle_errors(request: HTTPRequest, exception: SanicException) -> None:
+    def handle_errors(request: HTTPRequest,
+                      exception: SanicException) -> HTTPResponse:
         """handles all errors"""
         return JsonRpcError(sanic_request=request,
                             exception=exception).to_sanic_response()
@@ -75,8 +76,8 @@ async def handle_middleware_exceptions(call):
         # pylint: disable=no-member
         if isinstance(e, JsonRpcError):
             return e.to_sanic_response()
-        log_request_error(call.request, e)
-        return JsonRpcError(sanic_request=call.request).to_sanic_response()
+        return JsonRpcError(sanic_request=call.request,
+                            exception=e).to_sanic_response()
 
 
 class JsonRpcError(Exception):

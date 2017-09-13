@@ -19,9 +19,9 @@ from jussi.typedefs import SingleJsonRpcRequest
 from jussi.typedefs import SingleJsonRpcResponse
 from jussi.typedefs import StringTrie
 
-logger = logging.getLogger('sanic')
+logger = logging.getLogger(__name__)
 
-JSONRPC_REQUEST_KEYS = set(['id', 'jsonrpc', 'method', 'params'])
+JSONRPC_REQUEST_KEYS = {'id', 'jsonrpc', 'method', 'params'}
 
 
 # decorators
@@ -126,7 +126,7 @@ def method_urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
         else:
             api = 'database_api'
     if params and params != []:
-        query = ('.params=%s' % params).replace(' ', '')
+        query = f'.params={params}'.replace(' ', '')
     return '.'.join([p for p in (
         namespace,
         api,

@@ -51,11 +51,8 @@ async def return_value_async(val, mocked=None):
     return val
 
 
-def test_aio_job_scheduled(app, mocker):
-
-    mocked_ws = mocker.patch('jussi.listeners.websockets_connect',autospec=True)
-    mocked_ws.return_value = return_value_async(WSProto(), mocked_ws)
-
+def test_aio_job_scheduled(app_without_ws, mocker):
+    app = app_without_ws
     mocked = mocker.patch('jussi.jobs.requester')
     mocked.return_value = return_value_async(GDGP_RESULT)
 
@@ -65,10 +62,8 @@ def test_aio_job_scheduled(app, mocker):
 
 
 
-def test_aio_job_caching(app, mocker):
-
-    mocked_ws = mocker.patch('jussi.listeners.websockets_connect',autospec=True)
-    mocked_ws.return_value = return_value_async(WSProto(), mocked_ws)
+def test_aio_job_caching(app_without_ws, mocker):
+    app = app_without_ws
 
     mocked_requester = mocker.patch('jussi.jobs.requester')
     mocked_requester.return_value = return_value_async(GDGP_RESULT)
