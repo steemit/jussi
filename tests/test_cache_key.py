@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from collections import OrderedDict
 
-import jussi.cache
 import pytest
+from jussi.cache.utils import jsonrpc_cache_key
 
 
 @pytest.mark.parametrize(
@@ -47,5 +47,5 @@ import pytest
     ],
     ids=lambda v: v['method'])
 def test_cache_key(jsonrpc_request, expected):
-    result = jussi.cache.jsonrpc_cache_key(jsonrpc_request)
+    result = jsonrpc_cache_key(jsonrpc_request)
     assert result == expected

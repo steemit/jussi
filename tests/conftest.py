@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import os
 
 import sanic
@@ -6,7 +7,9 @@ import sanic.response
 import ujson
 from aiocache import caches as aiocaches
 from funcy.funcs import rpartial
+from sanic import Sanic
 
+import asynctest
 import jsonschema
 import jussi.errors
 import jussi.handlers
@@ -17,15 +20,32 @@ import jussi.serve
 import pytest
 import requests
 import requests.exceptions
+from jussi.utils import method_urn
 
 
-def pytest_collection_modifyitems(items):
+def pytest_addoption(parser):
+    parser.addoption("--rundocker", action="store_true",
+                     default=False, help="run docker tests")
+
+    parser.addoption("--jussiurl", action="store",
+                     help="url to use for integration level jussi tests")
+
+def pytest_collection_modifyitems(config, items):
     for item in items:
-        if "docker" in item.nodeid:
-            item.add_marker(pytest.mark.docker)
         if 'route' in item.nodeid:
             item.add_marker(pytest.mark.test_app)
+    if not config.getoption("--rundocker") and not config.getoption("--jussiurl"):
+        skip_live = pytest.mark.skip(reason="need --rundocker or --jussiurl option to run")
+        for item in items:
+            if "live" in item.keywords:
+                item.add_marker(skip_live)
 
+@pytest.fixture(scope='function')
+def jussi_url(request):
+    if request.config.getoption("--rundocker"):
+        return request.getfixturevalue('jussi_docker_service')
+    else:
+        return request.config.getoption("--jussiurl")
 
 TEST_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -153,6 +173,15 @@ INVALID_JRPC_REQUESTS = [
         'method': None,
         'params': '1000'
     },
+]
+
+INVALID_JRPC_RESPONSES = [
+    None,
+    {},
+    [],
+    '',
+    b'',
+    "{'id':1}"
 ]
 
 STEEMD_JSON_RPC_CALLS = [{'id': 0,
@@ -486,13 +515,11 @@ for c in STEEMD_JSON_RPC_CALLS:
         new_method = [m for m in STEEMD_JSON_RPC_CALLS if m['method'] == method]
         STEEMD_JSONRPC_CALL_PAIRS.append((c, new_method[0]))
 
-
 # pylint:  disable=unused-variable,unused-argument,attribute-defined-outside-init
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
-
 
 @pytest.fixture
 def dummy_app_config():
@@ -500,13 +527,11 @@ def dummy_app_config():
     app.config = AttrDict()
     return app
 
-
 @pytest.fixture
 def dummy_request(dummy_app_config):
     request = AttrDict()
     request.app = dummy_app_config
     return request
-
 
 @pytest.fixture(scope='function')
 def app(loop):
@@ -515,25 +540,55 @@ def app(loop):
     app = sanic.Sanic('testApp')
     app.config.args = args
     app.config.args.server_port = 42101
+    app.config.args.websocket_pool_minsize = 1
+    app.config.args.websocket_pool_maxsize = 1
     app = jussi.logging_config.setup_logging(app)
     app = jussi.serve.setup_routes(app)
     app = jussi.middlewares.setup_middlewares(app)
     app = jussi.errors.setup_error_handlers(app)
     app = jussi.listeners.setup_listeners(app)
+
     try:
-        loop.run_until_complete(aiocaches.get('default').clear())
-        loop.run_until_complete(aiocaches.get('redis').clear())
-    except KeyError:
+        loop.run_until_complete(app.config.cache_group.clear())
+    except:
         pass
 
     yield app
+
     try:
-        loop.run_until_complete(aiocaches.get('default').close())
-        loop.run_until_complete(aiocaches.get('redis').close())
-    except KeyError:
+        loop.run_until_complete(app.config.cache_group.clear())
+    except:
         pass
+
     del app.config
 
+@pytest.fixture(scope='function')
+def app_without_ws(app):
+    for i,l in enumerate(app.listeners['before_server_start']):
+        if 'websocket' in str(l.__name__):
+            del app.listeners['before_server_start'][i]
+    for i,l in enumerate(app.listeners['after_server_stop']):
+        if 'websocket' in str(l.__name__):
+            del app.listeners['after_server_stop'][i]
+    yield app
+
+@pytest.fixture
+def test_cli(app, loop, test_client):
+    return loop.run_until_complete(test_client(app))
+
+@pytest.fixture
+def mocked_app_test_cli(app, loop, test_client):
+    with asynctest.patch('jussi.ws.pool.connect') as mocked_connect:
+        mocked_ws_conn = asynctest.CoroutineMock()
+        mocked_ws_conn.send = asynctest.CoroutineMock()
+        mocked_ws_conn.send.return_value = None
+        mocked_ws_conn.recv = asynctest.CoroutineMock()
+        mocked_ws_conn.close = asynctest.CoroutineMock()
+        mocked_ws_conn.close_connection = asynctest.CoroutineMock()
+        mocked_ws_conn.worker_task = asynctest.MagicMock()
+        mocked_ws_conn.messages = asynctest.MagicMock()
+        mocked_connect.return_value = mocked_ws_conn
+        yield mocked_ws_conn, loop.run_until_complete(test_client(app))
 
 @pytest.fixture(scope='function')
 def caches(loop):
@@ -541,13 +596,13 @@ def caches(loop):
         'default': {
             'cache': "aiocache.SimpleMemoryCache",
             'serializer': {
-                'class':'jussi.serializers.CompressionSerializer'
+                'class': 'aiocache.serializers.NullSerializer'
             }
         },
         'redis': {
             'cache': "aiocache.SimpleMemoryCache",
             'serializer': {
-                'class':'jussi.serializers.CompressionSerializer'
+                'class':'aiocache.serializers.NullSerializer'
             }
         }
     })
@@ -559,18 +614,19 @@ def caches(loop):
     loop.run_until_complete(aiocaches.get('default').clear())
     loop.run_until_complete(aiocaches.get('redis').clear())
 
-
 @pytest.fixture(
     scope='function',
     params=['/', '/health', '/.well-known/healthcheck.json'])
 def healthcheck_path(request):
     return request.param
 
+@pytest.fixture
+def healthcheck_url(jussi_url, healthcheck_path):
+    return f'{jussi_url}{healthcheck_path}'
 
 @pytest.fixture
 def jrpc_response_validator():
     return rpartial(jsonschema.validate, RESPONSE_SCHEMA)
-
 
 @pytest.fixture
 def jrpc_request_validator():
@@ -584,27 +640,27 @@ def steemd_jrpc_response_validator():
 def valid_single_jrpc_request():
     return {'id': 1, 'jsonrpc': '2.0', 'method': 'get_block', 'params': [1000]}
 
-
 @pytest.fixture
 def valid_batch_jrpc_request(valid_single_jrpc_request):
     return [valid_single_jrpc_request, valid_single_jrpc_request]
-
 
 @pytest.fixture(params=INVALID_JRPC_REQUESTS)
 def invalid_jrpc_requests(request):
     yield request.param
 
+@pytest.fixture(params=INVALID_JRPC_RESPONSES)
+def invalid_jrpc_responses(request):
+    yield request.param
 
 @pytest.fixture(params=STEEMD_JSON_RPC_CALLS, ids=lambda c: c['method'])
 def all_steemd_jrpc_calls(request):
     yield request.param
 
-
 @pytest.fixture(params=STEEMD_JSONRPC_CALL_PAIRS)
 def steemd_method_pairs(request):
     yield request.param
 
-@pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES)
+@pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES, ids=lambda reqresp: method_urn(reqresp[0]))
 def steemd_requests_and_responses(request):
     yield request.param[0],request.param[1]
 
@@ -621,7 +677,6 @@ def is_responsive(url):
     except requests.exceptions.ConnectionError:
         return False
 
-
 @pytest.fixture(scope='session')
 def jussi_docker_service(docker_ip, docker_services):
     """Ensure that "some service" is up and responsive."""
@@ -632,3 +687,16 @@ def jussi_docker_service(docker_ip, docker_services):
         check=lambda: is_responsive(url)
     )
     return url
+
+@pytest.fixture(scope='session')
+def requests_session():
+    session = requests.Session()
+    return session
+
+@pytest.fixture(scope='session')
+def prod_url():
+    return 'https://api.steemitdev.com'
+
+@pytest.fixture
+def sanic_server(loop, app, test_server):
+    return loop.run_until_complete(test_server(app))

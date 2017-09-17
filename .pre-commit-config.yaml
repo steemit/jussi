@@ -26,11 +26,3 @@
     hooks:
     -   id: remove-tabs
         exclude: Makefile
--   repo: local
-    hooks:
-    -   id: pylint
-        name: pylint
-        entry: pipenv run pylint
-        language: system
-        types:
-        - python

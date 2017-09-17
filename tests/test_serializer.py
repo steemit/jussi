@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from jussi.serializers import CompressionSerializer
+from jussi.cache.serializers import CompressionSerializer
 
 
 @pytest.mark.parametrize('value,expected',[
