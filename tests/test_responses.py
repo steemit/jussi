@@ -20,7 +20,7 @@ def test_repeated_response_equality(steemd_requests_and_responses, requests_sess
     request, expected = steemd_requests_and_responses
     expected_result = expected['result']
     responses = []
-    for i in range(15):
+    for i in range(100000):
         response = requests_session.post(jussi_url, json=request)
         response.raise_for_status()
         jrpc_result = response.json()['result']

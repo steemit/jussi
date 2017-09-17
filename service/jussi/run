@@ -16,6 +16,6 @@ exec 2>&1 \
       --redis_host "${JUSSI_REDIS_HOST}" \
       --redis_port "${JUSSI_REDIS_PORT:-6379}" \
       --source_commit "${SOURCE_COMMIT}" \
-      --websocket_pool_minsize ${WEBSOCKET_POOL_MINSIZE:-8} \
-      --websocket_pool_maxsize ${WEBSOCKET_POOL_MAXSIZE:-8} \
+      --websocket_pool_minsize ${JUSSI_WEBSOCKET_POOL_MINSIZE:-8} \
+      --websocket_pool_maxsize ${JUSSI_WEBSOCKET_POOL_MAXSIZE:-8} \
       2>&1

@@ -52,9 +52,11 @@ lint:
 	pipenv run pylint $(PROJECT_NAME)
 
 fmt:
-	#pipenv run yapf --in-place --style pep8 --parallel --recursive $(PROJECT_NAME)
+	#pipenv run yapf --in-place --style pep8 --recursive $(PROJECT_NAME)
 	pipenv run autopep8 --aggressive --in-place  --jobs 0 --recursive $(PROJECT_NAME)
-	pipenv run autoflake --remove-all-unused-imports --recursive $(PROJECT_NAME)
+
+fix-imports:
+	pipenv run autoflake --in-place --remove-all-unused-imports --recursive $(PROJECT_NAME)
 
 pre-commit:
 	pipenv run pre-commit run

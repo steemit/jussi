@@ -40,7 +40,7 @@ async def get_last_irreversible_block(app=None, delay=3):
         # load response
         response = None
         try:
-            url = 'https://steemd.steemit.com'
+            url = 'https://steemd.steemitdev.com'
             response = await requester('POST', url, json=jsonrpc_request)
             last_irr_block_num = response['result']['last_irreversible_block_num']
             if last_irr_block_num >= app.config.last_irreversible_block_num:

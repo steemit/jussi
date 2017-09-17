@@ -2,7 +2,6 @@
 import asyncio
 import collections
 import logging
-from inspect import isawaitable
 
 from websockets import connect as websockets_connect
 
@@ -13,12 +12,21 @@ from .utils import _PoolContextManager
 from .utils import create_future
 from .utils import ensure_future
 
+logger = logging.getLogger(__name__)
+
+'''
+websocket connection memory usage = 4 bytes * MAX_WEBSOCKET_RECV_SIZE * MAX_WEBSOCKET_RECV_QUEUE [ * connections in pool]
+'''
+MB = 1_048_576
+MAX_WEBSOCKET_RECV_SIZE = 2 * MB
+MAX_WEBSOCKET_RECV_QUEUE = 10
+
 
 async def connect(url=None, **kwargs):
-    return await websockets_connect(uri=url, **kwargs)
-
-
-logger = logging.getLogger('jussi')
+    return await websockets_connect(uri=url,
+                                    max_size=MAX_WEBSOCKET_RECV_SIZE,
+                                    max_queue=MAX_WEBSOCKET_RECV_QUEUE,
+                                    **kwargs)
 
 
 def create_pool(url=None, *, minsize=1, maxsize=10,
@@ -45,6 +53,7 @@ async def _create_pool(url=None, *, minsize=1, maxsize=10,
 class Pool(asyncio.AbstractServer):
     """Connection pool"""
     # pylint: disable=too-many-instance-attributes,too-many-arguments
+
     def __init__(self, url, minsize, maxsize, loop,
                  timeout, *, pool_recycle, **kwargs):
         if minsize < 0:
@@ -115,14 +124,12 @@ class Pool(asyncio.AbstractServer):
 
         Close pool with instantly closing all acquired connections also.
         """
-
         self.close()
 
         for conn in list(self._used):
-            if isawaitable(conn.close):
-                self._loop.run_until_complete(conn.close())
-            else:
-                conn.close()
+            logger.error(f'closing used awaitable connection {conn}')
+            self._loop.run_until_complete(conn.close_connection(force=True))
+            conn.worker_task.cancel()
             self._terminated.add(conn)
 
         self._used.clear()
@@ -136,13 +143,11 @@ class Pool(asyncio.AbstractServer):
         if not self._closing:
             raise RuntimeError(".wait_closed() should be called "
                                "after .close()")
-
         while self._free:
             conn = self._free.popleft()
-            if isawaitable(conn.close):
-                self._loop.run_until_complete(conn.close())
-            else:
-                conn.close()
+            logger.error(f'closing free connection {conn}')
+            yield from conn.close_connection(force=True)
+            conn.worker_task.cancel()
 
         with (yield from self._cond):
             while self.size > self.freesize:
@@ -164,6 +169,10 @@ class Pool(asyncio.AbstractServer):
                 yield from self._fill_free_pool(True)
                 if self._free:
                     conn = self._free.popleft()
+                    logger.debug(
+                        f'pool connections free:{self.freesize} used: {len(self._used)} acquiring:{self._acquiring}')
+                    logger.debug(
+                        f'websocket connection queue items: {conn.messages.qsize()}')
                     assert conn.open, conn
                     assert conn not in self._used, (conn, self._used)
                     self._used.add(conn)
@@ -183,11 +192,10 @@ class Pool(asyncio.AbstractServer):
             conn = self._free[-1]
             if not conn.open:
                 self._free.pop()
-
+            # FIXME websocket connections dont impletement last_usage
             elif self._recycle > -1 \
                     and self._loop.time() - conn.last_usage > self._recycle:
                 conn.close()
-
                 self._free.pop()
             else:
                 self._free.rotate()
@@ -235,7 +243,6 @@ class Pool(asyncio.AbstractServer):
         assert conn in self._used, (conn, self._used)
         self._used.remove(conn)
         if conn.open:
-            logger.debug('releasing')
             if self._closing:
                 conn.close()
             else:

@@ -20,7 +20,10 @@ invalid_request_error = {
     'error': {
         'code': -32600,
         'message':
-            'Invalid Request'
+            'Invalid Request',
+        'data': {
+            'request': None
+        }
     }
 }
 
@@ -47,4 +50,6 @@ def test_validate_jsonrpc_request_middleware(app_without_ws, jrpc_request, expec
     assert response.status == 200
     assert response.headers['Content-Type'] == 'application/json'
     json_response = ujson.loads(response.body.decode())
+    assert 'error_id' in json_response['error']['data']
+    del json_response['error']['data']['error_id']
     assert json_response == expected

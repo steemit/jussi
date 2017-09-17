@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-import asyncio
 import functools
 import logging
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+from collections import namedtuple
 from copy import deepcopy
 from typing import Callable
 from typing import Optional
@@ -23,8 +22,11 @@ logger = logging.getLogger(__name__)
 
 JSONRPC_REQUEST_KEYS = {'id', 'jsonrpc', 'method', 'params'}
 
+JussiJRPC = namedtuple('JussiJRPC', ['namespace', 'api', 'method', 'params'])
 
 # decorators
+
+
 @decorator
 def apply_single_or_batch(call: Call) -> JsonRpcRequest:
     """Decorate func to apply func to single or batch jsonrpc_requests
@@ -38,19 +40,6 @@ def apply_single_or_batch(call: Call) -> JsonRpcRequest:
             results.append(call())
         return results
     return call()
-
-
-@decorator
-async def ignore_errors_async(call: Call) -> Optional[dict]:
-    try:
-        # pylint: disable=protected-access
-        if not asyncio.iscoroutinefunction(call._func):
-            loop = asyncio.get_event_loop()
-            executor = ThreadPoolExecutor(max_workers=1)
-            return await loop.run_in_executor(executor, call)
-        return await call()
-    except Exception as e:
-        logger.exception('Error ignored %s', e)
 
 
 def async_exclude_methods(
@@ -133,6 +122,23 @@ def method_urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
         method, ) if p]) + query
 
 
+def method_urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> tuple:
+    api = None
+    namespace, method = parse_namespaced_method(
+        single_jsonrpc_request['method'])
+    params = single_jsonrpc_request.get('params', None)
+    if isinstance(params, dict):
+        params = dict(sorted(params.items()))
+    if namespace == 'steemd':
+        if method == 'call':
+            api = params[0]
+            method = params[1]
+            params = params[2]
+        else:
+            api = 'database_api'
+    return JussiJRPC(namespace, api, method, params)
+
+
 def stats_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
     api = None
     namespace, method = parse_namespaced_method(
@@ -164,17 +170,25 @@ def get_upstream(upstreams, single_jsonrpc_request: SingleJsonRpcRequest
 def is_batch_jsonrpc(
         jsonrpc_request: JsonRpcRequest=None,
         sanic_http_request: HTTPRequest=None, ) -> bool:
-    return isinstance(jsonrpc_request, list) or isinstance(
-        sanic_http_request.json, list)
+    try:
+        return isinstance(jsonrpc_request, list) or isinstance(
+            sanic_http_request.json, list)
+    except Exception as e:
+        logger.debug(f'is_batch_response exception:{e}')
+        return False
 
 
 def is_jsonrpc_error_response(jsonrpc_response: SingleJsonRpcResponse) -> bool:
-    if not jsonrpc_response:
-        return True
-    if not isinstance(jsonrpc_response, dict):
-        return True
-    if 'error' in jsonrpc_response:
-        return True
+    try:
+        if not jsonrpc_response:
+            return True
+        if not isinstance(jsonrpc_response, dict):
+            return True
+        if 'error' in jsonrpc_response:
+            return True
+    except Exception as e:
+        logger.debug(f'is_jsonrpc_error_response exception:{e}')
+
     return False
 
 

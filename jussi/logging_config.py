@@ -56,7 +56,8 @@ class CustomJsonFormatter(JsonFormatter):
             log_record['severity'] = record.levelname
             del log_record['levelname']
 
-    def jsonify_log_record(self, log_record):
+    # pylint: disable=no-self-use
+    def _jsonify_log_record(self, log_record):
         """Returns a json string of the log record."""
         return ujson.dumps(log_record)
 
@@ -103,7 +104,7 @@ LOGGING = {
             '()': CustomJsonFormatter,
             'format': JSON_LOG_FORMAT,
             'datefmt': LOG_DATETIME_FORMAT,
-            'json_serializer': ujson.dumps
+            'json_indent': None
         }
     },
     'handlers': {

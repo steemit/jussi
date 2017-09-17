@@ -32,7 +32,7 @@ def parse_args(args: list=None):
     parser.add_argument('--server_workers', type=int, default=os.cpu_count())
     parser.add_argument(
         '--steemd_websocket_url', type=str, default='wss://steemd.steemitdev.com')
-    parser.add_argument('--websocket_pool_minsize', type=int, default=5)
+    parser.add_argument('--websocket_pool_minsize', type=int, default=0)
     parser.add_argument('--websocket_pool_maxsize', type=int, default=5)
     parser.add_argument(
         '--sbds_url', type=str, default='https://sbds.steemit.com')
