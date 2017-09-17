@@ -55,21 +55,6 @@ RUN \
     cd .. && \
     rm -rf Python-3.6.2.tar.xz Python-3.6.2/
 
-# add statsd server
-RUN mkdir /statsd && \
-    git clone https://github.com/etsy/statsd /statsd
-
-# add scalyr agent
-RUN wget -q https://www.scalyr.com/scalyr-repo/stable/latest/scalyr-repo-bootstrap_1.2.1_all.deb && \
-    dpkg -r scalyr-repo scalyr-repo-bootstrap  && \
-    dpkg -i ./scalyr-repo-bootstrap_1.2.1_all.deb && \
-    apt-get update && \
-    apt-get install -y \
-        scalyr-repo \
-        scalyr-agent-2 && \
-    rm scalyr-repo-bootstrap_1.2.1_all.deb
-
-
 # nginx
 RUN \
   mkdir -p /var/lib/nginx/body && \
