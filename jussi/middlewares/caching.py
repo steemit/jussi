@@ -28,6 +28,8 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
     try:
         if request.method != 'POST':
             return
+        if 'x-jussi-cache-hit' in response.headers:
+            return
         cache_group = request.app.config.cache_group
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)

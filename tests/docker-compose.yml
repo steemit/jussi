@@ -12,10 +12,10 @@ services:
       - ../.env
     links:
       - redis
-    volumes:
-      - ../jussi:/app/jussi
-      - ../service/jussi:/etc/service/jussi
-      - ../service/nginx:/etc/service/nginx
+    #volumes:
+    #  - ../jussi:/app/jussi
+    #  - ../service/jussi:/etc/service/jussi
+    #  - ../service/nginx:/etc/service/nginx
   redis:
     image: "redis:3.2"
     ports:
