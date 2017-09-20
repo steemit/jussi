@@ -33,9 +33,9 @@ def setup_error_handlers(app: WebApp) -> WebApp:
         return JsonRpcError(sanic_request=request,
                             exception=None, data={'message': 'Request timeout error'}).to_sanic_response()
 
-    @app.exception(SanicException)
+    @app.exception(Exception)
     def handle_errors(request: HTTPRequest,
-                      exception: SanicException) -> HTTPResponse:
+                      exception: Exception) -> HTTPResponse:
         """handles all errors"""
         return JsonRpcError(sanic_request=request,
                             exception=exception).to_sanic_response()
