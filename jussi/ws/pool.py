@@ -127,7 +127,7 @@ class Pool(asyncio.AbstractServer):
         self.close()
 
         for conn in list(self._used):
-            logger.error(f'closing used awaitable connection {conn}')
+            logger.info(f'closing used awaitable connection {conn}')
             self._loop.run_until_complete(conn.close_connection(force=True))
             conn.worker_task.cancel()
             self._terminated.add(conn)
@@ -145,7 +145,7 @@ class Pool(asyncio.AbstractServer):
                                "after .close()")
         while self._free:
             conn = self._free.popleft()
-            logger.error(f'closing free connection {conn}')
+            logger.info(f'closing free connection {conn}')
             yield from conn.close_connection(force=True)
             conn.worker_task.cancel()
 

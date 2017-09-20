@@ -38,12 +38,9 @@ RUN \
         libxml2-dev \
         libxslt-dev \
         make \
-        nginx \
         runit \
         tk-dev \
-        wget \
-        nodejs \
-        git
+        wget
 
 
 RUN \
@@ -90,7 +87,6 @@ RUN chown -R www-data . && \
         build-essential \
         libffi-dev \
         libssl-dev \
-        golang-go \
         git \
         make \
         checkinstall && \
