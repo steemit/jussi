@@ -54,6 +54,7 @@ cytoolz = "*"
 janus = "*"
 python-json-logger = "*"
 cchardet = "*"
+async-timeout = "*"
 
 [requires]
 python_version = "3.6"

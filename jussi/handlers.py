@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import logging
 
+import async_timeout
 import ujson
 from sanic import response
 
@@ -60,11 +61,12 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                    ) -> SingleJsonRpcResponse:
     pool = sanic_http_request.app.config.websocket_pool
     conn = await pool.acquire()
-    try:
-        await conn.send(ujson.dumps(jsonrpc_request).encode())
-        return ujson.loads(await conn.recv())
-    finally:
-        pool.release(conn)
+    with async_timeout.timeout(2):
+        try:
+            await conn.send(ujson.dumps(jsonrpc_request).encode())
+            return ujson.loads(await conn.recv())
+        finally:
+            pool.release(conn)
 
 # pylint: enable=unused-argument
 
@@ -74,9 +76,10 @@ async def fetch_http(sanic_http_request: HTTPRequest=None,
                      jsonrpc_request: SingleJsonRpcRequest=None,
                      url: str=None) -> SingleJsonRpcResponse:
     session = sanic_http_request.app.config.aiohttp['session']
-    async with session.post(url, json=jsonrpc_request) as resp:
-        json_response = await resp.json()
-    return json_response
+    with async_timeout.timeout(2):
+        async with session.post(url, json=jsonrpc_request) as resp:
+            json_response = await resp.json()
+        return json_response
 
 
 async def dispatch_single(sanic_http_request: HTTPRequest,
