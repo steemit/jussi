@@ -11,12 +11,14 @@ from typing import Tuple
 from funcy.decorators import Call
 from funcy.decorators import decorator
 
-from jussi.typedefs import HTTPRequest
-from jussi.typedefs import HTTPResponse
-from jussi.typedefs import JsonRpcRequest
-from jussi.typedefs import SingleJsonRpcRequest
-from jussi.typedefs import SingleJsonRpcResponse
-from jussi.typedefs import StringTrie
+
+
+from .typedefs import HTTPRequest
+from .typedefs import HTTPResponse
+from .typedefs import JsonRpcRequest
+from .typedefs import SingleJsonRpcRequest
+from .typedefs import SingleJsonRpcResponse
+from .typedefs import StringTrie
 
 logger = logging.getLogger(__name__)
 

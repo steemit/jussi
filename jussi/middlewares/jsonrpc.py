@@ -19,6 +19,7 @@ from ..utils import sort_request
 logger = logging.getLogger(__name__)
 
 
+
 @handle_middleware_exceptions
 @async_exclude_methods(exclude_http_methods=('GET', ))
 async def validate_jsonrpc_request(

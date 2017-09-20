@@ -16,9 +16,13 @@ URL_SETTINGS = (
     ('steemd', 'steemd_default'),
 
     # sbds default
-    ('sbds', 'sbds_default'), )
+    ('sbds', 'sbds_default'),
+
+)
 
 URLS = pygtrie.StringTrie(URL_SETTINGS, separator='.')
+
+NAMESPACES = frozenset(['steemd','sbds','jussi'])
 
 
 def deref_urls(url_mapping: dict,
