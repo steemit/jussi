@@ -91,4 +91,4 @@ RUN chown -R www-data . && \
 
 RUN pipenv run pytest
 
-EXPOSE ${NGINX_SERVER_PORT}
+EXPOSE ${JUSSI_SERVER_PORT}
