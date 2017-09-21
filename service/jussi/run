@@ -8,14 +8,22 @@ cd "${APP_ROOT}"
 exec 2>&1 \
   chpst -u www-data \
     pipenv run python3.6 -m "${APP_CMD}" \
+      --debug "${JUSSI_DEBUG:-False}" \
       --server_host "${JUSSI_SERVER_HOST}" \
       --server_port "${JUSSI_SERVER_PORT}" \
       --server_workers "${JUSSI_SERVER_WORKERS:-$CPU_COUNT}" \
-      --steemd_websocket_url "${JUSSI_STEEMD_WS_URL}" \
-      --sbds_url "${JUSSI_SBDS_HTTP_URL}" \
-      --redis_host "${JUSSI_REDIS_HOST}" \
-      --redis_port "${JUSSI_REDIS_PORT:-6379}" \
-      --source_commit "${SOURCE_COMMIT}" \
+      --REQUEST_MAX_SIZE "${JUSSI_REQUEST_MAX_SIZE:-600000}" \
+      --REQUEST_TIMEOUT "${JUSSI_REQUEST_TIMEOUT:-3}" \
+      --KEEP_ALIVE "${JUSSI_KEEP_ALIVE:-True}" \
       --websocket_pool_minsize ${JUSSI_WEBSOCKET_POOL_MINSIZE:-8} \
       --websocket_pool_maxsize ${JUSSI_WEBSOCKET_POOL_MAXSIZE:-8} \
+      --source_commit "${SOURCE_COMMIT}" \
+      --upstream_steemd_url "${JUSSI_STEEMD_WS_URL}" \
+      --upstream_sbds_url "${JUSSI_SBDS_HTTP_URL}" \
+      --redis_host "${JUSSI_REDIS_HOST}" \
+      --redis_port "${JUSSI_REDIS_PORT:-6379}" \
+      --redis_namespace "${JUSSI_REDIS_NAMESPACE:-jussi}" \
+      --statsd_host "${JUSSI_STATSD_HOST}" \
+      --statsd_port "${JUSSI_STATSD_PORT:-8125}" \
+      --statsd_prefix "${JUSSI_STATSD_PREFIX:-jussi}" \
       2>&1

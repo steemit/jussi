@@ -14,7 +14,7 @@ def setup_middlewares(app):
     logger.info('before_server_start -> setup_middlewares')
 
     # request middleware
-    app.request_middleware.append(decompress_request)
+    #app.request_middleware.append(decompress_request)
     app.request_middleware.append(add_jussi_request_id)
     app.request_middleware.append(validate_jsonrpc_request)
     app.request_middleware.append(get_response)
@@ -22,5 +22,5 @@ def setup_middlewares(app):
     # response middlware
     app.response_middleware.append(add_jussi_response_id)
     app.response_middleware.append(cache_response)
-    app.response_middleware.append(compress_response)
+    #app.response_middleware.append(compress_response)
     return app
