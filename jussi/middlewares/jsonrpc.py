@@ -12,9 +12,9 @@ from ..errors import InvalidRequest
 from ..errors import ParseError
 from ..errors import ServerError
 from ..errors import handle_middleware_exceptions
-from ..utils import async_exclude_methods
-from ..utils import is_valid_jsonrpc_request
-from ..utils import sort_request
+from ..upstream import async_exclude_methods
+from ..upstream import is_valid_jsonrpc_request
+from ..upstream import sort_request
 
 logger = logging.getLogger(__name__)
 

@@ -15,8 +15,8 @@ from .typedefs import HTTPResponse
 from .typedefs import JsonRpcRequest
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
-from .utils import is_batch_jsonrpc
-from .utils import upstream_url_from_jsonrpc_request
+from .upstream import is_batch_jsonrpc
+from .upstream import upstream_url_from_jsonrpc_request
 from .validators import validate_response
 
 # pylint: disable=unused-import

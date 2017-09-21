@@ -7,7 +7,7 @@ from sanic import response
 from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..utils import async_exclude_methods
+from ..upstream import async_exclude_methods
 
 logger = logging.getLogger(__name__)
 

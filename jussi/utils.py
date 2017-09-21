@@ -192,14 +192,4 @@ def is_jsonrpc_error_response(jsonrpc_response: SingleJsonRpcResponse) -> bool:
     return False
 
 
-def upstream_url_from_jsonrpc_request(
-        upstream_urls: StringTrie=None,
-        single_jsonrpc_request: SingleJsonRpcRequest=None) -> str:
-    urn = method_urn(single_jsonrpc_request=single_jsonrpc_request)
-    return upstream_url_from_urn(upstream_urls, urn=urn)
 
-
-def upstream_url_from_urn(upstream_urls: StringTrie=None,
-                          urn: str=None) -> str:
-    _, url = upstream_urls.longest_prefix(urn)
-    return url

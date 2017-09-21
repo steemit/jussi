@@ -15,8 +15,8 @@ from ..typedefs import JsonRpcRequest
 from ..typedefs import JsonRpcResponse
 from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
-from ..utils import is_batch_jsonrpc
-from ..utils import is_jsonrpc_error_response
+from ..upstream import is_batch_jsonrpc
+from ..upstream import is_jsonrpc_error_response
 from ..validators import is_valid_non_error_jsonrpc_response
 from .jsonrpc_method_cache_settings import TTL
 from .utils import jsonrpc_cache_key
