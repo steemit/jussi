@@ -40,6 +40,7 @@ RUN \
         make \
         runit \
         tk-dev \
+        nginx \
         wget
 
 
