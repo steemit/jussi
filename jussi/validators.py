@@ -3,6 +3,7 @@ import logging
 
 import cytoolz
 from funcy.decorators import decorator
+from funcy.decorators import Call
 
 from .errors import ServerError
 from .typedefs import JsonRpcResponse
@@ -26,7 +27,7 @@ GET_BLOCK_RESULT_KEYS = {"previous",
 
 
 @decorator
-async def validate_response(call):
+async def validate_response(call:Call) -> SingleJsonRpcResponse:
     """Return response if valid
     """
     json_response = await call()

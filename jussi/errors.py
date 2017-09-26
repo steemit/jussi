@@ -2,13 +2,17 @@
 import asyncio
 import logging
 import uuid
+from typing import Dict
 from typing import Optional
 from typing import Union
 
+
 import ujson
+
 from funcy.decorators import Call
 from funcy.decorators import decorator
 from sanic import response
+from sanic.request import Request as SanicRequest
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
 
@@ -86,10 +90,10 @@ class JsonRpcError(Exception):
     code = -32603
 
     def __init__(self,
-                 sanic_request: HTTPRequest=None,
-                 data: dict=None,
-                 exception: Exception=None,
-                 error_id: str=None) -> None:
+                 sanic_request: SanicRequest = None,
+                 data: Dict[str, str] = None,
+                 exception: Exception = None,
+                 error_id: str = None) -> None:
         super(JsonRpcError, self).__init__(self.message)
 
         self.sanic_request = sanic_request

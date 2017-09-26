@@ -39,34 +39,34 @@ run:
 build-then-run: build
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
-run-local:
+run-local: # run the python app without docker
 	pipenv run python3 -m jussi.serve  --server_workers=1
 
-test:
+test: # run all tests
 	pipenv run pytest
 
-test-without-docker:
+test-without-docker: # run tests that don't depend on docker
 	pipenv run pytest -m'not docker'
 
-lint:
+lint: # lint python files
 	pipenv run pylint $(PROJECT_NAME)
 
-fmt:
+fmt: # format python files
 	#pipenv run yapf --in-place --style pep8 --recursive $(PROJECT_NAME)
 	pipenv run autopep8 --aggressive --in-place  --jobs 0 --recursive $(PROJECT_NAME)
 
-fix-imports:
+fix-imports: # remove unused imports from python files
 	pipenv run autoflake --in-place --remove-all-unused-imports --recursive $(PROJECT_NAME)
 
-pre-commit:
+pre-commit: # run pre-commit against modified files
 	pipenv run pre-commit run
 
-pre-commit-all:
+pre-commit-all: # run pre-commit against all files
 	pipenv run pre-commit run --all-files
 
 check-all: pre-commit-all test
 
-mypy:
+mypy: # run mypy type checking on python files
 	pipenv run mypy --ignore-missing-imports $(PROJECT_NAME)
 
 $(ENVFILE): $(ENVDIR)

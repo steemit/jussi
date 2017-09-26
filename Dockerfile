@@ -25,7 +25,6 @@ RUN \
         checkinstall \
         daemontools \
         git \
-        jq \
         libbz2-dev \
         libc6-dev \
         libffi-dev \
@@ -39,11 +38,11 @@ RUN \
         libxslt-dev \
         make \
         nginx \
+        nginx-extras \
+        lua-zlib \
         runit \
         tk-dev \
-        wget \
-        nodejs \
-        git
+        wget
 
 
 RUN \

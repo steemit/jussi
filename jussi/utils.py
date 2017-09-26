@@ -122,7 +122,7 @@ def method_urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
         method, ) if p]) + query
 
 
-def method_urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> tuple:
+def method_urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> JussiJRPC:
     api = None
     namespace, method = parse_namespaced_method(
         single_jsonrpc_request['method'])

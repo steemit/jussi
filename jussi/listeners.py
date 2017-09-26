@@ -42,7 +42,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger = app.config.logger
         logger.info('before_server_start -> setup_websocket_connection_pool')
         args = app.config.args
-        app.config.websocket_pool_kwargs = dict(url=args.steemd_websocket_url,
+        app.config.websocket_pool_kwargs = dict(url=args.upstream_steemd_url,
                                                 minsize=args.websocket_pool_minsize,
                                                 maxsize=args.websocket_pool_maxsize,
                                                 timeout=5

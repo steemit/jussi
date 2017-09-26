@@ -105,7 +105,6 @@ class AsyncClient(object):
             headers = {'x-jussi-request-id': f'{request_data["id"]}'}
         async with self.session.post(self.url, json=request_data, headers=headers, compress='gzip') as response:
             try:
-                #response_data = ujson.loads(await response.text())
                 response_data = await response.json()
                 verify(request_data, response, response_data, _raise=True)
                 return response_data
