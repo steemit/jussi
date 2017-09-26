@@ -18,7 +18,8 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger = app.config.logger
         logger.info('before_server_start -> setup_jsonrpc_method_url_settings')
         args = app.config.args
-        mapping = {'steemd_default': args.steemd_websocket_url, 'sbds_default': args.sbds_url}
+        mapping = {'steemd_default': args.steemd_websocket_url,
+                   'sbds_default': args.sbds_url}
         app.config.upstream_urls = jussi.jsonrpc_method_upstream_url_settings.deref_urls(
             url_mapping=mapping)
 

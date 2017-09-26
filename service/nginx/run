@@ -1,5 +1,0 @@
-#!/bin/bash
-
-sv -w3 check jussi
-chown www-data /dev/stdout
-exec setuidgid www-data /usr/sbin/nginx -c /etc/service/nginx/nginx.conf

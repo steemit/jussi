@@ -8,7 +8,6 @@ ENV APP_ROOT /app
 ENV APP_CMD jussi.serve
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
-ENV NGINX_SERVER_PORT 8080
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
 ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
@@ -53,21 +52,6 @@ RUN \
     cd .. && \
     rm -rf Python-3.6.2.tar.xz Python-3.6.2/
 
-# nginx
-RUN \
-  mkdir -p /var/lib/nginx/body && \
-  mkdir -p /var/lib/nginx/scgi && \
-  mkdir -p /var/lib/nginx/uwsgi && \
-  mkdir -p /var/lib/nginx/fastcgi && \
-  mkdir -p /var/lib/nginx/proxy && \
-  chown -R www-data:www-data /var/lib/nginx && \
-  mkdir -p /var/log/nginx && \
-  touch /var/log/nginx/access.log && \
-  touch /var/log/nginx/access.json && \
-  touch /var/log/nginx/error.log && \
-  chown www-data:www-data /var/log/nginx/* && \
-  touch /var/run/nginx.pid && \
-  chown www-data:www-data /var/run/nginx.pid
 
 RUN \
     python3.6 -m pip install --upgrade pip && \
@@ -104,4 +88,4 @@ RUN chown -R www-data . && \
 
 RUN pipenv run pytest
 
-EXPOSE ${NGINX_SERVER_PORT}
+EXPOSE ${JUSSI_SERVER_PORT}
