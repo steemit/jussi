@@ -6,11 +6,12 @@ from funcy.decorators import decorator
 from funcy.decorators import Call
 
 from .errors import ServerError
+from .typedefs import JsonRpcRequest
 from .typedefs import JsonRpcResponse
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
-from .utils import method_urn
-from .utils import method_urn_parts
+from .upstream import method_urn
+from .upstream import method_urn_parts
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ GET_BLOCK_RESULT_KEYS = {"previous",
                          "signing_key",
                          "transaction_ids"}
 
+
+JSONRPC_REQUEST_KEYS = {'id','jsonrpc','method','params'}
 
 @decorator
 async def validate_response(call:Call) -> SingleJsonRpcResponse:
@@ -42,6 +45,22 @@ async def validate_response(call:Call) -> SingleJsonRpcResponse:
                           data={'message': 'Bad or missing server response'},
                           exception=e)
 
+
+def is_valid_jsonrpc_request(
+        jsonrpc_request: JsonRpcRequest=None) -> bool:
+    if isinstance(jsonrpc_request, list):
+        return all(is_valid_jsonrpc_request(r) for r in jsonrpc_request)
+    elif isinstance(jsonrpc_request, dict):
+        try:
+            assert JSONRPC_REQUEST_KEYS.issuperset(jsonrpc_request.keys())
+            assert jsonrpc_request.get('jsonrpc') == '2.0'
+            assert isinstance(jsonrpc_request.get('method'), str)
+            assert isinstance(jsonrpc_request.get('id', None), (int, str, type(None)))
+            return True
+        except Exception as e:
+            return False
+    else:
+        return False
 
 def is_valid_single_jsonrpc_response(
         jsonrpc_response: SingleJsonRpcResponse) -> bool:

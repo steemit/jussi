@@ -29,3 +29,9 @@ def deref_urls(url_mapping: dict,
     for prefix, url_ref in url_settings:
         dereferenced_urls.append((prefix, url_mapping[url_ref]))
     return pygtrie.StringTrie(dereferenced_urls, separator='.')
+
+
+def url_from_urn(upstream_urls: pygtrie.StringTrie=None,
+                          urn: str=None) -> str:
+    _, url = upstream_urls.longest_prefix(urn)
+    return url

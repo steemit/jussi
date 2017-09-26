@@ -8,7 +8,7 @@ from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import CachedBatchResponse
 from ..typedefs import CachedSingleResponse
 from ..typedefs import SingleJsonRpcRequest
-from ..utils import method_urn
+from ..upstream import method_urn
 from .jsonrpc_method_cache_settings import TTL
 from .jsonrpc_method_cache_settings import TTLS
 

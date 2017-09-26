@@ -5,7 +5,7 @@ import logging
 import aiohttp
 import ujson
 
-from jussi.utils import is_jsonrpc_error_response
+from jussi.upstream import is_jsonrpc_error_response
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,7 @@ import jussi.serve
 import pytest
 import requests
 import requests.exceptions
-from jussi.utils import method_urn
+from jussi.upstream import method_urn
 
 
 def pytest_addoption(parser):
