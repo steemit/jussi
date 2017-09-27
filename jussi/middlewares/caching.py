@@ -8,6 +8,7 @@ from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 from ..utils import async_exclude_methods
+from ..upstream.urn import urn_parts
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +25,19 @@ async def get_response(request: HTTPRequest) -> None:
         return response.json(
             cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
 
+
 async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
     try:
         if request.method != 'POST':
             return
         if 'x-jussi-cache-hit' in response.headers:
             return
+        try:
+            parts = urn_parts(request.json)
+            if parts.method == 'get_blocks':
+                return
+        except BaseException:
+            pass
         cache_group = request.app.config.cache_group
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)

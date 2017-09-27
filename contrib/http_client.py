@@ -16,9 +16,10 @@ from urllib3.connection import HTTPConnection
 logger = logging.getLogger(__name__)
 
 
-CORRECT_BATCH_TEST_RESPONSE='''
+CORRECT_BATCH_TEST_RESPONSE = '''
 [{"id":1,"result":{"previous":"000000b0c668dad57f55172da54899754aeba74b","timestamp":"2016-03-24T16:14:21","witness":"initminer","transaction_merkle_root":"0000000000000000000000000000000000000000","extensions":[],"witness_signature":"2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e","transactions":[],"block_id":"000000b13707dfaad7c2452294d4cfa7c2098db4","signing_key":"STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX","transaction_ids":[]}},{"id":2,"result":{"previous":"000000b0c668dad57f55172da54899754aeba74b","timestamp":"2016-03-24T16:14:21","witness":"initminer","transaction_merkle_root":"0000000000000000000000000000000000000000","extensions":[],"witness_signature":"2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e","transactions":[],"block_id":"000000b13707dfaad7c2452294d4cfa7c2098db4","signing_key":"STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX","transaction_ids":[]}}]
 '''
+
 
 class RPCError(Exception):
     pass
@@ -68,6 +69,7 @@ class SimpleSteemAPIClient(object):
 
     """
     # pylint: disable=too-many-arguments
+
     def __init__(self,
                  url=None,
                  num_pools=2,
@@ -120,7 +122,8 @@ class SimpleSteemAPIClient(object):
     @staticmethod
     def json_rpc_body(name, *args, as_json=True, _id=None):
         _id = _id or int(time.time() * 1000000)
-        body_dict = {"method": name, "params": args, "jsonrpc": "2.0", "id": _id}
+        body_dict = {"method": name, "params": args,
+                     "jsonrpc": "2.0", "id": _id}
         if as_json:
             return json.dumps(body_dict, ensure_ascii=False).encode('utf8')
         return body_dict
@@ -208,8 +211,6 @@ class SimpleSteemAPIClient(object):
             batch_response = json.loads(r.data.decode())
             for resp in batch_response:
                 yield json.dumps(resp)
-
-
 
     def test_batch_support(self, url):
         batch_request = '[{"id":1,"jsonrpc":"2.0","method":"get_block","params":[1]},{"id":2,"jsonrpc":"2.0","method":"get_block","params":[1]}]'

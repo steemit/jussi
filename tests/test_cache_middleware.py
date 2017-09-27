@@ -8,9 +8,10 @@ import pytest
 from jussi.middlewares.caching import cache_response
 from jussi.middlewares.caching import get_response
 
-req = {"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]}
+req = {"id": 1, "jsonrpc": "2.0", "method": "get_block", "params": [1000]}
 expected_response = {
     "id": 1,
+    "jsonrpc": "2.0",
     "result": {
         "previous": "000003e7c4fd3221cf407efcf7c1730e2ca54b05",
         "timestamp": "2016-03-24T16:55:30",
@@ -25,9 +26,10 @@ expected_response = {
     }
 }
 
+
 @pytest.mark.live
 async def test_cache_response_middleware(test_cli):
-    response  = await test_cli.post('/', json=req)
+    response = await test_cli.post('/', json=req)
     assert await response.json() == expected_response
     response = await test_cli.post('/', json=req)
     assert response.headers['x-jussi-cache-hit'] == 'steemd.database_api.get_block.params=[1000]'
@@ -37,7 +39,7 @@ async def test_mocked_cache_response_middleware(mocked_app_test_cli):
     mocked_ws_conn, test_cli = mocked_app_test_cli
 
     mocked_ws_conn.recv.return_value = json.dumps(expected_response)
-    response  = await test_cli.post('/', json=req)
+    response = await test_cli.post('/', json=req)
     assert 'x-jussi-cache-hit' not in response.headers
     assert await response.json() == expected_response
     response = await test_cli.post('/', json=req)

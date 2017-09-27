@@ -3,10 +3,11 @@
 import aiohttp
 import ujson
 
-import jussi.jsonrpc_method_upstream_url_settings
+
 import jussi.logging_config
 import jussi.ws.pool
 
+from .upstream.url import deref_urls
 from .cache import setup_caches
 from .typedefs import WebApp
 
@@ -18,8 +19,15 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger = app.config.logger
         logger.info('before_server_start -> setup_jsonrpc_method_url_settings')
         args = app.config.args
-        mapping = {'steemd_default': args.steemd_websocket_url, 'sbds_default': args.sbds_url}
-        app.config.upstream_urls = jussi.jsonrpc_method_upstream_url_settings.deref_urls(
+        mapping = {
+            'hivemind_default': args.upstream_hivemind_url,
+            'jussi_default': 'localhost',
+            'overseer_default': args.upstream_overseer_url,
+            'sbds_default': args.upstream_sbds_url,
+            'steemd_default': args.upstream_steemd_url,
+            'yo_default': args.upstream_yo_url,
+        }
+        app.config.upstream_urls = deref_urls(
             url_mapping=mapping)
 
     @app.listener('before_server_start')
@@ -41,11 +49,9 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger = app.config.logger
         logger.info('before_server_start -> setup_websocket_connection_pool')
         args = app.config.args
-        app.config.websocket_pool_kwargs = dict(url=args.steemd_websocket_url,
-                                                minsize=args.websocket_pool_minsize,
-                                                maxsize=args.websocket_pool_maxsize,
-                                                timeout=5
-                                                )
+        app.config.websocket_pool_kwargs = dict(
+            url=args.upstream_steemd_url, minsize=args.websocket_pool_minsize,
+            maxsize=args.websocket_pool_maxsize, timeout=5)
         # pylint: disable=protected-access
         app.config.websocket_pool = await jussi.ws.pool._create_pool(**app.config.websocket_pool_kwargs)
 

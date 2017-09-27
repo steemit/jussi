@@ -5,7 +5,7 @@ from typing import Callable
 from funcy.decorators import decorator
 from statsd.client import StatsClientBase
 
-from jussi.utils import stats_key
+from . import stats_key
 
 logger = logging.getLogger(__name__)
 

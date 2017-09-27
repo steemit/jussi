@@ -16,9 +16,9 @@ from ..typedefs import JsonRpcResponse
 from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
 from ..utils import is_batch_jsonrpc
-from ..utils import is_jsonrpc_error_response
-from ..validators import is_valid_non_error_jsonrpc_response
-from .jsonrpc_method_cache_settings import TTL
+from ..validators import is_valid_non_error_single_jsonrpc_response
+from ..validators import is_valid_jussi_response
+from .method_settings import TTL
 from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
 from .utils import merge_cached_responses
@@ -119,14 +119,15 @@ class CacheGroup(object):
                                           request: JsonRpcRequest)-> Optional[SingleJsonRpcResponse]:
         key = jsonrpc_cache_key(request)
         cached_response = await self.get(key)
-        if cached_response:
-            return merge_cached_response(request, cached_response)
-        return
+        if cached_response is None:
+            return None
+        return merge_cached_response(request, cached_response)
 
     async def get_batch_jsonrpc_responses(self,
                                           requests: BatchJsonRpcRequest) ->Optional[BatchJsonRpcResponse]:
         keys = [jsonrpc_cache_key(request) for request in requests]
         cached_responses = await self.multi_get(keys)
+
         return merge_cached_responses(requests, cached_responses)
 
     async def cache_single_jsonrpc_response(self,
@@ -138,9 +139,10 @@ class CacheGroup(object):
 
         last_irreversible_block_num = 15_000_000  # FIXME
         value = await self.prepare_response_for_cache(request, response)
+
         key = key or jsonrpc_cache_key(request)
-        ttl = ttl or ttl_from_jsonrpc_request(request,
-                                              last_irreversible_block_num, value)
+        ttl = ttl or ttl_from_jsonrpc_request(
+            request, last_irreversible_block_num, value)
         if ttl == TTL.NO_CACHE:
             logger.debug('skipping cache for ttl=%s value %s', ttl, value)
             return
@@ -165,35 +167,31 @@ class CacheGroup(object):
             if isinstance(ttl, TTL):
                 ttl = ttl.value
             triplets.append((key, value, ttl))
+
         await self.multi_set(triplets)
 
     async def prepare_response_for_cache(self,
                                          request: SingleJsonRpcRequest,
                                          response: SingleJsonRpcResponse) -> Optional[SingleJsonRpcRequest]:
-        if is_jsonrpc_error_response(response):
-            logger.warning(
+        if not is_valid_non_error_single_jsonrpc_response(response):
+            logger.debug(
                 'jsonrpc error in response from upstream %s, skipping cache',
                 response)
             raise UncacheableResponse('jsonrpc error response')
         if is_get_block_request(jsonrpc_request=request):
             if not is_valid_get_block_response(jsonrpc_request=request,
                                                response=response):
-                logger.warning('invalid get_block response, skipping cache')
+                logger.error('invalid get_block response, skipping cache')
                 raise UncacheableResponse('invalid get_block response')
-        if 'id' in response:
-            del response['id']
         return response
 
-    # pylint: disable=no-self-use
-    def is_complete_response(self, request: JsonRpcRequest,
+    @staticmethod
+    def is_complete_response(request: JsonRpcRequest,
                              cached_response: JsonRpcResponse) -> bool:
-        if not is_valid_non_error_jsonrpc_response(cached_response):
-            return False
-        if isinstance(request, list):
-            return len(request) == len(cached_response)
-        return True
+        return is_valid_jussi_response(request, cached_response)
 
-    def x_jussi_cache_key(self, request: JsonRpcRequest) -> str:
+    @staticmethod
+    def x_jussi_cache_key(request: JsonRpcRequest) -> str:
         if isinstance(request, dict):
             return jsonrpc_cache_key(request)
         else:

@@ -55,6 +55,8 @@ janus = "*"
 python-json-logger = "*"
 cchardet = "*"
 async-timeout = "*"
+progress = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.6"

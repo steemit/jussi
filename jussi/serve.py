@@ -27,22 +27,49 @@ def parse_args(args: list=None):
     """parse CLI args and add them to app.config
     """
     parser = argparse.ArgumentParser(description="jussi reverse proxy server")
+
+    # server config
+    parser.add_argument('--debug', type=bool, default=False)
     parser.add_argument('--server_host', type=str, default='0.0.0.0')
     parser.add_argument('--server_port', type=int, default=9000)
     parser.add_argument('--server_workers', type=int, default=os.cpu_count())
-    parser.add_argument(
-        '--steemd_websocket_url', type=str, default='wss://steemd.steemitdev.com')
+    parser.add_argument('--REQUEST_MAX_SIZE', type=int, default=600000)
+    parser.add_argument('--REQUEST_TIMEOUT', type=int, default=3)
+    parser.add_argument('--KEEP_ALIVE', type=bool, default=True)
+
+    # serverwebsocket pool config
     parser.add_argument('--websocket_pool_minsize', type=int, default=0)
     parser.add_argument('--websocket_pool_maxsize', type=int, default=5)
+
+    # server version
+    parser.add_argument('--source_commit', type=str, default='')
+    parser.add_argument('--docker_tag', type=str, default='')
+
+    # upstream url config
     parser.add_argument(
-        '--sbds_url', type=str, default='https://sbds.steemit.com')
+        '--upstream_hivemind_url', type=str,
+        default='https://hivemind.steemitdev.com')
+    parser.add_argument(
+        '--upstream_overseer_url', type=str,
+        default='https://overseer.steemitdev.com')
+    parser.add_argument(
+        '--upstream_sbds_url', type=str, default='https://sbds.steemitdev.com')
+    parser.add_argument(
+        '--upstream_steemd_url', type=str,
+        default='wss://steemd.steemitdev.com')
+    parser.add_argument(
+        '--upstream_yo_url', type=str, default='https://yo.steemitdev.com')
+
+    # redis config
     parser.add_argument('--redis_host', type=str, default=None)
     parser.add_argument('--redis_port', type=int, default=6379)
     parser.add_argument('--redis_namespace', type=str, default='jussi')
-    parser.add_argument('--statsd_host', type=str, default='localhost')
+
+    # stats config
+    parser.add_argument('--statsd_host', type=str, default=None)
     parser.add_argument('--statsd_port', type=int, default=8125)
     parser.add_argument('--statsd_prefix', type=str, default='jussi')
-    parser.add_argument('--source_commit', type=str, default='')
+
     return parser.parse_args(args=args)
 
 
@@ -59,6 +86,7 @@ def main():
 
     app.config.logger.info('app.run')
     app.run(
+        debug=app.config.args.debug,
         host=app.config.args.server_host,
         port=app.config.args.server_port,
         workers=app.config.args.server_workers)
@@ -69,6 +97,7 @@ if __name__ == '__main__':
     # run app
     app = Sanic(__name__)
     app.config.args = args
+
     app = jussi.logging_config.setup_logging(app)
     app = setup_routes(app)
     app = jussi.middlewares.setup_middlewares(app)

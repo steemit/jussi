@@ -8,7 +8,7 @@ from jussi.typedefs import HTTPResponse
 from ..errors import ignore_errors_async
 from ..utils import async_exclude_methods
 from ..utils import is_batch_jsonrpc
-from ..utils import stats_key
+from ..stats import stats_key
 
 logger = logging.getLogger(__name__)
 

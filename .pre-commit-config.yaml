@@ -1,28 +1,42 @@
--   repo: git://github.com/pre-commit/pre-commit-hooks
-    sha: v0.9.1
-    hooks:
-    -   id: check-ast
-    -   id: trailing-whitespace
-    -   id: check-byte-order-marker
-    -   id: check-executables-have-shebangs
-    -   id: check-json
-    -   id: check-yaml
-    -   id: check-symlinks
-    -   id: check-case-conflict
-    -   id: debug-statements
-    -   id: check-merge-conflict
-    -   id: detect-aws-credentials
-    -   id: detect-private-key
-    -   id: end-of-file-fixer
-    -   id: fix-encoding-pragma
--   repo: git://github.com/FalconSocial/pre-commit-python-sorter
-    sha: 1.0.4
-    hooks:
-    -   id: python-import-sorter
-        args:
-        - --silent-overwrite
--   repo: git://github.com/Lucas-C/pre-commit-hooks
-    sha: v1.0.1
-    hooks:
-    -   id: remove-tabs
-        exclude: Makefile
+- repo: git://github.com/pre-commit/pre-commit-hooks
+  sha: v0.9.5
+  hooks:
+    - id: check-ast
+    - id: trailing-whitespace
+    - id: check-byte-order-marker
+    - id: check-case-conflict
+    - id: check-executables-have-shebangs
+    - id: check-json
+    - id: check-yaml
+    - id: check-symlinks
+    - id: check-case-conflict
+    - id: debug-statements
+    - id: check-merge-conflict
+    - id: detect-aws-credentials
+    - id: detect-private-key
+    - id: end-of-file-fixer
+    - id: fix-encoding-pragma
+    - id: mixed-line-ending
+    - id: autopep8-wrapper
+      args: ['--experimental', '-i',  '-j 4']
+#- repo: https://github.com/Lucas-C/pre-commit-hooks-nodejs
+#  sha: v1.1.0
+#  hooks:
+#    - id: dockerfile_lint
+- repo: git://github.com/Lucas-C/pre-commit-hooks
+  sha: v1.1.4
+  hooks:
+    - id: remove-tabs
+      exclude: Makefile
+- repo: git://github.com/detailyang/pre-commit-shell
+  sha: 1b26bf757e6d5b9bfed2566339c6464f44779678
+  hooks:
+    - id: shell-lint
+      files: run$
+- repo: local
+  hooks:
+    - id: check-bash-syntax
+      name: Check Shell scripts syntax corectness
+      language: system
+      entry: bash -n
+      files: run$
