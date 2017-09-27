@@ -16,9 +16,9 @@ Method Settings
 
 """
 import logging
-from enum import Enum
 
 import pygtrie
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,15 @@ METHOD_SETTINGS = (
     # global default
     ('', TTL.DEFAULT_TTL),
 
+    # sbds default
+    ('hivemind', TTL.DEFAULT_TTL),
+
+    # sbds default
+    ('overseer', TTL.NO_CACHE),
+
+    # sbds default
+    ('sbds', 10),
+
     # steemd default
     ('steemd', TTL.DEFAULT_TTL),
 
@@ -86,9 +95,6 @@ METHOD_SETTINGS = (
     ('steemd.database_api.get_block_header', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
     ('steemd.database_api.get_state', 1),
     ('steemd.database_api.get_dynamic_global_properties', 1),
-
-    # sbds default
-    ('sbds', 10),
 
     # yo default
     ('yo', TTL.NO_CACHE))
