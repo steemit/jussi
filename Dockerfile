@@ -59,7 +59,6 @@ RUN \
     apt-get clean
 
 
-
 RUN \
     wget https://www.python.org/ftp/python/3.6.2/Python-3.6.2.tar.xz && \
     tar xvf Python-3.6.2.tar.xz && \
@@ -104,7 +103,6 @@ RUN chown -R www-data . && \
         build-essential \
         libffi-dev \
         libssl-dev \
-        golang-go \
         git \
         make \
         checkinstall && \
