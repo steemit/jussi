@@ -4,26 +4,29 @@ import logging
 from collections import namedtuple
 from typing import Tuple
 
+
 from ..typedefs import SingleJsonRpcRequest
 
 logger = logging.getLogger(__name__)
 
 URNParts = namedtuple('URNParts', ['namespace', 'api', 'method', 'params'])
 
-NAMESPACES = frozenset(['steemd','sbds','jussi'])
+NAMESPACES = frozenset(
+    ['hivemind', 'jussi', 'overseer', 'sbds', 'steemd', 'yo'])
 
 
 def parse_namespaced_method(namespaced_method: str,
                             default_namespace: str='steemd',
                             namespaces: frozenset=NAMESPACES
                             ) -> Tuple[str, str]:
-    parts = namespaced_method.split('.',maxsplit=1)
+    parts = namespaced_method.split('.', maxsplit=1)
     if len(parts) == 0:
-        raise ValueError(f'{namespaced_method} is an invalid namespaced method')
+        raise ValueError(
+            f'{namespaced_method} is an invalid namespaced method')
     if len(parts) == 1:
         return default_namespace, namespaced_method
     if parts[0] not in namespaces:
-        raise  ValueError(f'{parts[0]} is an invalid namespace')
+        raise ValueError(f'{parts[0]} is an invalid namespace')
     return parts[0], parts[1]
 
 
@@ -51,7 +54,7 @@ def urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
         method, ) if p]) + query
 
 
-def urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> tuple:
+def urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> URNParts:
     api = None
     namespace, method = parse_namespaced_method(
         single_jsonrpc_request['method'])
@@ -66,17 +69,3 @@ def urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> tuple:
         else:
             api = 'database_api'
     return URNParts(namespace, api, method, params)
-
-
-
-
-
-
-
-
-
-
-
-
-
-

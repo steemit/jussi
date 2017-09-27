@@ -10,7 +10,6 @@ from aiocache.serializers import NullSerializer
 MEMORY_CACHE_MAX_TTL = 180
 
 
-
 class SimpleMemoryBackend2:
     """
     Wrapper around dict operations to use it as a cache backend
@@ -37,7 +36,8 @@ class SimpleMemoryBackend2:
         SimpleMemoryBackend2._cache[key] = value
         if ttl:
             loop = asyncio.get_event_loop()
-            SimpleMemoryBackend2._handlers[key] = loop.call_later(ttl, self.__delete, key)
+            SimpleMemoryBackend2._handlers[key] = loop.call_later(
+                ttl, self.__delete, key)
         return True
 
     async def _multi_set(self, pairs, ttl=None, _conn=None):
@@ -48,7 +48,8 @@ class SimpleMemoryBackend2:
     async def _add(self, key, value, ttl=None, _conn=None):
         if key in SimpleMemoryBackend2._cache:
             raise ValueError(
-                "Key {} already exists, use .set to update the value".format(key))
+                "Key {} already exists, use .set to update the value".format(
+                    key))
 
         await self._set(key, value, ttl=ttl)
         return True
@@ -61,7 +62,8 @@ class SimpleMemoryBackend2:
             SimpleMemoryBackend2._cache[key] = delta
         else:
             try:
-                SimpleMemoryBackend2._cache[key] = int(SimpleMemoryBackend2._cache[key]) + delta
+                SimpleMemoryBackend2._cache[key] = int(
+                    SimpleMemoryBackend2._cache[key]) + delta
             except ValueError:
                 raise TypeError("Value is not an integer") from None
         return SimpleMemoryBackend2._cache[key]
@@ -73,7 +75,8 @@ class SimpleMemoryBackend2:
                 handle.cancel()
             if ttl:
                 loop = asyncio.get_event_loop()
-                SimpleMemoryBackend2._handlers[key] = loop.call_later(ttl, self.__delete, key)
+                SimpleMemoryBackend2._handlers[key] = loop.call_later(
+                    ttl, self.__delete, key)
             return True
 
         return False
@@ -137,7 +140,8 @@ class SimpleMemoryBackend3:
         SimpleMemoryBackend3._cache[key] = value
         if ttl:
             loop = asyncio.get_event_loop()
-            SimpleMemoryBackend3._handlers[key] = loop.call_later(ttl, self.__delete, key)
+            SimpleMemoryBackend3._handlers[key] = loop.call_later(
+                ttl, self.__delete, key)
         return True
 
     async def _multi_set(self, pairs, ttl=None, _conn=None):
@@ -148,7 +152,8 @@ class SimpleMemoryBackend3:
     async def _add(self, key, value, ttl=None, _conn=None):
         if key in SimpleMemoryBackend3._cache:
             raise ValueError(
-                "Key {} already exists, use .set to update the value".format(key))
+                "Key {} already exists, use .set to update the value".format(
+                    key))
 
         await self._set(key, value, ttl=ttl)
         return True
@@ -161,7 +166,8 @@ class SimpleMemoryBackend3:
             SimpleMemoryBackend3._cache[key] = delta
         else:
             try:
-                SimpleMemoryBackend3._cache[key] = int(SimpleMemoryBackend3._cache[key]) + delta
+                SimpleMemoryBackend3._cache[key] = int(
+                    SimpleMemoryBackend3._cache[key]) + delta
             except ValueError:
                 raise TypeError("Value is not an integer") from None
         return SimpleMemoryBackend3._cache[key]
@@ -173,7 +179,8 @@ class SimpleMemoryBackend3:
                 handle.cancel()
             if ttl:
                 loop = asyncio.get_event_loop()
-                SimpleMemoryBackend3._handlers[key] = loop.call_later(ttl, self.__delete, key)
+                SimpleMemoryBackend3._handlers[key] = loop.call_later(
+                    ttl, self.__delete, key)
             return True
 
         return False
@@ -237,7 +244,8 @@ class SimpleMemoryBackend4:
         SimpleMemoryBackend4._cache[key] = value
         if ttl:
             loop = asyncio.get_event_loop()
-            SimpleMemoryBackend4._handlers[key] = loop.call_later(ttl, self.__delete, key)
+            SimpleMemoryBackend4._handlers[key] = loop.call_later(
+                ttl, self.__delete, key)
         return True
 
     async def _multi_set(self, pairs, ttl=None, _conn=None):
@@ -248,7 +256,8 @@ class SimpleMemoryBackend4:
     async def _add(self, key, value, ttl=None, _conn=None):
         if key in SimpleMemoryBackend4._cache:
             raise ValueError(
-                "Key {} already exists, use .set to update the value".format(key))
+                "Key {} already exists, use .set to update the value".format(
+                    key))
 
         await self._set(key, value, ttl=ttl)
         return True
@@ -261,7 +270,8 @@ class SimpleMemoryBackend4:
             SimpleMemoryBackend4._cache[key] = delta
         else:
             try:
-                SimpleMemoryBackend4._cache[key] = int(SimpleMemoryBackend4._cache[key]) + delta
+                SimpleMemoryBackend4._cache[key] = int(
+                    SimpleMemoryBackend4._cache[key]) + delta
             except ValueError:
                 raise TypeError("Value is not an integer") from None
         return SimpleMemoryBackend4._cache[key]
@@ -273,7 +283,8 @@ class SimpleMemoryBackend4:
                 handle.cancel()
             if ttl:
                 loop = asyncio.get_event_loop()
-                SimpleMemoryBackend4._handlers[key] = loop.call_later(ttl, self.__delete, key)
+                SimpleMemoryBackend4._handlers[key] = loop.call_later(
+                    ttl, self.__delete, key)
             return True
 
         return False
@@ -310,16 +321,17 @@ class SimpleMemoryBackend4:
         return 0
 
 
-
 class SimpleMemoryCache2(SimpleMemoryBackend2, BaseCache):
     def __init__(self, serializer=None, **kwargs):
         super().__init__(**kwargs)
         self.serializer = serializer or NullSerializer()
 
+
 class SimpleMemoryCache3(SimpleMemoryBackend3, BaseCache):
     def __init__(self, serializer=None, **kwargs):
         super().__init__(**kwargs)
         self.serializer = serializer or NullSerializer()
+
 
 class SimpleMemoryCache4(SimpleMemoryBackend4, BaseCache):
     def __init__(self, serializer=None, **kwargs):

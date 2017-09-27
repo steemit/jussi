@@ -16,10 +16,11 @@ from sanic.request import Request as SanicRequest
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
 
-from jussi.typedefs import HTTPRequest
-from jussi.typedefs import HTTPResponse
-from jussi.typedefs import JsonRpcErrorResponse
-from jussi.typedefs import WebApp
+from .typedefs import HTTPRequest
+from .typedefs import HTTPResponse
+from .typedefs import JsonRpcErrorResponse
+from .typedefs import WebApp
+from .utils import is_batch_jsonrpc
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +32,14 @@ def setup_error_handlers(app: WebApp) -> WebApp:
 
     @app.exception(RequestTimeout)
     def handle_timeout_errors(request: HTTPRequest,
-                              exception: SanicException) -> HTTPResponse:
+                              exception: SanicException) -> Optional[HTTPResponse]:
         """handles noisy request timeout errors"""
         # pylint: disable=unused-argument
-        return JsonRpcError(sanic_request=request,
-                            exception=None, data={'message': 'Request timeout error'}).to_sanic_response()
+        if not request:
+            return
+        return JsonRpcError(
+            sanic_request=request, exception=None,
+            data={'message': 'Request timeout error'}).to_sanic_response()
 
     @app.exception(Exception)
     def handle_errors(request: HTTPRequest,
@@ -108,11 +112,15 @@ class JsonRpcError(Exception):
         if not self.sanic_request:
             return
         request = self.sanic_request
+
         request_data = {
             'method': getattr(request, 'method', None),
             'path': getattr(request, 'path', None),
-            'body': getattr(request, 'body', None),
         }
+
+        body_data = self.request_body_data()
+        request_data['body'] = body_data
+
         if request.headers:
             request_data['amzn_trace_id'] = request.headers.get(
                 'X-Amzn-Trace-Id')
@@ -120,7 +128,37 @@ class JsonRpcError(Exception):
                 'X-Amzn-RequestId')
             request_data['jussi_request_id'] = request.headers.get(
                 'x-jussi-request-id')
+
         return request_data
+
+    def request_body_data(self):
+        if not self.sanic_request:
+            return
+        request = self.sanic_request
+
+        data = {'body': getattr(request, 'body', None)}
+
+        try:
+            body_json = request.json
+            data.update({'body': body_json})
+        except BaseException:
+            return data
+
+        try:
+            is_batch = is_batch_jsonrpc(request)
+            data.update({'is_batch': is_batch})
+        except BaseException:
+            return data
+
+        try:
+            batch_request_count = None
+            if is_batch:
+                batch_request_count = len(body_json)
+            data.update({'batch_request_count': batch_request_count})
+        except BaseException:
+            return data
+
+        return data
 
     def exception_data(self):
         if not self.exception:

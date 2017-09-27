@@ -15,6 +15,7 @@ class AttrDict(dict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+
 class MockRequest(AttrDict):
     def __init__(self,
                  body=None,
@@ -31,15 +32,16 @@ class MockRequest(AttrDict):
         self.headers = headers or {
             'X-Amzn-Trace-Id': 'amzn_trace_id',
             'X-Amzn-RequestId': 'amzn_request_id',
-            'x-jussi-request-id':'jussi_request_id'
+            'x-jussi-request-id': 'jussi_request_id'
         }
         self.version = version or '1.1'
         self.method = method or 'POST'
         self.transport = transport
         self.text = text or ''
         self.json = json or ''
-        for k,v in kwargs:
+        for k, v in kwargs:
             self.k = v
+
 
 jrpc_req = {
     'id': 1,
@@ -48,16 +50,23 @@ jrpc_req = {
     'params': [1, 2, 3]
 }
 
+
+default_error_message_body_data = {
+    'body': jrpc_req,
+    'is_batch': False,
+    'batch_request_count': None
+}
+
 default_error_message_data = {
     'error_id': '123',
     'request': {
                 'method': 'POST',
                 'path': 'path',
-                'body': 'body',
+                'body': default_error_message_body_data,
                 'amzn_trace_id': 'amzn_trace_id',
                 'amzn_request_id': 'amzn_request_id',
                 'jussi_request_id': 'jussi_request_id'
-            }
+    }
 }
 
 
@@ -73,7 +82,7 @@ jrpc_error = {
 }
 
 
-test_data = ['a',1,2,'b','c',[],'d',{}]
+test_data = ['a', 1, 2, 'b', 'c', [], 'd', {}]
 
 jrpc_error_with_data = {
     'id': 1,
@@ -83,17 +92,17 @@ jrpc_error_with_data = {
         'message':
             'Internal Error',
         'data': {
-    'error_id': '123',
-    'request': {
+            'error_id': '123',
+            'request': {
                 'method': 'POST',
                 'path': 'path',
-                'body': 'body',
+                'body': default_error_message_body_data,
                 'amzn_trace_id': 'amzn_trace_id',
                 'amzn_request_id': 'amzn_request_id',
                 'jussi_request_id': 'jussi_request_id'
             },
-    'data': test_data
-}
+            'data': test_data
+        }
 
     }
 }
@@ -130,56 +139,55 @@ server_error = {
 }
 
 
-
-
 @pytest.mark.test_app
-@pytest.mark.parametrize('rpc_req,error,expected', [
-    (jrpc_req,
-     Exception(),
-     { 'id': 1,
-       'jsonrpc': '2.0',
-      'error': {'code': -32603, 'message': 'Internal Error', 'data': {'request': None, 'error_id': '123'}}}
-     ),
-    (
-        {'jsonrpc': '2.0', 'method': 'yo.test_method'},
-        Exception(),
-        {'jsonrpc': '2.0','error': {'code': -32603,'message':'Internal Error', 'data':{'request':None, 'error_id':'123'}}}
-    ),
-    (
-        jrpc_req,
-        JsonRpcError(sanic_request=MockRequest(json=jrpc_req), error_id='123'),
-        jrpc_error
-    ),
-    (
-        jrpc_req,
-        JsonRpcError(sanic_request=MockRequest(json=jrpc_req),data=test_data, error_id='123'),
-        jrpc_error_with_data
-    ),
-    (
-        jrpc_req,
-        JsonRpcError(sanic_request=MockRequest(json=jrpc_req), data=test_data, exception=Exception('test'), error_id='123'),
-        jrpc_error_with_data
-    ),
-    (
-        jrpc_req,
-        ParseError(sanic_request=MockRequest(json=jrpc_req), error_id='123'),
-        parse_error
-    ),
-(
-        jrpc_req,
-        InvalidRequest(sanic_request=MockRequest(json=jrpc_req), error_id='123'),
-        invalid_request_error
-    ),
-(
-        jrpc_req,
-        ServerError(sanic_request=MockRequest(json=jrpc_req), error_id='123'),
-        server_error
-    ),
-
-])
+@pytest.mark.parametrize(
+    'rpc_req,error,expected',
+    [(jrpc_req, Exception(),
+      {'id': 1, 'jsonrpc': '2.0',
+       'error':
+       {'code': -32603, 'message': 'Internal Error',
+        'data': {'request': None, 'error_id': '123'}}}),
+     ({'jsonrpc': '2.0', 'method': 'yo.test_method'},
+      Exception(),
+      {'jsonrpc': '2.0',
+       'error':
+       {'code': -32603, 'message': 'Internal Error',
+        'data': {'request': None, 'error_id': '123'}}}),
+     (jrpc_req,
+      JsonRpcError(
+          sanic_request=MockRequest(json=jrpc_req),
+          error_id='123'),
+      jrpc_error),
+     (jrpc_req,
+      JsonRpcError(
+          sanic_request=MockRequest(json=jrpc_req),
+          data=test_data, error_id='123'),
+      jrpc_error_with_data),
+     (jrpc_req,
+      JsonRpcError(
+          sanic_request=MockRequest(json=jrpc_req),
+          data=test_data, exception=Exception('test'),
+          error_id='123'),
+      jrpc_error_with_data),
+     (jrpc_req,
+      ParseError(
+          sanic_request=MockRequest(json=jrpc_req),
+          error_id='123'),
+      parse_error),
+     (jrpc_req,
+      InvalidRequest(
+          sanic_request=MockRequest(json=jrpc_req),
+          error_id='123'),
+      invalid_request_error),
+     (jrpc_req,
+      ServerError(
+          sanic_request=MockRequest(json=jrpc_req),
+          error_id='123'),
+      server_error), ])
 def test_middleware_error_handler(rpc_req, error, expected):
     app = sanic.Sanic('test_text')
     # pylint: disable=unused-argument,unused-variable
+
     @app.post('/')
     def handler(request):
         return sanic.response.text('Hello')

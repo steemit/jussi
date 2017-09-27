@@ -9,9 +9,11 @@ import requests
 
 session = requests.Session()
 
+
 def make_jrpc_call(url, jrpc_call):
     response = session.post(url, json=jrpc_call)
     return response
+
 
 def make_random_batches(jrpc_calls):
     choices = random.sample(jrpc_calls, k=len(jrpc_calls))
@@ -24,6 +26,7 @@ def make_random_batches(jrpc_calls):
         batch = [choices.pop() for i in range(batch_size)]
         batches.append(batch)
     return batches
+
 
 def open_json(filename):
     with open(filename) as f:
@@ -63,31 +66,39 @@ def display_error(**kwargs):
     if not is_batch_req(jrpc_call):
         jrpc_call = [jrpc_call]
         resp_json = [resp_json]
-    for i,call in enumerate(jrpc_call):
+    for i, call in enumerate(jrpc_call):
         method = call['method']
         params = call['params']
         message = resp_json[i]['error']['message']
         print(f'ERROR {error_num}/{error_count}\t{method}{params}')
         print(f'\t{message}')
 
+
 def display_type_results(expected_type, actual_type):
-    print(crayons.green(f'\t\texpected type:{expected_type} == actual type {actual_type}'))
+    print(crayons.green(
+        f'\t\texpected type:{expected_type} == actual type {actual_type}'))
+
 
 def display_keys_results(expected_keys, actual_keys):
-    print(crayons.green(f'\t\t{len(expected_keys)} expected keys equal {len(actual_keys)} actual keys'))
+    print(crayons.green(
+        f'\t\t{len(expected_keys)} expected keys equal {len(actual_keys)} actual keys'))
+
 
 def display_response_equal_results(responses):
     print(crayons.green(f'\t\tall {len(responses)} responses are equal'))
+
 
 def is_batch_resp(resp):
     if isinstance(resp.json(), list):
         return True
     return False
 
+
 def is_batch_req(jrpc_call):
     if isinstance(jrpc_call, list):
         return True
     return False
+
 
 def has_error(resp):
     rj = resp.json()
@@ -99,6 +110,7 @@ def has_error(resp):
         if 'error' in rj:
             return True
     return False
+
 
 def make_calls(url, jrpc_calls):
     call_count = len(jrpc_calls)
@@ -115,7 +127,8 @@ def make_calls(url, jrpc_calls):
     print('%s errors encountered' % error_count)
     for error_num, error in enumerate(errors, 1):
         jrpc_call, resp = error
-        display_error(error_num=error_num, error_count=error_count, jrpc_call=jrpc_call, resp=resp)
+        display_error(error_num=error_num, error_count=error_count,
+                      jrpc_call=jrpc_call, resp=resp)
 
 
 def test_batch_speed(url, jrpc_calls):
@@ -125,7 +138,8 @@ def test_batch_speed(url, jrpc_calls):
         total_individual += resp.elapsed.total_seconds()
     resp = make_jrpc_call(url, jrpc_calls)
     total_batch = resp.elapsed.total_seconds()
-    print('%s - %s = %s' % (total_individual,total_batch,total_individual-total_batch))
+    print('%s - %s = %s' %
+          (total_individual, total_batch, total_individual - total_batch))
 
 
 def generate_test_requests_and_responses(url, jrpc_calls):
@@ -139,7 +153,8 @@ def generate_test_requests_and_responses(url, jrpc_calls):
         #print(json.dumps([jrpc_call, response.json()], ensure_ascii=False).encode())
     return pairs
 
-def test_response_results_type(request,expected, actual):
+
+def test_response_results_type(request, expected, actual):
     actual_result = actual.get('result')
     ex_result = expected['result']
 
@@ -150,8 +165,7 @@ def test_response_results_type(request,expected, actual):
         display_keys_results(ex_result.keys(), actual_result.keys())
 
 
-
-def test_response_equality(request,expected, actual, responses):
+def test_response_equality(request, expected, actual, responses):
     for r in responses:
         assert responses[0] == r
     display_response_equal_results(responses)
@@ -172,16 +186,17 @@ def test_repetition(args):
             display_request(f'{call_num}.{i}', call_count, request)
             display_response(response)
         if has_error(response):
-                errors.append((request, response))
+            errors.append((request, response))
         try:
-            test_response_results_type(request, expected, response.json(), responses, errors)
-        except AssertionError as e:
-            display_error(exception=e,request=request,response=response)
-        try:
-            test_response_equality(request, expected, response.json(), responses)
+            test_response_results_type(
+                request, expected, response.json(), responses, errors)
         except AssertionError as e:
             display_error(exception=e, request=request, response=response)
-
+        try:
+            test_response_equality(
+                request, expected, response.json(), responses)
+        except AssertionError as e:
+            display_error(exception=e, request=request, response=response)
 
     error_count = len(errors)
     print('%s errors encountered' % error_count)
@@ -193,9 +208,11 @@ def test_repetition(args):
 def test_calls(args):
     make_calls(args.url, args.jrpc_calls)
 
+
 def test_batch_calls():
     batch_jrpc_calls = make_random_batches(args.jrpc_calls)
     make_calls(args.url, args.batch_jrpc_calls)
+
 
 def test_all_calls(url, jrpc_calls):
     make_calls(url, jrpc_calls)
@@ -203,13 +220,12 @@ def test_all_calls(url, jrpc_calls):
     make_calls(url, batch_jrpc_calls)
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('jussi jsonrpc test script')
     subparsers = parser.add_subparsers()
-    parser.add_argument('--url', type=str, default='https://api.steemitdev.com')
+    parser.add_argument('--url', type=str,
+                        default='https://api.steemitdev.com')
     parser.add_argument('--jrpc_calls', type=open_json)
-
 
     parser_repeat = subparsers.add_parser('test-repetition')
     parser_repeat.add_argument('--repeat', type=int, default=10)
@@ -228,8 +244,6 @@ if __name__ == '__main__':
 
     args.func(args)
 
-
     #print(json.dumps(generate_test_requests_and_responses(url, jrpc_calls),ensure_ascii=False))
-
 
     #test_batch_speed(url, jrpc_calls)

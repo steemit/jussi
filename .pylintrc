@@ -80,6 +80,11 @@ disable=
     redefined-outer-name,
     too-many-lines,
     bad-whitespace, # type hints are not fully supported yet
+    len-as-condition,
+    no-else-return,
+    too-few-public-methods,
+    too-many-return-statements,
+
 
     # disabled by default,
     apply-builtin,

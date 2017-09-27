@@ -8,29 +8,18 @@ import asynctest
 import pytest
 
 correct_get_block_1000_response = {
-        "id": 1,
-        "result": {
-        "previous":
-        "000003e7c4fd3221cf407efcf7c1730e2ca54b05",
-        "timestamp":
-        "2016-03-24T16:55:30",
-        "witness":
-        "initminer",
-        "transaction_merkle_root":
-        "0000000000000000000000000000000000000000",
-        "extensions": [],
-        "witness_signature":
-        "207f15578cac20ac0e8af1ebb8f463106b8849577e21cca9fc60da146d1d95df88072dedc6ffb7f7f44a9185bbf9bf8139a5b4285c9f423843720296a44d428856",
-        "transactions": [],
-        "block_id":
-        "000003e8b922f4906a45af8e99d86b3511acd7a5",
-        "signing_key":
-        "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-        }
-    }
-
-
+    "id": 1,
+    "result":
+    {"previous": "000003e7c4fd3221cf407efcf7c1730e2ca54b05",
+     "timestamp": "2016-03-24T16:55:30", "witness": "initminer",
+     "transaction_merkle_root": "0000000000000000000000000000000000000000",
+     "extensions": [],
+     "witness_signature":
+     "207f15578cac20ac0e8af1ebb8f463106b8849577e21cca9fc60da146d1d95df88072dedc6ffb7f7f44a9185bbf9bf8139a5b4285c9f423843720296a44d428856",
+     "transactions": [],
+     "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
+     "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+     "transaction_ids": []}}
 
 
 @pytest.mark.parametrize(
@@ -47,7 +36,7 @@ correct_get_block_1000_response = {
                 dict(id=1, jsonrpc='2.0', method='get_block', params=[1000]),
                 dict(id=1, jsonrpc='2.0', method='get_block', params=[1000])
             ],
-            [correct_get_block_1000_response,correct_get_block_1000_response]
+            [correct_get_block_1000_response, correct_get_block_1000_response]
         ),
         (
             # single jsonrpc old-style steemd requests
@@ -78,7 +67,8 @@ correct_get_block_1000_response = {
             # batch jsonrpc mixed-style steemd request
             [
                 dict(id=1, jsonrpc='2.0', method='get_block', params=[1000]),
-                dict(id=1, jsonrpc='2.0', method='call',params=['database_api', 'get_block', [1000]])
+                dict(id=1, jsonrpc='2.0', method='call', params=[
+                     'database_api', 'get_block', [1000]])
             ],
             [correct_get_block_1000_response, correct_get_block_1000_response]
         )
@@ -86,7 +76,8 @@ correct_get_block_1000_response = {
 async def test_steemd_multi_format_requests(mocked_app_test_cli, jsonrpc_request, expected, steemd_jrpc_response_validator):
 
     mocked_ws_conn, test_cli = mocked_app_test_cli
-    mocked_ws_conn.recv.return_value = json.dumps(correct_get_block_1000_response)
+    mocked_ws_conn.recv.return_value = json.dumps(
+        correct_get_block_1000_response)
     response = await test_cli.post('/', json=jsonrpc_request)
     assert response.status == 200
     assert response.headers['Content-Type'] == 'application/json'
@@ -96,7 +87,7 @@ async def test_steemd_multi_format_requests(mocked_app_test_cli, jsonrpc_request
 
 
 async def test_mocked_steemd_calls(mocked_app_test_cli, steemd_jrpc_response_validator, steemd_requests_and_responses):
-    compare_key_only_ids = (6,48)
+    compare_key_only_ids = (6, 48)
     jrpc_req, jrpc_resp = steemd_requests_and_responses
     mocked_ws_conn, test_cli = mocked_app_test_cli
     mocked_ws_conn.recv.return_value = json.dumps(jrpc_resp)

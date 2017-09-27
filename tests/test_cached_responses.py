@@ -6,14 +6,15 @@ from jussi.cache import cache_group
 from jussi.cache.utils import jsonrpc_cache_key
 
 caches_config = {
-        'default': {
-            'cache':
+    'default': {
+        'cache':
             'jussi.cache.backends.SimpleLRUMemoryCache'
-        }
+    }
 }
 
 
-jrpc_req_1 = {"id":"1","jsonrpc":"2.0","method":"get_block","params":[1000]}
+jrpc_req_1 = {"id": "1", "jsonrpc": "2.0",
+              "method": "get_block", "params": [1000]}
 jrpc_resp_1 = {
     "id": 2,
     "result": {
@@ -31,37 +32,37 @@ jrpc_resp_1 = {
 }
 
 
-
-
-
-batch1_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(10)]
-batch2_jrpc = [{"id":_id,"jsonrpc":"2.0","method":"get_block","params":[1000]} for _id in range(20,30)]
+batch1_jrpc = [{"id": _id, "jsonrpc": "2.0",
+                "method": "get_block", "params": [1000]} for _id in range(10)]
+batch2_jrpc = [{"id": _id, "jsonrpc": "2.0", "method": "get_block",
+                "params": [1000]} for _id in range(20, 30)]
 
 cached_resp1 = [None for i in batch1_jrpc]
-cached_resp2 = [None,
-                {"id":99,"jsonrpc":"2.0","method":"get_block","params":[1000]},
-                None,
-                {"id":98,"jsonrpc":"2.0","method":"get_block","params":[1000]}]
+cached_resp2 = [
+    None,
+    {"id": 99, "jsonrpc": "2.0", "method": "get_block", "params": [1000]},
+    None,
+    {"id": 98, "jsonrpc": "2.0", "method": "get_block", "params": [1000]}]
 expected2 = [None,
-             {"id": 1, "jsonrpc": "2.0", "method": "get_block", "params": [1000]},
+             {"id": 1, "jsonrpc": "2.0",
+                 "method": "get_block", "params": [1000]},
              None,
-             {"id": 3, "jsonrpc": "2.0", "method": "get_block", "params": [1000]},
-]
-
-
+             {"id": 3, "jsonrpc": "2.0",
+                 "method": "get_block", "params": [1000]},
+             ]
 
 
 @pytest.mark.parametrize('jrpc_batch_req,responses, expected', [
-    (batch1_jrpc,cached_resp1,cached_resp1),
-    (batch1_jrpc,batch2_jrpc,batch2_jrpc),
-    (batch1_jrpc[:4],cached_resp2,expected2)
+    (batch1_jrpc, cached_resp1, cached_resp1),
+    (batch1_jrpc, batch2_jrpc, batch2_jrpc),
+    (batch1_jrpc[:4], cached_resp2, expected2)
 ])
-def merge_cached_responses(jrpc_batch_req,responses, expected):
+def merge_cached_responses(jrpc_batch_req, responses, expected):
     assert merge_cached_responses(jrpc_batch_req, responses) == expected
 
 
 @pytest.mark.parametrize('cached,jrpc_batch_req,expected', [
-(batch1_jrpc, batch2_jrpc, batch2_jrpc)
+    (batch1_jrpc, batch2_jrpc, batch2_jrpc)
 ])
 def cache_get_batch(loop, caches, cached, jrpc_batch_req, expected):
     for cache in caches:
@@ -75,5 +76,5 @@ def cache_get_batch(loop, caches, cached, jrpc_batch_req, expected):
             loop.run_until_complete(
                 cache.set(key, item, ttl=None))
 
-    results = loop.run_until_complete(cache_get_batch(caches,jrpc_batch_req))
+    results = loop.run_until_complete(cache_get_batch(caches, jrpc_batch_req))
     assert results == expected

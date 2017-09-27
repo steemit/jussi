@@ -3,7 +3,8 @@ import pytest
 
 
 @pytest.mark.live
-def test_response_results_type(steemd_requests_and_responses, requests_session, jussi_url):
+def test_response_results_type(
+        steemd_requests_and_responses, requests_session, jussi_url):
     request, expected = steemd_requests_and_responses
     expected_result = expected['result']
     response = requests_session.post(jussi_url, json=request)
@@ -15,8 +16,10 @@ def test_response_results_type(steemd_requests_and_responses, requests_session, 
         expected_keys = set(expected_result.keys())
         assert expected_keys == result_keys
 
+
 @pytest.mark.live
-def test_repeated_response_equality(steemd_requests_and_responses, requests_session, jussi_url):
+def test_repeated_response_equality(
+        steemd_requests_and_responses, requests_session, jussi_url):
     request, expected = steemd_requests_and_responses
     expected_result = expected['result']
     responses = []

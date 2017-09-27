@@ -1,22 +1,35 @@
 FROM phusion/baseimage:0.9.19
 
-ENV LOG_LEVEL INFO
+# container settings
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
-ENV PIPENV_VENV_IN_PROJECT 1
-ENV APP_ROOT /app
-ENV APP_CMD jussi.serve
-
-# all nginx env vars must also be changed in service/nginx/nginx.conf
-ENV NGINX_SERVER_PORT 8080
-ENV JUSSI_SERVER_HOST 0.0.0.0
-ENV JUSSI_SERVER_PORT 9000
-ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
-ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
-ENV JUSSI_REDIS_PORT 6379
 ENV ENVIRONMENT DEV
 ARG SOURCE_COMMIT
 ENV SOURCE_COMMIT ${SOURCE_COMMIT}
+ARG DOCKER_TAG
+ENV DOCKER_TAG ${DOCKER_TAG}
+
+# python app settings
+ENV LOG_LEVEL INFO
+ENV PIPENV_VENV_IN_PROJECT 1
+ENV APP_ROOT /app
+
+
+
+# jussi settings
+ENV APP_CMD jussi.serve
+ENV JUSSI_SERVER_HOST 0.0.0.0
+ENV JUSSI_SERVER_PORT 9000
+ENV JUSSI_HIVEMIND_HTTP_URL https://hivemind.steemitdev.com
+ENV JUSSI_OVERSEER_HTTP_URL https://overseer.steemitdev.com
+ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
+ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
+ENV JUSSI_YO_HTTP_URL https://yo.steemitdev.com
+
+# all nginx env vars must also be changed in service/nginx/nginx.conf
+ENV NGINX_SERVER_PORT 8080
+
+
 
 RUN \
     apt-get update && \
@@ -42,7 +55,9 @@ RUN \
         lua-zlib \
         runit \
         tk-dev \
-        wget
+        wget && \
+    apt-get clean
+
 
 
 RUN \

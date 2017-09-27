@@ -42,8 +42,8 @@ from jussi.cache.utils import jsonrpc_cache_key
 
         # test no params
         (OrderedDict([('id', 1), ('jsonrpc', '2.0'),
-                      ('method', 'other.test_no_params')]),
-         'other.test_no_params')
+                      ('method', 'yo.test_no_params')]),
+         'yo.test_no_params')
     ],
     ids=lambda v: v['method'])
 def test_cache_key(jsonrpc_request, expected):

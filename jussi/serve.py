@@ -43,12 +43,22 @@ def parse_args(args: list=None):
 
     # server version
     parser.add_argument('--source_commit', type=str, default='')
+    parser.add_argument('--docker_tag', type=str, default='')
 
     # upstream url config
     parser.add_argument(
-        '--upstream_steemd_url', type=str, default='wss://steemd.steemitdev.com')
+        '--upstream_hivemind_url', type=str,
+        default='https://hivemind.steemitdev.com')
     parser.add_argument(
-        '--upstream_sbds_url', type=str, default='https://sbds.steemit.com')
+        '--upstream_overseer_url', type=str,
+        default='https://overseer.steemitdev.com')
+    parser.add_argument(
+        '--upstream_sbds_url', type=str, default='https://sbds.steemitdev.com')
+    parser.add_argument(
+        '--upstream_steemd_url', type=str,
+        default='wss://steemd.steemitdev.com')
+    parser.add_argument(
+        '--upstream_yo_url', type=str, default='https://yo.steemitdev.com')
 
     # redis config
     parser.add_argument('--redis_host', type=str, default=None)

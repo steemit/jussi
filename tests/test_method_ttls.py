@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import pytest
-from jussi.cache.jsonrpc_method_cache_settings import TTL
+from jussi.cache.method_settings import TTL
 from jussi.cache.utils import ttl_from_jsonrpc_request
 
 SBDS_DEFAULT_CACHE = 10
 
 
-ttl_rpc_req = {"id":"1","jsonrpc":"2.0","method":"get_block","params":[1000]}
+ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
+               "method": "get_block", "params": [1000]}
 rpc_resp = {
     "id": 1,
     "result": {
@@ -23,7 +24,9 @@ rpc_resp = {
     }
 }
 
-non_ttl_rpc_req = {"id":"1","jsonrpc":"2.0","method":"sbds.get_block","params":[1000]}
+non_ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
+                   "method": "sbds.get_block", "params": [1000]}
+
 
 @pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num,expected', [
     # don't cache when last_block_num < response block_num
@@ -42,57 +45,60 @@ non_ttl_rpc_req = {"id":"1","jsonrpc":"2.0","method":"sbds.get_block","params":[
 
 
 ])
-def test_ttls(rpc_req, rpc_resp, last_block_num,expected):
+def test_ttls(rpc_req, rpc_resp, last_block_num, expected):
     ttl = ttl_from_jsonrpc_request(rpc_req, last_block_num, rpc_resp)
     if isinstance(expected, TTL):
         expected = expected.value
     assert ttl == expected
 
 
-@pytest.mark.parametrize('ttl,eq',[
-    (TTL.NO_CACHE,-1),
-    (TTL.DEFAULT_TTL,3),
-    (TTL.NO_EXPIRE,None),
-    (TTL.NO_EXPIRE_IF_IRREVERSIBLE,-2),
-    ]
+@pytest.mark.parametrize('ttl,eq', [
+    (TTL.NO_CACHE, -1),
+    (TTL.DEFAULT_TTL, 3),
+    (TTL.NO_EXPIRE, None),
+    (TTL.NO_EXPIRE_IF_IRREVERSIBLE, -2),
+]
 )
 def test_ttl_eq(ttl, eq):
     assert ttl == ttl
     assert ttl == eq
 
-@pytest.mark.parametrize('ttl',[
+
+@pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
     (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
-    ]
+]
 )
 def test_ttl_gt(ttl):
-   assert ttl > -3
+    assert ttl > -3
 
-@pytest.mark.parametrize('ttl',[
+
+@pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
     (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
-    ]
+]
 )
 def test_ttl_ge(ttl):
-   assert ttl >= -2
+    assert ttl >= -2
 
 
-@pytest.mark.parametrize('ttl',[
+@pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
     (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
-    ]
+]
 )
 def test_ttl_lt(ttl):
-   assert ttl < 4
+    assert ttl < 4
 
-@pytest.mark.parametrize('ttl',[
+
+@pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
     (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
-    ]
+]
 )
 def test_ttl_le(ttl):
-   assert ttl <=3
+    assert ttl <= 3

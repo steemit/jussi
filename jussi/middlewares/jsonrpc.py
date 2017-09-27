@@ -12,9 +12,9 @@ from ..errors import InvalidRequest
 from ..errors import ParseError
 from ..errors import ServerError
 from ..errors import handle_middleware_exceptions
-from ..upstream import async_exclude_methods
-from ..upstream import is_valid_jsonrpc_request
-from ..upstream import sort_request
+from ..utils import async_exclude_methods
+from ..validators import validate_jsonrpc_request as validate_request
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +24,8 @@ logger = logging.getLogger(__name__)
 async def validate_jsonrpc_request(
         request: HTTPRequest) -> Optional[HTTPResponse]:
     try:
-        is_valid_jsonrpc_request(single_jsonrpc_request=request.json)
-        request.parsed_json = sort_request(single_jsonrpc_request=request.json)
-        request['sorted_json'] = sort_request(
-            single_jsonrpc_request=request.json)
-    except AssertionError as e:
+        validate_request(jsonrpc_request=request.json)
+    except (AssertionError, TypeError) as e:
         # invalid jsonrpc
         return response.json(
             InvalidRequest(sanic_request=request, exception=e).to_dict())

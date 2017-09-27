@@ -8,15 +8,15 @@ from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import CachedBatchResponse
 from ..typedefs import CachedSingleResponse
 from ..typedefs import SingleJsonRpcRequest
-from ..upstream import method_urn
-from .jsonrpc_method_cache_settings import TTL
-from .jsonrpc_method_cache_settings import TTLS
+from ..upstream.urn import urn
+from .method_settings import TTL
+from .method_settings import TTLS
 
 logger = logging.getLogger(__name__)
 
 
 def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
-    return method_urn(single_jsonrpc_request)
+    return urn(single_jsonrpc_request)
 
 
 def ttl_from_jsonrpc_request(single_jsonrpc_request: SingleJsonRpcRequest,
@@ -78,17 +78,15 @@ def block_num_from_id(block_hash: str) -> int:
 def merge_cached_response(request: SingleJsonRpcRequest,
                           cached_response: CachedSingleResponse,
                           ) -> Optional[SingleJsonRpcRequest]:
-    if not isinstance(cached_response, dict):
+    if not cached_response:
         return None
-
-    if 'id' in cached_response:
-        del cached_response['id']
+    new_response = {'jsonrpc': '2.0', 'result': cached_response['result']}
     if 'id' in request:
-        cached_response['id'] = request['id']
-    return cached_response
+        new_response['id'] = request['id']
+    return new_response
 
 
 def merge_cached_responses(request: BatchJsonRpcRequest,
                            cached_responses: CachedBatchResponse) -> CachedBatchResponse:
-    return [merge_cached_response(req, resp) or None for req, resp in zip(
+    return [merge_cached_response(req, resp) for req, resp in zip(
         request, cached_responses)]

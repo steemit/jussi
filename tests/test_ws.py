@@ -6,7 +6,8 @@ import asynctest
 
 async def test_mock(test_cli):
 
-    request = {"id": 1, "jsonrpc": "2.0", "method": "get_block", "params": [1000]}
+    request = {"id": 1, "jsonrpc": "2.0",
+               "method": "get_block", "params": [1000]}
     expected = {
         "id": 1,
         "result": {
@@ -24,7 +25,8 @@ async def test_mock(test_cli):
     }
 
     with asynctest.patch('jussi.ws.pool.Pool') as mocked_pool:
-        mocked_ws_conn = asynctest.MagicMock(spec=websockets.client.WebSocketClientProtocol)
+        mocked_ws_conn = asynctest.MagicMock(
+            spec=websockets.client.WebSocketClientProtocol)
         mocked_ws_conn.recv.return_value = expected
         mocked_pool.acquire.return_value = mocked_ws_conn
         response = await test_cli.post('/', json=request)

@@ -6,7 +6,8 @@ import pytest
 from jussi.middlewares.jussi import add_jussi_request_id
 from jussi.middlewares.jussi import add_jussi_response_id
 
-request = {"id":"1","jsonrpc":"2.0","method":"get_block","params":[1000]}
+request = {"id": "1", "jsonrpc": "2.0",
+           "method": "get_block", "params": [1000]}
 response = {
     "id": 2,
     "result": {
@@ -31,10 +32,10 @@ def test_request_response_id_middleware():
     def handler(request):
         return sanic.response.text('Hello')
 
-
     app.request_middleware.append(add_jussi_request_id)
     app.response_middleware.append(add_jussi_response_id)
-    _, response = app.test_client.get('/health',headers={'x-jussi-request-id':'test'})
+    _, response = app.test_client.get(
+        '/health', headers={'x-jussi-request-id': 'test'})
 
     assert 'x-jussi-response-id' in response.headers
     assert response.headers['x-jussi-response-id'].startswith('test->')

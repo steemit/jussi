@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
-from jussi.cache.jsonrpc_method_cache_settings import TTL
-from jussi.cache.jsonrpc_method_cache_settings import ttl_from_urn
+from jussi.cache.method_settings import TTL
+from jussi.cache.method_settings import ttl_from_urn
 from jussi.cache.utils import block_num_from_jsonrpc_response
 from jussi.cache.utils import irreversible_ttl
 from jussi.cache.utils import ttl_from_jsonrpc_request
@@ -9,7 +9,8 @@ from jussi.cache.utils import ttl_from_jsonrpc_request
 SBDS_DEFAULT_CACHE = 10
 
 
-ttl_rpc_req = {"id":"1","jsonrpc":"2.0","method":"get_block","params":[1000]}
+ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
+               "method": "get_block", "params": [1000]}
 rpc_resp = {
     "id": 1,
     "result": {
@@ -26,8 +27,8 @@ rpc_resp = {
     }
 }
 
-non_ttl_rpc_req = {"id":"1","jsonrpc":"2.0","method":"sbds.get_block","params":[1000]}
-
+non_ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
+                   "method": "sbds.get_block", "params": [1000]}
 
 
 @pytest.mark.parametrize('response, last_block,expected', [
@@ -40,10 +41,13 @@ def test_irreversible_ttl(response, last_block, expected):
     ttl = irreversible_ttl(response, last_block)
     assert ttl == expected
 
+
 @pytest.mark.parametrize('urn,expected', [
     ('steemd.database_api.get_account_count', TTL.DEFAULT_TTL),
-    ('steemd.database_api.get_block.params=[1000]', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
-    ('steemd.database_api.get_block_header.params=[1000]', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
+    ('steemd.database_api.get_block.params=[1000]',
+     TTL.NO_EXPIRE_IF_IRREVERSIBLE),
+    ('steemd.database_api.get_block_header.params=[1000]',
+     TTL.NO_EXPIRE_IF_IRREVERSIBLE),
 ])
 def test_ttl_from_urn(urn, expected):
     ttl = ttl_from_urn(urn)
@@ -51,7 +55,7 @@ def test_ttl_from_urn(urn, expected):
 
 
 @pytest.mark.parametrize('response,expected', [
-    (rpc_resp,1000)
+    (rpc_resp, 1000)
 ])
 def test_block_num_from_jsonrpc_response(response, expected):
     num = block_num_from_jsonrpc_response(response)

@@ -31,8 +31,9 @@ async def connect(url=None, **kwargs):
 
 def create_pool(url=None, *, minsize=1, maxsize=10,
                 loop=None, timeout=5, pool_recycle=-1, **kwargs):
-    coro = _create_pool(url=url, minsize=minsize, maxsize=maxsize,
-                        loop=loop, timeout=timeout, pool_recycle=pool_recycle, **kwargs)
+    coro = _create_pool(
+        url=url, minsize=minsize, maxsize=maxsize, loop=loop, timeout=timeout,
+        pool_recycle=pool_recycle, **kwargs)
     return _PoolContextManager(coro)
 
 
@@ -42,8 +43,8 @@ async def _create_pool(url=None, *, minsize=1, maxsize=10,
     if loop is None:
         loop = asyncio.get_event_loop()
 
-    pool = Pool(url=url, minsize=minsize, maxsize=maxsize,
-                loop=loop, timeout=timeout, pool_recycle=pool_recycle, **kwargs)
+    pool = Pool(url=url, minsize=minsize, maxsize=maxsize, loop=loop,
+                timeout=timeout, pool_recycle=pool_recycle, **kwargs)
     if minsize > 0:
         with (await pool._cond):
             await pool._fill_free_pool(False)
