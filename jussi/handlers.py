@@ -3,9 +3,9 @@
 import asyncio
 import datetime
 import logging
+import ujson
 
 import async_timeout
-import ujson
 from sanic import response
 
 from .typedefs import BatchJsonRpcRequest
@@ -14,12 +14,14 @@ from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
-from .utils import async_retry
-from .utils import is_batch_jsonrpc
-from .utils import chunkify
 from .upstream.url import url_from_jsonrpc_request
+from .utils import async_retry
+from .utils import chunkify
+from .utils import is_batch_jsonrpc
+from .validators import is_get_block_request
+from .validators import is_valid_get_block_response
+from .validators import is_valid_non_error_single_jsonrpc_response
 from .validators import validate_response_decorator
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +34,18 @@ async def jussi_get_blocks(sanic_http_request: HTTPRequest) -> HTTPResponse:
     start_block = jsonrpc_request['params'].get('start_block', 1)
     end_block = jsonrpc_request['params'].get('end_block', 15_000_000)
     block_nums = range(start_block, end_block)
-    requests = ({'id': block_num,
-                 'jsonrpc': '2.0',
-                 'method': 'get_block',
-                 'params': [block_num]} for block_num in block_nums)
+    requests = ({
+        'id':      block_num,
+        'jsonrpc': '2.0',
+        'method':  'get_block',
+        'params':  [block_num]
+    } for block_num in block_nums)
     batched_requests = chunkify(requests, 10)
     jsonrpc_response = {
-        'id': jsonrpc_request.get('id'),
+        'id':      jsonrpc_request.get('id'),
         'jsonrpc': '2.0',
-        'result': []}
+        'result':  []
+    }
     for batch_request in batched_requests:
 
         cached_response = await cache_group.get_jsonrpc_response(
@@ -79,11 +84,12 @@ async def handle_jsonrpc(sanic_http_request: HTTPRequest) -> HTTPResponse:
 
 async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
     return response.json({
-        'status': 'OK',
-        'datetime': datetime.datetime.utcnow().isoformat(),
+        'status':        'OK',
+        'datetime':      datetime.datetime.utcnow().isoformat(),
         'source_commit': sanic_http_request.app.config.args.source_commit,
-        'docker_tag': sanic_http_request.app.config.args.docker_tag
+        'docker_tag':    sanic_http_request.app.config.args.docker_tag
     })
+
 
 # pylint: disable=no-value-for-parameter
 
@@ -95,24 +101,37 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                    ) -> SingleJsonRpcResponse:
     pool = sanic_http_request.app.config.websocket_pool
     conn = await pool.acquire()
-    with async_timeout.timeout(2):
+    with async_timeout.timeout(200):
         try:
             await conn.send(ujson.dumps(jsonrpc_request).encode())
-            return ujson.loads(await conn.recv())
+            json_response = ujson.loads(await conn.recv())
+            assert is_valid_non_error_single_jsonrpc_response(json_response)
+            if is_get_block_request(jsonrpc_request):
+                assert is_valid_get_block_response(jsonrpc_request,
+                                                   json_response)
+            return json_response
+        except AssertionError:
+            logger.debug(f'json_response:{json_response}')
+            logger.info('closing websocket connection')
+            logger.debug(f'conn.state:{conn.state} conn.messages.size()')
+            await conn.fail_connection()
+
         finally:
             pool.release(conn)
 
 
 @async_retry(tries=3)
 @validate_response_decorator
-async def fetch_http(sanic_http_request: HTTPRequest=None,
-                     jsonrpc_request: SingleJsonRpcRequest=None,
-                     url: str=None) -> SingleJsonRpcResponse:
+async def fetch_http(sanic_http_request: HTTPRequest = None,
+                     jsonrpc_request: SingleJsonRpcRequest = None,
+                     url: str = None) -> SingleJsonRpcResponse:
     session = sanic_http_request.app.config.aiohttp['session']
     with async_timeout.timeout(2):
         async with session.post(url, json=jsonrpc_request) as resp:
             json_response = await resp.json()
         return json_response
+
+
 # pylint: enable=no-value-for-parameter
 
 

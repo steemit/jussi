@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 @handle_middleware_exceptions
 async def add_jussi_request_id(request: HTTPRequest) -> None:
     jussi_request_id = request.headers.get('x-jussi-request-id')
-    
+
     if not jussi_request_id:
         request.headers['x-jussi-request-id'] = f's{uuid.uuid4()}'
 

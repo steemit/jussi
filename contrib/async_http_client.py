@@ -2,18 +2,14 @@
 # pylint: skip-file
 import asyncio
 import logging
-import os
 import time
-import zlib
-from collections import deque
+import ujson
 from itertools import islice
 
 import aiohttp
-import ujson
+import os
+from collections import deque
 from funcy.colls import get_in
-from funcy.flow import retry
-
-import uvloop
 from progress.bar import Bar
 
 # asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -22,23 +18,36 @@ loop = asyncio.get_event_loop()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 CORRECT_BATCH_TEST_RESPONSE = [
-    {"id": 1, "result": {"previous": "000000b0c668dad57f55172da54899754aeba74b", "timestamp": "2016-03-24T16:14:21",
-                         "witness": "initminer", "transaction_merkle_root": "0000000000000000000000000000000000000000",
-                         "extensions": [],
-                         "witness_signature": "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
-                         "transactions": [], "block_id": "000000b13707dfaad7c2452294d4cfa7c2098db4",
-                         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-                         "transaction_ids": []}},
-    {"id": 2, "result": {"previous": "000000b0c668dad57f55172da54899754aeba74b", "timestamp": "2016-03-24T16:14:21",
-                         "witness": "initminer", "transaction_merkle_root": "0000000000000000000000000000000000000000",
-                         "extensions": [],
-                         "witness_signature": "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
-                         "transactions": [], "block_id": "000000b13707dfaad7c2452294d4cfa7c2098db4",
-                         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX", "transaction_ids": []}}
+    {
+        "id": 1, "result": {
+        "previous":                "000000b0c668dad57f55172da54899754aeba74b",
+        "timestamp":               "2016-03-24T16:14:21",
+        "witness":                 "initminer",
+        "transaction_merkle_root": "0000000000000000000000000000000000000000",
+        "extensions":              [],
+        "witness_signature":       "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
+        "transactions":            [],
+        "block_id":                "000000b13707dfaad7c2452294d4cfa7c2098db4",
+        "signing_key":             "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+        "transaction_ids":         []
+    }
+    },
+    {
+        "id": 2, "result": {
+        "previous":                "000000b0c668dad57f55172da54899754aeba74b",
+        "timestamp":               "2016-03-24T16:14:21",
+        "witness":                 "initminer",
+        "transaction_merkle_root": "0000000000000000000000000000000000000000",
+        "extensions":              [],
+        "witness_signature":       "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
+        "transactions":            [],
+        "block_id":                "000000b13707dfaad7c2452294d4cfa7c2098db4",
+        "signing_key":             "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+        "transaction_ids":         []
+    }
+    }
 ]
-
 
 NO_BATCH_SUPPORT_RESPONSE = '7 bad_cast_exception: Bad Cast'
 
@@ -103,10 +112,13 @@ class AsyncClient(object):
             self._batch_request_count += 1
             self._request_count += len(request_data)
             headers = {
-                'x-jussi-request-id': f'{request_data[0]["id"]}-{request_data[-1]["id"]}'}
+                'x-jussi-request-id': f'{request_data[0]["id"]}-{request_data[-1]["id"]}'
+            }
         else:
             headers = {'x-jussi-request-id': f'{request_data["id"]}'}
-        async with self.session.post(self.url, json=request_data, headers=headers, compress='gzip') as response:
+        async with self.session.post(self.url, json=request_data,
+                                     headers=headers,
+                                     compress='gzip') as response:
             try:
                 response_data = await response.json()
                 verify(request_data, response, response_data, _raise=True)
@@ -119,8 +131,10 @@ class AsyncClient(object):
 
     async def get_blocks(self, block_nums):
         requests = (
-            {'jsonrpc': '2.0', 'id': block_num, 'method': 'get_block',
-             'params': [block_num]} for block_num in block_nums)
+            {
+                'jsonrpc': '2.0', 'id': block_num, 'method': 'get_block',
+                'params':  [block_num]
+            } for block_num in block_nums)
         batched_requests = chunkify(requests, self.batch_request_size)
         coros = (self.fetch(batch) for batch in batched_requests)
         first_coros = islice(coros, 0, self.concurrent_tasks_limit)
@@ -146,12 +160,20 @@ class AsyncClient(object):
                         yield result
                 except Exception as e:
                     logger.error(e)
+                    raise
 
     async def test_batch_support(self, url):
-        batch_request = [{"id": 1, "jsonrpc": "2.0", "method": "get_block", "params": [
-            1]}, {"id": 2, "jsonrpc": "2.0", "method": "get_block", "params": [1]}]
+        batch_request = [{
+            "id":     1, "jsonrpc": "2.0",
+            "method": "get_block", "params": [
+                1]
+        }, {
+            "id":     2, "jsonrpc": "2.0",
+            "method": "get_block", "params": [1]
+        }]
         try:
-            async with self.session.post(self.url, json=batch_request) as response:
+            async with self.session.post(self.url,
+                                         json=batch_request) as response:
                 response_data = await response.text()
             if response_data.startswith(NO_BATCH_SUPPORT_RESPONSE):
                 return False
@@ -227,7 +249,7 @@ def block_num_from_id(block_hash: str) -> int:
 
 
 def verify_get_block_response(
-        request_ids, response, response_data, _raise=False):
+    request_ids, response, response_data, _raise=False):
     try:
         response_id = response_data['id']
         block_num = block_num_from_id(response_data['result']['block_id'])
@@ -254,82 +276,6 @@ def verify(request_data, response, response_data, _raise=True):
     else:
         verify_get_block_response(
             {request_data['id']}, response, response_data, _raise=_raise)
-
-
-async def test_get_blocks(args):
-    import jsonschema
-    import ujson
-
-    block_nums = range(args.start_block, args.end_block)
-    url = args.url
-    batch_request_size = args.batch_request_size
-    concurrent_tasks_limit = args.concurrent_tasks_limit
-    concurrent_connections = args.concurrent_connections
-
-    client = AsyncClient(url=url,
-                         batch_request_size=batch_request_size,
-                         concurrent_tasks_limit=concurrent_tasks_limit,
-                         connector_kwargs={'limit': concurrent_connections})
-    logger.debug(
-        f'blocks:{len(block_nums)} {client.batch_request_size} concurrent_tasks_limit:{client.concurrent_tasks_limit} concurrent_connections:{client.concurrent_connections}')
-    responses = []
-    errors = []
-    start = time.perf_counter()
-
-    bar = RateBar('Fetching blocks', max=len(block_nums))
-
-    try:
-        start = time.perf_counter()
-        async for result in client.get_blocks(block_nums):
-            if result:
-                bar.next(n=len(result))
-    except Exception as e:
-        logger.error(e)
-    finally:
-        bar.finish()
-        elapsed = time.perf_counter() - start
-        client.close()
-
-    history = client._perf_history
-    request_count = client._request_count
-    total_time = elapsed
-    total_time_sequential = sum(client._perf_history)
-    total_get_block_requests = client._request_count
-    total_batch_requests = client._batch_request_count
-
-    get_block_time = total_time / total_get_block_requests
-    batch_request_time = total_time / total_batch_requests
-
-    hours_to_sync = (14000000 * get_block_time) / 360
-    hours_to_sync2 = ((14000000 / args.batch_request_size)
-                      * batch_request_time) / 360
-
-    concurrency = 1 / (total_time / total_time_sequential)
-    print()
-
-    # print(responses[0])
-    # _ids = set([r['id'] for r in responses])
-    # block_nums = set(block_nums)
-    # print(block_nums - _ids)
-
-    print()
-    print(f'batch request_size:\t\t{client.batch_request_size}')
-    print(f'concurrent_tasks_limit:\t\t{client.concurrent_tasks_limit}')
-    print(f'concurrent_connections:\t\t{client.concurrent_connections}')
-    print()
-    print(f'total time:\t\t\t{total_time}')
-    print(f'total time sequential:\t\t{total_time_sequential}')
-    print(f'concurrency:\t\t\t{concurrency}')
-    print(f'total get_block requests:\t{total_get_block_requests}')
-    print(f'total get_block responses:\t{len(responses)}')
-    print(f'total batch_requests:\t\t{total_batch_requests}')
-    print(f'get_block requests/s:\t\t{total_get_block_requests/total_time}')
-    print(f'batch requests/s:\t\t{total_batch_requests/total_time}')
-    print(
-        f'avg get_block request time:\t{total_time/total_get_block_requests}')
-    print(f'avg batch request time:\t\t{total_time/total_batch_requests}')
-    print(f'est. hours to sync: \t\t{hours_to_sync}')
-    print(f'est. hours to sync2: \t\t{hours_to_sync2}')
 
 
 async def test_batch_support(args):
@@ -370,6 +316,7 @@ async def get_blocks(args):
                 logger.error('encountered missing result')
     except Exception as e:
         logger.error(e)
+        raise
     finally:
         loop = asyncio.get_event_loop()
         bar.finish()
@@ -379,6 +326,7 @@ async def get_blocks(args):
 if __name__ == '__main__':
     import sys
     import argparse
+
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger('async_http_client_main')
 
@@ -397,9 +345,6 @@ if __name__ == '__main__':
 
     parser_test_batch_support = subparsers.add_parser('test-batch-support')
     parser_test_batch_support.set_defaults(func=test_batch_support)
-
-    parser_test_get_blocks = subparsers.add_parser('test-get-blocks')
-    parser_test_get_blocks.set_defaults(func=test_get_blocks)
 
     parser_get_blocks = subparsers.add_parser('get-blocks')
     parser_get_blocks.set_defaults(func=get_blocks)
