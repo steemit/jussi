@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=protected-access
 import asyncio
 import sys
 
@@ -175,19 +176,24 @@ class _PoolConnectionContextManager:
                 self._conn = None
 
 
-def dump_ws_conn_info(conn):
-    conn.state
+def dump_ws_conn_info(logger, conn):
+    logger.debug(f'conn.state:{conn.state}')
 
     # conn messages async queue
-    conn.messages.maxsize
-    conn.messages.size()
-    conn.messages._getters
-    conn.messages._putters
-    conn.messages._unfinished_tasks
-    conn.messages.self._finished
+    logger.debug(f'conn.messages:{vars(conn.messages)}')
+    logger.debug(f'conn.messages.maxsize:{conn.messages.maxsize}')
+    logger.debug(f'conn.messages.maxsize:{conn.messages.maxsize}')
+    logger.debug(f'conn.messages._getters:{conn.messages._getters}')
+    logger.debug(f'conn.messages._getters:{conn.messages._getters}')
+    logger.debug(
+        f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
+    logger.debug(
+        f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
 
     # StreamReaderProtocol info
-    conn._stream_reader
+    logger.debug(f'conn._stream_reader:{vars(conn._stream_reader)}')
+
+    logger.debug(f'vars:{vars(conn)}')
 
 
 if not PY_35:

@@ -15,14 +15,18 @@ from ..errors import handle_middleware_exceptions
 from ..utils import async_exclude_methods
 from ..validators import validate_jsonrpc_request as validate_request
 
-
 logger = logging.getLogger(__name__)
 
 
 @handle_middleware_exceptions
-@async_exclude_methods(exclude_http_methods=('GET', ))
+@async_exclude_methods(exclude_http_methods=('GET',))
 async def validate_jsonrpc_request(
         request: HTTPRequest) -> Optional[HTTPResponse]:
+    try:
+        _ = request.json
+    except Exception as e:
+        return response.json(
+            ParseError(sanic_request=request, exception=e).to_dict())
     try:
         validate_request(jsonrpc_request=request.json)
     except (AssertionError, TypeError) as e:

@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-
 import aiohttp
-import ujson
-
 
 import jussi.logging_config
 import jussi.ws.pool
+import ujson
 
-from .upstream.url import deref_urls
 from .cache import setup_caches
 from .typedefs import WebApp
+from .upstream.url import deref_urls
 
 
 def setup_listeners(app: WebApp) -> WebApp:
@@ -45,15 +43,18 @@ def setup_listeners(app: WebApp) -> WebApp:
 
     @app.listener('before_server_start')
     async def setup_websocket_connection_pool(app: WebApp, loop) -> None:
-
         logger = app.config.logger
         logger.info('before_server_start -> setup_websocket_connection_pool')
         args = app.config.args
         app.config.websocket_pool_kwargs = dict(
-            url=args.upstream_steemd_url, minsize=args.websocket_pool_minsize,
-            maxsize=args.websocket_pool_maxsize, timeout=5)
+            url=args.upstream_steemd_url,
+            minsize=args.websocket_pool_minsize,
+            maxsize=args.websocket_pool_maxsize,
+            timeout=5,
+            pool_recycle=-1)
         # pylint: disable=protected-access
-        app.config.websocket_pool = await jussi.ws.pool._create_pool(**app.config.websocket_pool_kwargs)
+        app.config.websocket_pool = await jussi.ws.pool._create_pool(
+            **app.config.websocket_pool_kwargs)
 
     @app.listener('before_server_start')
     async def setup_caching(app: WebApp, loop) -> None:
@@ -61,6 +62,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('before_server_start -> setup_caching')
         cache_group = setup_caches(app, loop)
         app.config.cache_group = cache_group
+        app.config.last_irreversible_block_num = 15_000_000
 
     @app.listener('after_server_stop')
     async def close_websocket_connection_pool(app: WebApp, loop) -> None:

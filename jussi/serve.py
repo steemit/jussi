@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import argparse
-
 import os
+
 from sanic import Sanic
 
 import jussi.errors

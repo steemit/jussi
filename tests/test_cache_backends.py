@@ -7,11 +7,11 @@ from jussi.cache.backends import SimpleMaxTTLMemoryCache
 async def test_cache_clear(cache_cls):
     cache = cache_cls()
     await cache.clear()
-    assert await cache.get('key') == None
+    assert await cache.get('key') is None
     await cache.set('key', 'value', ttl=None)
     assert await cache.get('key') == 'value'
     await cache.clear()
-    assert await cache.get('key') == None
+    assert await cache.get('key') is None
 
 
 @pytest.mark.parametrize('cache_cls', [SimpleMaxTTLMemoryCache])

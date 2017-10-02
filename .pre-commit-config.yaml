@@ -18,7 +18,7 @@
     - id: fix-encoding-pragma
     - id: mixed-line-ending
     - id: autopep8-wrapper
-      args: ['--experimental', '-i',  '-j 4']
+      args: ['--experimental', '-i',  '-j 4','--max-line-length=100', '-a', '-a']
 #- repo: https://github.com/Lucas-C/pre-commit-hooks-nodejs
 #  sha: v1.1.0
 #  hooks:

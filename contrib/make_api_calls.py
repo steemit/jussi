@@ -158,7 +158,7 @@ def test_response_results_type(request, expected, actual):
     actual_result = actual.get('result')
     ex_result = expected['result']
 
-    assert type(actual_result) is type(ex_result)
+    assert isinstance(actual_result, type(ex_result))
     display_type_results(type(ex_result), type(actual_result))
     if isinstance(ex_result, dict):
         assert actual_result.keys() == ex_result.keys()

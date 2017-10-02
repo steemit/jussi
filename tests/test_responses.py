@@ -10,7 +10,7 @@ def test_response_results_type(
     response = requests_session.post(jussi_url, json=request)
     response.raise_for_status()
     jrpc_result = response.json()['result']
-    assert type(jrpc_result) is type(expected_result)
+    assert isinstance(jrpc_result, type(expected_result))
     if isinstance(expected_result, dict):
         result_keys = set(jrpc_result.keys())
         expected_keys = set(expected_result.keys())
@@ -29,7 +29,7 @@ def test_repeated_response_equality(
         jrpc_result = response.json()['result']
         responses.append(jrpc_result)
     for jrpc_result in responses:
-        assert type(jrpc_result) is type(expected_result)
+        assert isinstance(jrpc_result, type(expected_result))
         if isinstance(expected_result, dict):
             result_keys = set(jrpc_result.keys())
             expected_keys = set(expected_result.keys())

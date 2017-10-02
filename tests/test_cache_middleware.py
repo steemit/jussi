@@ -22,9 +22,7 @@ expected_response = {
         "transactions": [],
         "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 
 @pytest.mark.live
@@ -42,6 +40,7 @@ async def test_mocked_cache_response_middleware(mocked_app_test_cli):
     response = await test_cli.post('/', json=req)
     assert 'x-jussi-cache-hit' not in response.headers
     assert await response.json() == expected_response
+
     response = await test_cli.post('/', json=req)
     assert response.headers['x-jussi-cache-hit'] == 'steemd.database_api.get_block.params=[1000]'
     assert await response.json() == expected_response

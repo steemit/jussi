@@ -10,22 +10,36 @@ parse_error = {
     'error': {
         'code': -32700,
         'message':
-            'Parse error'
+        'Parse error'
     }
 }
 
 invalid_request_error = {
-    'id': 1,
     'jsonrpc': '2.0',
     'error': {
         'code': -32600,
-        'message':
-            'Invalid Request',
+        'message': 'Invalid Request',
         'data': {
-            'request': None
+            'request': {
+                'method': 'POST',
+                'path': '/',
+                'body': {
+                    'body': {
+                        'id': 1,
+                        'method': 'get_block',
+                        'params': [1000]
+                    },
+                    'is_batch': False,
+                    'batch_request_count': None
+                },
+                'amzn_trace_id': None,
+                'amzn_request_id': None,
+                'jussi_request_id': '123'
+            }
         }
-    }
-}
+    },
+    'id': 1}
+
 
 server_error = {
     'id': 1,
@@ -33,7 +47,7 @@ server_error = {
     'error': {
         'code': -32000,
         'message':
-            'Server error'
+        'Server error'
     }
 }
 
@@ -43,7 +57,8 @@ server_error = {
     # single jsonrpc steemd request
     (dict(id=1, method='get_block', params=[1000]), invalid_request_error),
 ])
-async def test_validate_jsonrpc_request_middleware(mocked_app_test_cli, jrpc_request, expected):
+async def test_validate_jsonrpc_request_middleware(mocked_app_test_cli,
+                                                   jrpc_request, expected):
     mocked_ws_conn, test_cli = mocked_app_test_cli
     mocked_ws_conn.recv.return_value = ujson.dumps(expected)
     response = await test_cli.post('/', json=jrpc_request)
@@ -53,4 +68,6 @@ async def test_validate_jsonrpc_request_middleware(mocked_app_test_cli, jrpc_req
     json_response = await response.json()
     assert 'error_id' in json_response['error']['data']
     del json_response['error']['data']['error_id']
+    json_response['error']['data']['request']['jussi_request_id'] = '123'
+    print(json_response)
     assert json_response == expected

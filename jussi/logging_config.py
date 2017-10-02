@@ -4,24 +4,24 @@ import os
 import sys
 import time
 
-import ujson
+from pythonjsonlogger.jsonlogger import JsonFormatter
 from sanic.log import DefaultFilter
 
+import ujson
 from jussi.typedefs import WebApp
-from pythonjsonlogger.jsonlogger import JsonFormatter
 
 LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 os.environ['TZ'] = 'UTC'
 time.tzset()
-#JsonFormatter.converter = time.gmtime
+# JsonFormatter.converter = time.gmtime
 
 SUPPORTED_LOG_MESSAGE_KEYS = (
     'levelname',
     'asctime',
-    #'created',
-    #'filename',
+    # 'created',
+    # 'filename',
     # 'levelno',
-    #'module',
+    # 'module',
     'funcName',
     'lineno',
     'msecs',
@@ -29,12 +29,12 @@ SUPPORTED_LOG_MESSAGE_KEYS = (
     'name',
     'timestamp',
     'severity'
-    #'pathname',
-    #'process',
-    #'processName',
+    # 'pathname',
+    # 'process',
+    # 'processName',
     # 'relativeCreated',
-    #'thread',
-    #'threadName'
+    # 'thread',
+    # 'threadName'
 )
 
 JSON_LOG_FORMAT = ' '.join(
@@ -60,17 +60,6 @@ class CustomJsonFormatter(JsonFormatter):
     def _jsonify_log_record(self, log_record):
         """Returns a json string of the log record."""
         return ujson.dumps(log_record)
-
-
-def setup_logging(app: WebApp) -> WebApp:
-    LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
-    LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
-    LOGGING['loggers']['network']['level'] = LOG_LEVEL
-    LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
-    logger = logging.getLogger('jussi')
-    logger.info('configuring jussi logger')
-    app.config.logger = logger
-    return app
 
 
 LOGGING = {
@@ -150,3 +139,14 @@ LOGGING = {
         }
     }
 }
+
+
+def setup_logging(app: WebApp) -> WebApp:
+    LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
+    LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
+    LOGGING['loggers']['network']['level'] = LOG_LEVEL
+    LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
+    logger = logging.getLogger('jussi')
+    logger.info('configuring jussi logger')
+    app.config.logger = logger
+    return app

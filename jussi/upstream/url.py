@@ -11,8 +11,8 @@ from typing import Tuple
 
 import pygtrie
 
-from .urn import urn
 from ..typedefs import SingleJsonRpcRequest
+from .urn import urn
 
 URL_SETTINGS = (
     # hivemind default

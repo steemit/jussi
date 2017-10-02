@@ -1,28 +1,26 @@
 # -*- coding: utf-8 -*-
-import asyncio
 import logging
 import uuid
 from typing import Dict
 from typing import Optional
 from typing import Union
 
-
-import ujson
-
 from funcy.decorators import Call
 from funcy.decorators import decorator
 from sanic import response
-from sanic.request import Request as SanicRequest
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
+from sanic.request import Request as SanicRequest
+
+import ujson
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import JsonRpcErrorResponse
 from .typedefs import WebApp
-from .utils import is_batch_jsonrpc
 
 logger = logging.getLogger(__name__)
+
 
 # pylint: disable=bare-except
 
@@ -32,14 +30,20 @@ def setup_error_handlers(app: WebApp) -> WebApp:
 
     @app.exception(RequestTimeout)
     def handle_timeout_errors(request: HTTPRequest,
-                              exception: SanicException) -> Optional[HTTPResponse]:
+                              exception: SanicException) -> Optional[
+            HTTPResponse]:
         """handles noisy request timeout errors"""
         # pylint: disable=unused-argument
         if not request:
-            return
-        return JsonRpcError(
-            sanic_request=request, exception=None,
-            data={'message': 'Request timeout error'}).to_sanic_response()
+            return None
+        return RequestTimeourError(sanic_request=request).to_sanic_response()
+
+    # pylint: disable=unused-argument
+    @app.exception(JsonRpcError)
+    def handle_jsonrpc_error(request: HTTPRequest,
+                             exception: JsonRpcError) -> HTTPResponse:
+        return exception.to_sanic_response()
+    # pylint: enable=unused-argument
 
     @app.exception(Exception)
     def handle_errors(request: HTTPRequest,
@@ -53,7 +57,7 @@ def setup_error_handlers(app: WebApp) -> WebApp:
 
 def log_request_error(error_dict: dict, exception: Exception) -> None:
     try:
-        logger.exception(error_dict, exc_info=exception)
+        logger.exception(str(error_dict), exc_info=exception)
     except Exception as e:
         logger.exception(f'Error while logging exception: {e}')
 
@@ -76,13 +80,10 @@ async def handle_middleware_exceptions(call):
 @decorator
 async def ignore_errors_async(call: Call) -> Optional[dict]:
     try:
-        # pylint: disable=protected-access
-        if not asyncio.iscoroutinefunction(call._func):
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(call)
         return await call()
     except Exception as e:
         logger.exception('Error ignored %s', e)
+        return None
 
 
 class JsonRpcError(Exception):
@@ -92,25 +93,30 @@ class JsonRpcError(Exception):
     """
     message = 'Internal Error'
     code = -32603
+    # pylint: disable=too-many-arguments
 
     def __init__(self,
                  sanic_request: SanicRequest = None,
                  data: Dict[str, str] = None,
                  exception: Exception = None,
-                 error_id: str = None) -> None:
+                 error_id: str = None,
+                 log_error: bool = True,
+                 error_logger: logging.Logger = None) -> None:
         super(JsonRpcError, self).__init__(self.message)
 
+        self.logger = error_logger or logger
         self.sanic_request = sanic_request
         self.data = data
         self.exception = exception
         self.error_id = error_id or str(uuid.uuid4())
-        self.error_data = self.compose_error_data()
+
         self._id = self.jrpc_request_id()
-        log_request_error(self.to_dict(include_exception=True), self.exception)
+        if log_error:
+            self.log()
 
     def request_data(self):
-        if not self.sanic_request:
-            return
+        if not isinstance(self.sanic_request, SanicRequest):
+            return None
         request = self.sanic_request
 
         request_data = {
@@ -118,8 +124,7 @@ class JsonRpcError(Exception):
             'path': getattr(request, 'path', None),
         }
 
-        body_data = self.request_body_data()
-        request_data['body'] = body_data
+        request_data['body'] = self.request_body_data()
 
         if request.headers:
             request_data['amzn_trace_id'] = request.headers.get(
@@ -132,8 +137,9 @@ class JsonRpcError(Exception):
         return request_data
 
     def request_body_data(self):
-        if not self.sanic_request:
-            return
+        from .utils import is_batch_jsonrpc
+        if not isinstance(self.sanic_request, SanicRequest):
+            return None
         request = self.sanic_request
 
         data = {'body': getattr(request, 'body', None)}
@@ -141,13 +147,13 @@ class JsonRpcError(Exception):
         try:
             body_json = request.json
             data.update({'body': body_json})
-        except BaseException:
+        except Exception:
             return data
 
         try:
             is_batch = is_batch_jsonrpc(request)
             data.update({'is_batch': is_batch})
-        except BaseException:
+        except Exception:
             return data
 
         try:
@@ -155,30 +161,30 @@ class JsonRpcError(Exception):
             if is_batch:
                 batch_request_count = len(body_json)
             data.update({'batch_request_count': batch_request_count})
-        except BaseException:
+        except Exception:
             return data
 
         return data
 
-    def exception_data(self):
-        if not self.exception:
-            return
-        exception = self.exception
-        exception_data = {
-            'message': getattr(exception, 'message', 'Internal Error'),
-            'data': getattr(exception, 'data', None)
-        }
-        return exception_data
+    def add_data(self, new_data: dict) -> None:
+        if self.data is None:
+            self.data = {}
+        if isinstance(new_data, dict):
+            for k, v in new_data.items():
+                if k not in self.data:
+                    self.data[k] = v
 
     def compose_error_data(self, include_exception=False):
-        error_data = {
-            'error_id': self.error_id,
-            'request': self.request_data(),
-        }
-        if include_exception:
-            error_data['exception'] = self.exception_data()
+        error_data = {'error_id': self.error_id}
+        request = self.request_data()
 
-        if self.data is not None:
+        if request:
+            error_data['request'] = request
+
+        if include_exception:
+            error_data['exception'] = self.exception
+
+        if self.data:
             error_data['data'] = self.data
 
         return error_data
@@ -189,6 +195,10 @@ class JsonRpcError(Exception):
         except Exception:
             return None
 
+    def log(self) -> None:
+        data = self.to_dict(include_exception=True)
+        self.logger.error(str(data), exc_info=self.exception)
+
     def to_dict(self, include_exception=False) -> JsonRpcErrorResponse:
         try:
             error = {
@@ -196,7 +206,8 @@ class JsonRpcError(Exception):
                 'error': {
                     'code': self.code,
                     'message': self.message,
-                    'data': self.compose_error_data(include_exception=include_exception)
+                    'data': self.compose_error_data(
+                        include_exception=include_exception)
                 }
             }  # type:  JsonRpcErrorResponse
 
@@ -214,7 +225,7 @@ class JsonRpcError(Exception):
                 'message': self.message
 
             }
-        }  # type:  JsonRpcErrorResponse
+        }
 
     def to_sanic_response(self) -> HTTPResponse:
         return response.json(self.to_dict())
@@ -248,3 +259,13 @@ class ServerError(JsonRpcError):
     """
     code = -32000
     message = 'Server error'
+
+
+class RequestTimeourError(JsonRpcError):
+    code = 1000
+    message = 'Request Timeout'
+
+
+class UpstreamResponseError(JsonRpcError):
+    code = 1100
+    message = 'Bad or missing upstream response'

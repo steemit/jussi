@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import collections
 import logging
 
-import collections
 from websockets import connect as websockets_connect
 
 from .utils import PY_35
@@ -55,11 +55,10 @@ The default value is 64kB, equal to asyncio's default (based on the
 current implementation of ``_FlowControlMixin``).
 
 '''
-
+STEEMIT_MAX_BLOCK_SIZE = 393_216_000
 MAX_WEBSOCKET_RECV_SIZE = None  # no limit
 MAX_WEBSOCKET_RECV_QUEUE = 0  # no limit
-STEEMIT_MAX_BLOCK_SIZE = 393216000
-MAX_WEBSOCKET_READ_LIMIT = STEEMIT_MAX_BLOCK_SIZE + 1000
+MAX_WEBSOCKET_READ_LIMIT = 1024 * 128
 
 
 async def connect(url=None, **kwargs):
@@ -70,11 +69,22 @@ async def connect(url=None, **kwargs):
                                     **kwargs)
 
 
-def create_pool(url=None, *, minsize=1, maxsize=10,
-                loop=None, timeout=1, pool_recycle=-1, **kwargs):
+def create_pool(url=None,
+                *,
+                minsize=1,
+                maxsize=10,
+                loop=None,
+                timeout=1,
+                pool_recycle=-1,
+                **kwargs):
     coro = _create_pool(
-        url=url, minsize=minsize, maxsize=maxsize, loop=loop, timeout=timeout,
-        pool_recycle=pool_recycle, **kwargs)
+        url=url,
+        minsize=minsize,
+        maxsize=maxsize,
+        loop=loop,
+        timeout=timeout,
+        pool_recycle=pool_recycle,
+        **kwargs)
     return _PoolContextManager(coro)
 
 
@@ -116,6 +126,7 @@ class Pool(asyncio.AbstractServer):
         self._cond = asyncio.Condition(loop=loop)
         self._used = set()
         self._terminated = set()
+        self._connect_message_counter = collections.Counter()
         self._closing = False
         self._closed = False
 
@@ -170,12 +181,16 @@ class Pool(asyncio.AbstractServer):
         self.close()
 
         for conn in list(self._used):
-            logger.info(f'closing used awaitable connection {conn}')
             self._loop.run_until_complete(conn.close_connection(force=True))
             conn.worker_task.cancel()
+            self.terminate_connection(conn)
             self._terminated.add(conn)
-
         self._used.clear()
+
+    async def terminate_connection(self, conn):
+        logger.info(f'terminating connection:{id(conn)}')
+        await conn.close_connection(force=True)
+        conn.worker_task.cancel()
 
     @asyncio.coroutine
     def wait_closed(self):
@@ -215,13 +230,18 @@ class Pool(asyncio.AbstractServer):
                     logger.debug(
                         f'pool connections free:{self.freesize} used: {len(self._used)} acquiring:{self._acquiring}')
                     logger.debug(
-                        f'websocket connection queue items: {conn.messages.qsize()}')
+                        f'pool.conn.{id(conn)} queue: {conn.messages.qsize()}')
+                    if self._recycle > -1:
+                        logger.debug(
+                            f'pool.conn.{id(conn)} handled messages:{self._connect_message_counter[id(conn)]}')
                     assert conn.open, conn
                     assert conn not in self._used, (conn, self._used)
                     self._used.add(conn)
                     # pylint: disable=not-callable
                     if self._on_connect is not None:
                         yield from self._on_connect(conn)
+                    if self._recycle:
+                        self._connect_message_counter[id(conn)] += 1
                     return conn
                 else:
                     yield from self._cond.wait()
@@ -235,17 +255,18 @@ class Pool(asyncio.AbstractServer):
             conn = self._free[-1]
             if not conn.open:
                 self._free.pop()
-            # FIXME websocket connections dont impletement last_usage
             elif self._recycle > -1 \
-                and self._loop.time() - conn.last_usage > self._recycle:
-                conn.close()
+                    and self._connect_message_counter[id(conn)] > self._recycle:
+                yield from self.terminate_connection(conn)
+                logger.error(f'recycling connection id:{id(conn)}')
+                self._connect_message_counter.clear()
                 self._free.pop()
             else:
                 self._free.rotate()
             n += 1
 
         while self.size < self.minsize:
-            logger.debug('opening ws connection')
+            logger.error('opening ws connection')
             self._acquiring += 1
             try:
                 conn = yield from connect(

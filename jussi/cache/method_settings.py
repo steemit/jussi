@@ -15,10 +15,11 @@ Method Settings
    - `NO_EXPIRE_IF_IRREVERSIBLE` == -2
 
 """
+
 import logging
+from enum import Enum
 
 import pygtrie
-from enum import Enum
 
 logger = logging.getLogger(__name__)
 

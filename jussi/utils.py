@@ -2,26 +2,25 @@
 import functools
 import logging
 from typing import Callable
-from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 from funcy.decorators import Call
 from funcy.decorators import decorator
 
-from jussi.typedefs import HTTPRequest
-from jussi.typedefs import HTTPResponse
-from jussi.typedefs import JsonRpcRequest
-from jussi.typedefs import SingleJsonRpcResponse
+from .typedefs import HTTPRequest
+from .typedefs import HTTPResponse
+from .typedefs import JsonRpcRequest
+from .typedefs import SingleJsonRpcResponse
+from .validators import is_get_dynamic_global_properties_request
 
 logger = logging.getLogger(__name__)
 
 
 # decorators
 def async_exclude_methods(
-        middleware_func: Optional[Callable]=None,
-        exclude_http_methods: Tuple[str]=None) -> Optional[Callable]:
+        middleware_func: Optional[Callable] = None,
+        exclude_http_methods: Tuple[str] = None) -> Optional[Callable]:
     """Exclude specified HTTP methods from middleware
 
     Args:
@@ -38,42 +37,58 @@ def async_exclude_methods(
     @functools.wraps(middleware_func)
     async def f(request: HTTPRequest) -> Optional[HTTPResponse]:
         if request.method in exclude_http_methods:
-            return
+            return None
         return await middleware_func(request)
-
     return f
 
 
 @decorator
-async def async_retry(call: Call, tries: int, errors: Union[List, Tuple, Exception]=Exception) -> Optional[SingleJsonRpcResponse]:
+async def async_retry(call: Call, tries: int) -> Optional[SingleJsonRpcResponse]:
     """Makes decorated async function retry up to tries times.
        Retries only on specified errors.
     """
-    if isinstance(errors, list):
-        # because `except` does not catch exceptions from list
-        errors = tuple(errors)
-
     for attempt in range(tries):
-        try:
-            return await call()
         # pylint: disable=catching-non-exception
-        except errors as e:
-            logger.warning(
-                f'fetch upstream attempt {attempt+1}/{tries} error:{e}, retyring')
+        try:
+            logger.debug(f'fetch upstream attempt {attempt+1}/{tries}')
+            return await call()
+        except Exception as e:
+            logger.info(
+                f'fetch upstream attempt {attempt+1}/{tries}, retyring')
             # Reraise error on last attempt
             if attempt + 1 == tries:
                 logger.error(f'fetch failed after {tries} attempts')
-                raise
+                raise e
+
+
+@decorator
+async def update_last_irreversible_block_num(call: Call) -> None:
+    try:
+        json_response = await call()
+    except Exception as e:
+        raise e
+    try:
+        if is_get_dynamic_global_properties_request(call.jsonrpc_request):
+            last_irreversible_block_num = json_response['result'][
+                'last_irreversible_block_num']
+            assert isinstance(last_irreversible_block_num, int)
+            assert last_irreversible_block_num > 15_500_000
+            app = call.sanic_http_request.app
+            app.config.last_irreversible_block_num = last_irreversible_block_num
+            logger.info(
+                f'updated last_irreversible_block_num: {last_irreversible_block_num}')
+    except Exception as e:
+        logger.info(f'skipping update of last_irreversible_block_num: {e}')
+    return json_response
 
 
 def is_batch_jsonrpc(
-        jsonrpc_request: JsonRpcRequest=None,
-        sanic_http_request: HTTPRequest=None, ) -> bool:
+        jsonrpc_request: JsonRpcRequest = None,
+        sanic_http_request: HTTPRequest = None, ) -> bool:
     try:
         return isinstance(jsonrpc_request, list) or isinstance(
             sanic_http_request.json, list)
-    except Exception as e:
-        logger.debug(f'is_batch_response exception:{e}')
+    except Exception:
         return False
 
 

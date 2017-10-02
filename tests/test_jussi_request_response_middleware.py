@@ -20,9 +20,7 @@ response = {
         "transactions": [],
         "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 
 def test_request_response_id_middleware():
@@ -35,7 +33,7 @@ def test_request_response_id_middleware():
     app.request_middleware.append(add_jussi_request_id)
     app.response_middleware.append(add_jussi_response_id)
     _, response = app.test_client.get(
-        '/health', headers={'x-jussi-request-id': 'test'})
+        '/health')
 
     assert 'x-jussi-response-id' in response.headers
-    assert response.headers['x-jussi-response-id'].startswith('test->')
+    assert '->' in response.headers['x-jussi-response-id']

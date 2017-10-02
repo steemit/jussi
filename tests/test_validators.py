@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
-import aiocache
 
 import pytest
-from jussi.errors import ServerError
+
 from jussi.validators import is_get_block_header_request
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
 from jussi.validators import is_valid_jsonrpc_response
+from jussi.validators import is_valid_jussi_response
 from jussi.validators import is_valid_non_error_jsonrpc_response
 from jussi.validators import is_valid_non_error_single_jsonrpc_response
 from jussi.validators import is_valid_single_jsonrpc_response
-from jussi.validators import is_valid_jussi_response
 from jussi.validators import validate_response_decorator
 
-request = {"id": "1", "jsonrpc": "2.0",
-           "method": "get_block", "params": [1000]}
-request2 = {"id": "1", "jsonrpc": "2.0", "method": "call",
-            "params": ["database_api", "get_block", [1000]]}
+request = {
+    "id": "1", "jsonrpc": "2.0",
+    "method": "get_block", "params": [1000]
+}
+request2 = {
+    "id": "1", "jsonrpc": "2.0", "method": "call",
+    "params": ["database_api", "get_block", [1000]]
+}
 response = {
     "id": 1,
     "result": {
@@ -29,9 +32,7 @@ response = {
         "transactions": [],
         "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 bad_response1 = {
     "id": 1,
@@ -45,9 +46,7 @@ bad_response1 = {
         "transactions": [],
         "block_id": "00000",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 bad_response2 = {
     "id": 1,
@@ -61,14 +60,16 @@ bad_response2 = {
         "transactions": [],
         "block_id": "000004e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
-bh_request1 = {"id": "1", "jsonrpc": "2.0",
-               "method": "get_block_header", "params": [1000]}
-bh_request2 = {"id": "1", "jsonrpc": "2.0", "method": "call",
-               "params": ["database_api", "get_block_header", [1000]]}
+bh_request1 = {
+    "id": "1", "jsonrpc": "2.0",
+    "method": "get_block_header", "params": [1000]
+}
+bh_request2 = {
+    "id": "1", "jsonrpc": "2.0", "method": "call",
+    "params": ["database_api", "get_block_header", [1000]]
+}
 
 batch_request = [request, request2]
 batch_response = [response, response]
@@ -290,18 +291,11 @@ def test_is_valid_jussi_response_using_steemd(steemd_requests_and_responses):
     assert is_valid_jussi_response(req, resp) is True
 
 
-async def test_validate_response_invalid(invalid_jrpc_responses):
-    @validate_response_decorator
-    async def test_func(sanic_http_request, jsonrpc_request, json_response):
-        return json_response
-
-    with pytest.raises(ServerError):
-        await test_func(None, invalid_jrpc_responses, invalid_jrpc_responses)
-
-
 async def test_validate_response_valid():
-    req = {"id": "1", "jsonrpc": "2.0",
-           "method": "get_block", "params": [1000]}
+    req = {
+        "id": "1", "jsonrpc": "2.0",
+        "method": "get_block", "params": [1000]
+    }
 
     @validate_response_decorator
     async def test_func(sanic_http_request, jsonrpc_request):
@@ -317,9 +311,7 @@ async def test_validate_response_valid():
                 "transactions": [],
                 "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
                 "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-                "transaction_ids": []
-            }
-        }
+                "transaction_ids": []}}
 
     response = await test_func(None, req)
     assert response == response

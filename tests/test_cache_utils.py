@@ -23,9 +23,7 @@ rpc_resp = {
         "transactions": [],
         "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 non_ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
                    "method": "sbds.get_block", "params": [1000]}

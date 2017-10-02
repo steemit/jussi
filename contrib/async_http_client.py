@@ -21,31 +21,31 @@ logger = logging.getLogger(__name__)
 CORRECT_BATCH_TEST_RESPONSE = [
     {
         "id": 1, "result": {
-        "previous":                "000000b0c668dad57f55172da54899754aeba74b",
-        "timestamp":               "2016-03-24T16:14:21",
-        "witness":                 "initminer",
-        "transaction_merkle_root": "0000000000000000000000000000000000000000",
-        "extensions":              [],
-        "witness_signature":       "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
-        "transactions":            [],
-        "block_id":                "000000b13707dfaad7c2452294d4cfa7c2098db4",
-        "signing_key":             "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids":         []
-    }
+            "previous": "000000b0c668dad57f55172da54899754aeba74b",
+            "timestamp": "2016-03-24T16:14:21",
+            "witness": "initminer",
+            "transaction_merkle_root": "0000000000000000000000000000000000000000",
+            "extensions": [],
+            "witness_signature": "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
+            "transactions": [],
+            "block_id": "000000b13707dfaad7c2452294d4cfa7c2098db4",
+            "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+            "transaction_ids": []
+        }
     },
     {
         "id": 2, "result": {
-        "previous":                "000000b0c668dad57f55172da54899754aeba74b",
-        "timestamp":               "2016-03-24T16:14:21",
-        "witness":                 "initminer",
-        "transaction_merkle_root": "0000000000000000000000000000000000000000",
-        "extensions":              [],
-        "witness_signature":       "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
-        "transactions":            [],
-        "block_id":                "000000b13707dfaad7c2452294d4cfa7c2098db4",
-        "signing_key":             "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids":         []
-    }
+            "previous": "000000b0c668dad57f55172da54899754aeba74b",
+            "timestamp": "2016-03-24T16:14:21",
+            "witness": "initminer",
+            "transaction_merkle_root": "0000000000000000000000000000000000000000",
+            "extensions": [],
+            "witness_signature": "2036fd4ff7838ba32d6d27637576e1b1e82fd2858ac97e6e65b7451275218cbd2b64411b0a5d74edbde790c17ef704b8ce5d9de268cb43783b499284c77f7d9f5e",
+            "transactions": [],
+            "block_id": "000000b13707dfaad7c2452294d4cfa7c2098db4",
+            "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+            "transaction_ids": []
+        }
     }
 ]
 
@@ -117,8 +117,7 @@ class AsyncClient(object):
         else:
             headers = {'x-jussi-request-id': f'{request_data["id"]}'}
         async with self.session.post(self.url, json=request_data,
-                                     headers=headers,
-                                     compress='gzip') as response:
+                                     headers=headers) as response:
             try:
                 response_data = await response.json()
                 verify(request_data, response, response_data, _raise=True)
@@ -133,7 +132,7 @@ class AsyncClient(object):
         requests = (
             {
                 'jsonrpc': '2.0', 'id': block_num, 'method': 'get_block',
-                'params':  [block_num]
+                'params': [block_num]
             } for block_num in block_nums)
         batched_requests = chunkify(requests, self.batch_request_size)
         coros = (self.fetch(batch) for batch in batched_requests)
@@ -160,15 +159,17 @@ class AsyncClient(object):
                         yield result
                 except Exception as e:
                     logger.error(e)
-                    raise
+                    tasks = asyncio.Task.all_tasks()
+                    for t in tasks:
+                        t.cancel()
 
     async def test_batch_support(self, url):
         batch_request = [{
-            "id":     1, "jsonrpc": "2.0",
+            "id": 1, "jsonrpc": "2.0",
             "method": "get_block", "params": [
                 1]
         }, {
-            "id":     2, "jsonrpc": "2.0",
+            "id": 2, "jsonrpc": "2.0",
             "method": "get_block", "params": [1]
         }]
         try:
@@ -249,7 +250,7 @@ def block_num_from_id(block_hash: str) -> int:
 
 
 def verify_get_block_response(
-    request_ids, response, response_data, _raise=False):
+        request_ids, response, response_data, _raise=False):
     try:
         response_id = response_data['id']
         block_num = block_num_from_id(response_data['result']['block_id'])
@@ -276,21 +277,6 @@ def verify(request_data, response, response_data, _raise=True):
     else:
         verify_get_block_response(
             {request_data['id']}, response, response_data, _raise=_raise)
-
-
-async def test_batch_support(args):
-    url = args.url
-    client = AsyncClient(url=url)
-    result = False
-    try:
-        result = await client.test_batch_support(url=url)
-    finally:
-        client.close()
-    if result:
-        print(f'{url} supports batch requests')
-        return result
-    print(f'{url} does not support batch requests')
-    return result
 
 
 async def get_blocks(args):
@@ -320,7 +306,6 @@ async def get_blocks(args):
     finally:
         loop = asyncio.get_event_loop()
         bar.finish()
-        loop.stop()
 
 
 if __name__ == '__main__':
@@ -342,9 +327,6 @@ if __name__ == '__main__':
     parser.add_argument('--concurrent_tasks_limit', type=int, default=5)
     parser.add_argument('--concurrent_connections', type=int, default=5)
     parser.add_argument('--print', type=bool, default=False)
-
-    parser_test_batch_support = subparsers.add_parser('test-batch-support')
-    parser_test_batch_support.set_defaults(func=test_batch_support)
 
     parser_get_blocks = subparsers.add_parser('get-blocks')
     parser_get_blocks.set_defaults(func=get_blocks)
