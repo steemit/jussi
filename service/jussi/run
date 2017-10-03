@@ -17,8 +17,9 @@ exec 2>&1 \
       --KEEP_ALIVE "${JUSSI_KEEP_ALIVE:-True}" \
       --websocket_pool_minsize "${JUSSI_WEBSOCKET_POOL_MINSIZE:-8}" \
       --websocket_pool_maxsize "${JUSSI_WEBSOCKET_POOL_MAXSIZE:-8}" \
+      --websocket_pool_recycle "${JUSSI_WESOCKET_POOL_RECYCLE:- -1}" \
       --source_commit "${SOURCE_COMMIT}" \
-      --source_commit "${DOCKER_TAG}" \
+      --docker_tag "${DOCKER_TAG}" \
       --upstream_hivemind_url "${JUSSI_HIVEMIND_HTTP_URL}" \
       --upstream_overseer_url "${JUSSI_OVERSEER_HTTP_URL}" \
       --upstream_sbds_url "${JUSSI_SBDS_HTTP_URL}" \

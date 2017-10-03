@@ -16,29 +16,80 @@ logger = logging.getLogger(__name__)
 
 '''
 websocket connection memory usage = 4 bytes * MAX_WEBSOCKET_RECV_SIZE * MAX_WEBSOCKET_RECV_QUEUE [ * connections in pool]
+
+The ``timeout`` parameter defines the maximum wait time in seconds for
+completing the closing handshake and, only on the client side, for
+terminating the TCP connection. :meth:`close()` will complete in at most
+this time on the server side and twice this time on the client side.
+
+The ``MAX_WEBSOCKET_RECV_SIZE`` parameter enforces the maximum size for incoming messages
+in bytes. The default value is 1MB. ``None`` disables the limit. If a
+message larger than the maximum size is received, :meth:`recv()` will
+raise :exc:`~websockets.exceptions.ConnectionClosed` and the connection
+will be closed with status code 1009.
+
+The ``MAX_WEBSOCKET_RECV_QUEUE`` parameter sets the maximum length of the queue that holds
+incoming messages. The default value is 32. 0 disables the limit. Messages
+are added to an in-memory queue when they're received; then :meth:`recv()`
+pops from that queue. In order to prevent excessive memory consumption when
+messages are received faster than they can be processed, the queue must be
+bounded. If the queue fills up, the protocol stops processing incoming data
+until :meth:`recv()` is called. In this situation, various receive buffers
+(at least in ``asyncio`` and in the OS) will fill up, then the TCP receive
+window will shrink, slowing down transmission to avoid packet loss.
+
+Since Python can use up to 4 bytes of memory to represent a single
+character, each websocket connection may use up to ``4 * max_size *
+max_queue`` bytes of memory to store incoming messages. By default,
+this is 128MB. You may want to lower the limits, depending on your
+application's requirements.
+
+The ``MAX_WEBSOCKET_READ_LIMIT`` argument sets the high-water limit of the buffer for
+incoming bytes. The low-water limit is half the high-water limit. The
+default value is 64kB, half of asyncio's default (based on the current
+implementation of :class:`~asyncio.StreamReader`).
+
+The ``write_limit`` argument sets the high-water limit of the buffer for
+outgoing bytes. The low-water limit is a quarter of the high-water limit.
+The default value is 64kB, equal to asyncio's default (based on the
+current implementation of ``_FlowControlMixin``).
+
 '''
-MB = 1_048_576
-MAX_WEBSOCKET_RECV_SIZE = 2 * MB
-MAX_WEBSOCKET_RECV_QUEUE = 10
+STEEMIT_MAX_BLOCK_SIZE = 393_216_000
+MAX_WEBSOCKET_RECV_SIZE = None  # no limit
+MAX_WEBSOCKET_RECV_QUEUE = 0  # no limit
+MAX_WEBSOCKET_READ_LIMIT = 1024 * 128
 
 
 async def connect(url=None, **kwargs):
     return await websockets_connect(uri=url,
                                     max_size=MAX_WEBSOCKET_RECV_SIZE,
                                     max_queue=MAX_WEBSOCKET_RECV_QUEUE,
+                                    read_limit=MAX_WEBSOCKET_READ_LIMIT,
                                     **kwargs)
 
 
-def create_pool(url=None, *, minsize=1, maxsize=10,
-                loop=None, timeout=5, pool_recycle=-1, **kwargs):
+def create_pool(url=None,
+                *,
+                minsize=1,
+                maxsize=10,
+                loop=None,
+                timeout=1,
+                pool_recycle=-1,
+                **kwargs):
     coro = _create_pool(
-        url=url, minsize=minsize, maxsize=maxsize, loop=loop, timeout=timeout,
-        pool_recycle=pool_recycle, **kwargs)
+        url=url,
+        minsize=minsize,
+        maxsize=maxsize,
+        loop=loop,
+        timeout=timeout,
+        pool_recycle=pool_recycle,
+        **kwargs)
     return _PoolContextManager(coro)
 
 
 async def _create_pool(url=None, *, minsize=1, maxsize=10,
-                       loop=None, timeout=5, pool_recycle=-1, **kwargs):
+                       loop=None, timeout=1, pool_recycle=-1, **kwargs):
     # pylint: disable=protected-access
     if loop is None:
         loop = asyncio.get_event_loop()
@@ -53,6 +104,7 @@ async def _create_pool(url=None, *, minsize=1, maxsize=10,
 
 class Pool(asyncio.AbstractServer):
     """Connection pool"""
+
     # pylint: disable=too-many-instance-attributes,too-many-arguments
 
     def __init__(self, url, minsize, maxsize, loop,
@@ -74,6 +126,7 @@ class Pool(asyncio.AbstractServer):
         self._cond = asyncio.Condition(loop=loop)
         self._used = set()
         self._terminated = set()
+        self._connect_message_counter = collections.Counter()
         self._closing = False
         self._closed = False
 
@@ -128,12 +181,16 @@ class Pool(asyncio.AbstractServer):
         self.close()
 
         for conn in list(self._used):
-            logger.info(f'closing used awaitable connection {conn}')
             self._loop.run_until_complete(conn.close_connection(force=True))
             conn.worker_task.cancel()
+            self.terminate_connection(conn)
             self._terminated.add(conn)
-
         self._used.clear()
+
+    async def terminate_connection(self, conn):
+        logger.info(f'terminating connection:{id(conn)}')
+        await conn.close_connection(force=True)
+        conn.worker_task.cancel()
 
     @asyncio.coroutine
     def wait_closed(self):
@@ -173,13 +230,18 @@ class Pool(asyncio.AbstractServer):
                     logger.debug(
                         f'pool connections free:{self.freesize} used: {len(self._used)} acquiring:{self._acquiring}')
                     logger.debug(
-                        f'websocket connection queue items: {conn.messages.qsize()}')
+                        f'pool.conn.{id(conn)} queue: {conn.messages.qsize()}')
+                    if self._recycle > -1:
+                        logger.debug(
+                            f'pool.conn.{id(conn)} handled messages:{self._connect_message_counter[id(conn)]}')
                     assert conn.open, conn
                     assert conn not in self._used, (conn, self._used)
                     self._used.add(conn)
                     # pylint: disable=not-callable
                     if self._on_connect is not None:
                         yield from self._on_connect(conn)
+                    if self._recycle:
+                        self._connect_message_counter[id(conn)] += 1
                     return conn
                 else:
                     yield from self._cond.wait()
@@ -193,21 +255,23 @@ class Pool(asyncio.AbstractServer):
             conn = self._free[-1]
             if not conn.open:
                 self._free.pop()
-            # FIXME websocket connections dont impletement last_usage
             elif self._recycle > -1 \
-                    and self._loop.time() - conn.last_usage > self._recycle:
-                conn.close()
+                    and self._connect_message_counter[id(conn)] > self._recycle:
+                yield from self.terminate_connection(conn)
+                logger.error(f'recycling connection id:{id(conn)}')
+                self._connect_message_counter.clear()
                 self._free.pop()
             else:
                 self._free.rotate()
             n += 1
 
         while self.size < self.minsize:
-            logger.debug('opening ws connection')
+            logger.error('opening ws connection')
             self._acquiring += 1
             try:
                 conn = yield from connect(
-                    self._url, loop=self._loop, timeout=self._timeout, **self._conn_kwargs)
+                    self._url, loop=self._loop, timeout=self._timeout,
+                    **self._conn_kwargs)
                 # raise exception if pool is closing
                 self._free.append(conn)
                 self._cond.notify()
@@ -220,7 +284,8 @@ class Pool(asyncio.AbstractServer):
             self._acquiring += 1
             try:
                 conn = yield from connect(
-                    self._url, loop=self._loop, timeout=self._timeout, **self._conn_kwargs)
+                    self._url, loop=self._loop, timeout=self._timeout,
+                    **self._conn_kwargs)
                 # raise exception if pool is closing
                 self._free.append(conn)
                 self._cond.notify()

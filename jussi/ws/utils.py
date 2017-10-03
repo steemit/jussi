@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=protected-access
 import asyncio
 import sys
 
@@ -7,10 +8,10 @@ PY_352 = sys.version_info >= (3, 5, 2)
 
 if PY_35:
     from collections.abc import Coroutine
+
     base = Coroutine
 else:
     base = object
-
 
 try:
     ensure_future = asyncio.ensure_future
@@ -27,7 +28,6 @@ def create_future(loop):
 
 
 class _ContextManager(base):
-
     __slots__ = ('_coro', '_obj')
 
     def __init__(self, coro):
@@ -84,7 +84,6 @@ class _ContextManager(base):
 
 
 class _SAConnectionContextManager(_ContextManager):
-
     if PY_35:  # pragma: no branch
         if PY_352:
             def __aiter__(self):
@@ -97,7 +96,6 @@ class _SAConnectionContextManager(_ContextManager):
 
 
 class _PoolContextManager(_ContextManager):
-
     if PY_35:
         @asyncio.coroutine
         def __aexit__(self, exc_type, exc, tb):
@@ -107,7 +105,6 @@ class _PoolContextManager(_ContextManager):
 
 
 class _PoolAcquireContextManager(_ContextManager):
-
     __slots__ = ('_coro', '_conn', '_pool')
 
     def __init__(self, coro, pool):
@@ -179,10 +176,32 @@ class _PoolConnectionContextManager:
                 self._conn = None
 
 
+def dump_ws_conn_info(logger, conn):
+    try:
+        logger.error(f'conn_id:{id(conn)}')
+        logger.error(f'conn.state:{conn.state}')
+        # conn messages async queue
+        logger.error(f'conn.messages:{vars(conn.messages)}')
+        logger.error(f'conn.messages.maxsize:{conn.messages.maxsize}')
+        logger.error(f'conn.messages.maxsize:{conn.messages.maxsize}')
+        logger.error(f'conn.messages._getters:{conn.messages._getters}')
+        logger.error(f'conn.messages._getters:{conn.messages._getters}')
+        logger.error(
+            f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
+        logger.error(
+            f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
+        # StreamReaderProtocol info
+        logger.error(f'conn._stream_reader:{vars(conn._stream_reader)}')
+        logger.error(f'vars:{vars(conn)}')
+    except Exception as e:
+        logger.error(e)
+
+
 if not PY_35:
     # pylint: disable=ungrouped-imports
     try:
         from asyncio import coroutines
+
         coroutines._COROUTINE_TYPES += (_ContextManager,)
     except BaseException:
         pass

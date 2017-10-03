@@ -16,8 +16,8 @@ from ..typedefs import JsonRpcResponse
 from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
 from ..utils import is_batch_jsonrpc
-from ..validators import is_valid_non_error_single_jsonrpc_response
 from ..validators import is_valid_jussi_response
+from ..validators import is_valid_non_error_single_jsonrpc_response
 from .method_settings import TTL
 from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
@@ -50,7 +50,9 @@ class CacheGroup(object):
         logger.info('CacheGroup configured using %s', self._caches)
 
     async def set(self, key, value, **kwargs):
-        return await asyncio.gather(*[asyncio.ensure_future(cache.set(key, value, **kwargs)) for cache in self._caches])
+        return await asyncio.gather(
+            *[asyncio.ensure_future(cache.set(key, value, **kwargs)) for cache
+              in self._caches])
 
     async def get(self, key, **kwargs):
         for cache in self._caches:
@@ -95,28 +97,33 @@ class CacheGroup(object):
 
     async def cache_jsonrpc_response(self,
                                      request: JsonRpcRequest,
-                                     response: JsonRpcResponse) -> None:
+                                     response: JsonRpcResponse,
+                                     last_irreversible_block_num: int = None) -> None:
         """Don't cache error responses
         """
         try:
             if is_batch_jsonrpc(request):
                 return await self.cache_batch_jsonrpc_response(request,
-                                                               response)
+                                                               response,
+                                                               last_irreversible_block_num=last_irreversible_block_num)
             else:
                 return await self.cache_single_jsonrpc_response(request,
-                                                                response)
+                                                                response,
+                                                                last_irreversible_block_num=last_irreversible_block_num)
         except UncacheableResponse as e:
             logger.warning(e)
 
     async def get_jsonrpc_response(self,
-                                   request: JsonRpcRequest) -> Optional[JsonRpcResponse]:
+                                   request: JsonRpcRequest) -> Optional[
+            JsonRpcResponse]:
         if is_batch_jsonrpc(request):
             return await self.get_batch_jsonrpc_responses(request)
         else:
             return await self.get_single_jsonrpc_response(request)
 
     async def get_single_jsonrpc_response(self,
-                                          request: JsonRpcRequest)-> Optional[SingleJsonRpcResponse]:
+                                          request: JsonRpcRequest) -> Optional[
+            SingleJsonRpcResponse]:
         key = jsonrpc_cache_key(request)
         cached_response = await self.get(key)
         if cached_response is None:
@@ -124,7 +131,8 @@ class CacheGroup(object):
         return merge_cached_response(request, cached_response)
 
     async def get_batch_jsonrpc_responses(self,
-                                          requests: BatchJsonRpcRequest) ->Optional[BatchJsonRpcResponse]:
+                                          requests: BatchJsonRpcRequest) -> \
+            Optional[BatchJsonRpcResponse]:
         keys = [jsonrpc_cache_key(request) for request in requests]
         cached_responses = await self.multi_get(keys)
 
@@ -134,10 +142,10 @@ class CacheGroup(object):
                                             request: SingleJsonRpcRequest,
                                             response: SingleJsonRpcResponse,
                                             key: str = None,
-                                            ttl: str = None
+                                            ttl: str = None,
+                                            last_irreversible_block_num: int = None
                                             ) -> None:
 
-        last_irreversible_block_num = 15_000_000  # FIXME
         value = await self.prepare_response_for_cache(request, response)
 
         key = key or jsonrpc_cache_key(request)
@@ -152,8 +160,8 @@ class CacheGroup(object):
 
     async def cache_batch_jsonrpc_response(self,
                                            requests: BatchJsonRpcRequest,
-                                           responses: BatchJsonRpcResponse) -> None:
-        last_irreversible_block_num = 15_000_000  # FIXME
+                                           responses: BatchJsonRpcResponse,
+                                           last_irreversible_block_num: int = None) -> None:
         triplets = []
 
         for i, response in enumerate(responses):
@@ -172,7 +180,8 @@ class CacheGroup(object):
 
     async def prepare_response_for_cache(self,
                                          request: SingleJsonRpcRequest,
-                                         response: SingleJsonRpcResponse) -> Optional[SingleJsonRpcRequest]:
+                                         response: SingleJsonRpcResponse) -> \
+            Optional[SingleJsonRpcRequest]:
         if not is_valid_non_error_single_jsonrpc_response(response):
             logger.debug(
                 'jsonrpc error in response from upstream %s, skipping cache',

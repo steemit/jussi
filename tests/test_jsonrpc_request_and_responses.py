@@ -73,34 +73,39 @@ correct_get_block_1000_response = {
             [correct_get_block_1000_response, correct_get_block_1000_response]
         )
     ])
-async def test_steemd_multi_format_requests(mocked_app_test_cli, jsonrpc_request, expected, steemd_jrpc_response_validator):
+async def test_steemd_multi_format_requests(mocked_app_test_cli, jsonrpc_request, expected, steemd_jrpc_response_validator, mocker):
 
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-    mocked_ws_conn.recv.return_value = json.dumps(
-        correct_get_block_1000_response)
-    response = await test_cli.post('/', json=jsonrpc_request)
-    assert response.status == 200
-    assert response.headers['Content-Type'] == 'application/json'
-    json_response = await response.json()
-    assert steemd_jrpc_response_validator(json_response) is None
-    assert json_response == expected
+    with mocker.patch('jussi.handlers.random',
+                      getrandbits=lambda x: 1) as mocked_rand:
+        mocked_ws_conn, test_cli = mocked_app_test_cli
+        mocked_ws_conn.recv.return_value = json.dumps(
+            correct_get_block_1000_response)
+        response = await test_cli.post('/', json=jsonrpc_request)
+        assert response.status == 200
+        assert response.headers['Content-Type'] == 'application/json'
+        json_response = await response.json()
+        assert steemd_jrpc_response_validator(json_response) is None
+        assert json_response == expected
 
 
-async def test_mocked_steemd_calls(mocked_app_test_cli, steemd_jrpc_response_validator, steemd_requests_and_responses):
+async def test_mocked_steemd_calls(mocked_app_test_cli, steemd_jrpc_response_validator, steemd_requests_and_responses, mocker):
     compare_key_only_ids = (6, 48)
     jrpc_req, jrpc_resp = steemd_requests_and_responses
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-    mocked_ws_conn.recv.return_value = json.dumps(jrpc_resp)
 
-    response = await test_cli.post('/', json=jrpc_req)
-    assert response.status == 200
-    assert response.headers['Content-Type'] == 'application/json'
-    assert 'x-jussi-cache-hit' not in response.headers
-    json_response = await response.json()
-    assert steemd_jrpc_response_validator(json_response) is None
-    assert 'error' not in json_response
-    assert json_response['id'] == jrpc_req['id']
-    if jrpc_req['id'] in compare_key_only_ids:
-        assert json_response['result'].keys() == jrpc_resp['result'].keys()
-    else:
-        assert json_response == jrpc_resp
+    with mocker.patch('jussi.handlers.random', getrandbits=lambda x: jrpc_req['id']) as mocked_rand:
+
+        mocked_ws_conn, test_cli = mocked_app_test_cli
+        mocked_ws_conn.recv.return_value = json.dumps(jrpc_resp)
+
+        response = await test_cli.post('/', json=jrpc_req)
+        assert response.status == 200
+        assert response.headers['Content-Type'] == 'application/json'
+        assert 'x-jussi-cache-hit' not in response.headers
+        json_response = await response.json()
+        assert steemd_jrpc_response_validator(json_response) is None
+        assert 'error' not in json_response
+        assert json_response['id'] == jrpc_req['id']
+        if jrpc_req['id'] in compare_key_only_ids:
+            assert json_response['result'].keys() == jrpc_resp['result'].keys()
+        else:
+            assert json_response == jrpc_resp

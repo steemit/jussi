@@ -4,8 +4,9 @@ from typing import AnyStr
 from typing import Optional
 from typing import Union
 
-import ujson
 from aiocache.serializers import StringSerializer
+
+import ujson
 
 
 class CompressionSerializer(StringSerializer):
@@ -23,3 +24,4 @@ class CompressionSerializer(StringSerializer):
     def loads(self, value) -> Optional[dict]:
         if value:
             return ujson.loads(zlib.decompress(value))
+        return None

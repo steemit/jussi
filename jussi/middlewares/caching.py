@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
 import logging
 
-import ujson
 from sanic import response
+
+import ujson
 
 from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..utils import async_exclude_methods
 from ..upstream.urn import urn_parts
+from ..utils import async_exclude_methods
 
 logger = logging.getLogger(__name__)
 
 
 @handle_middleware_exceptions
-@async_exclude_methods(exclude_http_methods=('GET', ))
+@async_exclude_methods(exclude_http_methods=('GET',))
 async def get_response(request: HTTPRequest) -> None:
     # return cached response from cache if all requests were in cache
     cache_group = request.app.config.cache_group
@@ -41,6 +42,9 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
         cache_group = request.app.config.cache_group
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)
-        await cache_group.cache_jsonrpc_response(jsonrpc_request, jsonrpc_response)
+        last_irreversible_block_num = request.app.config.last_irreversible_block_num or 15_000_000
+        await cache_group.cache_jsonrpc_response(jsonrpc_request,
+                                                 jsonrpc_response,
+                                                 last_irreversible_block_num)
     except Exception as e:
         logger.warning(f'ignoring error while querying cache: {e}')

@@ -3,23 +3,26 @@
 import asyncio
 import datetime
 import logging
+import random
 
 import async_timeout
-import ujson
 from sanic import response
 
+import ujson
+
+from .errors import UpstreamResponseError
 from .typedefs import BatchJsonRpcRequest
 from .typedefs import BatchJsonRpcResponse
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
-from .utils import async_retry
-from .utils import is_batch_jsonrpc
-from .utils import chunkify
 from .upstream.url import url_from_jsonrpc_request
-from .validators import validate_response_decorator
-
+from .utils import async_retry
+from .utils import chunkify
+from .utils import is_batch_jsonrpc
+from .utils import update_last_irreversible_block_num
+from .ws.utils import dump_ws_conn_info
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +35,18 @@ async def jussi_get_blocks(sanic_http_request: HTTPRequest) -> HTTPResponse:
     start_block = jsonrpc_request['params'].get('start_block', 1)
     end_block = jsonrpc_request['params'].get('end_block', 15_000_000)
     block_nums = range(start_block, end_block)
-    requests = ({'id': block_num,
-                 'jsonrpc': '2.0',
-                 'method': 'get_block',
-                 'params': [block_num]} for block_num in block_nums)
+    requests = ({
+        'id': block_num,
+        'jsonrpc': '2.0',
+        'method': 'get_block',
+        'params': [block_num]
+    } for block_num in block_nums)
     batched_requests = chunkify(requests, 10)
     jsonrpc_response = {
         'id': jsonrpc_request.get('id'),
         'jsonrpc': '2.0',
-        'result': []}
+        'result': []
+    }
     for batch_request in batched_requests:
 
         cached_response = await cache_group.get_jsonrpc_response(
@@ -85,32 +91,59 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
         'docker_tag': sanic_http_request.app.config.args.docker_tag
     })
 
+
 # pylint: disable=no-value-for-parameter
-
-
 @async_retry(tries=3)
-@validate_response_decorator
+@update_last_irreversible_block_num
 async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: SingleJsonRpcRequest
                    ) -> SingleJsonRpcResponse:
     pool = sanic_http_request.app.config.websocket_pool
+    request_id = sanic_http_request.headers.get('x-jussi-request-id')
     conn = await pool.acquire()
+    old_jrpc_id = jsonrpc_request.get('id')
+    new_jrpc_id = random.getrandbits(32)
+    jsonrpc_request['id'] = new_jrpc_id
     with async_timeout.timeout(2):
+        json_response = None
         try:
             await conn.send(ujson.dumps(jsonrpc_request).encode())
-            return ujson.loads(await conn.recv())
+            json_response = ujson.loads(await conn.recv())
+            assert json_response.get(
+                'id') == new_jrpc_id, f'{json_response.get("id")} should be {new_jrpc_id}'
+            if old_jrpc_id is not None:
+                jsonrpc_request['id'] = old_jrpc_id
+                json_response['id'] = old_jrpc_id
+            else:
+                del jsonrpc_request['id']
+                del json_response['id']
+            return json_response
+
+        except AssertionError as e:
+            dump_ws_conn_info(logger, conn)
+            await pool.terminate_connection(conn)
+            raise UpstreamResponseError(sanic_request=sanic_http_request,
+                                        exception=e,
+                                        data={'upstream_response': json_response,
+                                              'request_id': request_id,
+                                              'conn_id': id(conn),
+                                              'jrpc_id': old_jrpc_id,
+                                              'upstream_jrpc_id': new_jrpc_id})
         finally:
             pool.release(conn)
 
 
 @async_retry(tries=3)
-@validate_response_decorator
-async def fetch_http(sanic_http_request: HTTPRequest=None,
-                     jsonrpc_request: SingleJsonRpcRequest=None,
-                     url: str=None) -> SingleJsonRpcResponse:
+@update_last_irreversible_block_num
+async def fetch_http(sanic_http_request: HTTPRequest = None,
+                     jsonrpc_request: SingleJsonRpcRequest = None,
+                     url: str = None) -> SingleJsonRpcResponse:
     session = sanic_http_request.app.config.aiohttp['session']
+    headers = {}
+    headers['x-amzn-trace_id'] = sanic_http_request.headers.get('x-amzn-trace-id')
+    headers['x-jussi-request-id'] = sanic_http_request.headers.get('x-jussi-request-id')
     with async_timeout.timeout(2):
-        async with session.post(url, json=jsonrpc_request) as resp:
+        async with session.post(url, json=jsonrpc_request, headers=headers) as resp:
             json_response = await resp.json()
         return json_response
 # pylint: enable=no-value-for-parameter

@@ -7,6 +7,7 @@ PROJECT_DOCKER_RUN_ARGS := -p8080:8080
 
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
+PYTHON_VERSION := 3.6
 
 ENVFILE := .env
 
@@ -18,13 +19,23 @@ help:
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: init
-init:
-	pip3 install pipenv
+init: ## install project requrements into .venv
+	#pip3 install pipenv
 	pipenv install --three --dev
 	pipenv run pre-commit install
 
+.PHONY: reset-venv
+reset-venv: ## reinstall pipenv
+	-rm -rf .venv
+	pip3 uninstall pipenv
+	pip3 install --upgrade pip
+	pip3 install pipenv
+
+.PHONY: re-init
+re-init: reset-venv init ##  and project requirements into .venv
+
 .PHONY: clean
-clean:
+clean: ## clean python and dev junk
 	find . -name "__pycache__" | xargs rm -rf
 	-rm -rf .cache
 	-rm -rf .eggs
@@ -34,11 +45,11 @@ clean:
 	-rm -rf service/*/supervise
 
 .PHONY: build
-build: clean clean-perf
+build: clean clean-perf ## build docker image
 	docker build -t $(PROJECT_DOCKER_TAG) .
 
 .PHONY: run
-run:
+run: ## run docker image
 	docker run $(PROJECT_DOCKER_RUN_ARGS) $(PROJECT_DOCKER_TAG)
 
 .PHONY: run-local
@@ -61,11 +72,18 @@ lint: ## lint python files
 fmt: ## format python files
     # yapf is disabled until the update 3.6 fstring compat
 	#pipenv run yapf --in-place --style pep8 --recursive $(PROJECT_NAME)
-	pipenv run autopep8 --aggressive --in-place  --jobs 0 --recursive $(PROJECT_NAME)
+	pipenv run autopep8 --verbose --verbose --max-line-length=100 --experimental --aggressive --aggressive --jobs -1 --in-place  --recursive $(PROJECT_NAME)
 
 .PHONY: fix-imports
-fix-imports: ## remove unused imports from python files
+fix-imports: remove-unused-imports sort-imports ## remove unused and then sort imports
+
+.PHONY: remove-unused-imports
+remove-unused-imports: ## remove unused imports from python files
 	pipenv run autoflake --in-place --remove-all-unused-imports --recursive $(PROJECT_NAME)
+
+.PHONY: sort-imports
+sort-imports: ## sorts python imports using isort with settings from .editorconfig
+	pipenv run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $(PROJECT_NAME)
 
 .PHONY: pre-commit
 pre-commit: ## run pre-commit against modified files
@@ -75,18 +93,18 @@ pre-commit: ## run pre-commit against modified files
 pre-commit-all: ## run pre-commit against all files
 	pipenv run pre-commit run --all-files
 
-.PHONY: check-all
-check-all: pre-commit-all test
-
 .PHONY: prepare
-prepare: test build fmt fix-imports lint pre-commit-all
+prepare: test fmt fix-imports lint pre-commit-all ## test fmt fix-imports lint and pre-commit
+
+.PHONY: prepare-and-build
+prepare-and-build: prepare build ## run all tests, formatting and pre-commit checks, then build docker image
 
 .PHONY: mypy
 mypy: ## run mypy type checking on python files
-	pipenv run mypy --ignore-missing-imports $(PROJECT_NAME)
+	pipenv run mypy --ignore-missing-imports --python-version $(PYTHON_VERSION) $(PROJECT_NAME)
 
-.PHONY: curl-check
-curl-check:
+.PHONY: curl-8080
+curl-8080:
 	curl http://localhost:8080/
 	curl http://localhost:8080/health
 	curl http://localhost:8080/.well-known/healthcheck.json
@@ -94,9 +112,34 @@ curl-check:
 	-H'Content-Type:application/json' \
 	localhost:8080
 
-.PHONY: steemd-calls
-steemd-calls:
-	pipenv run python tests/make_api_calls.py tests/steemd_jsonrpc_calls.json http://localhost:8080
+.PHONY: curl-9000
+curl-9000:
+	curl http://localhost:9000/
+	curl http://localhost:9000/health
+	curl http://localhost:9000/.well-known/healthcheck.json
+	curl -d '{"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]}' \
+	-H'Content-Type:application/json' \
+	localhost:9000
+
+
+.PHONY: test-local-steemd-calls
+test-local-steemd-calls:
+	pipenv run pytest -vv --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl http://localhost:8080
+
+
+.PHONY: test-live-dev-steemd-calls
+test-live-dev-steemd-calls:
+	pipenv run pytest -vv --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitdev.com
+
+.PHONY: test-live-staging-steemd-calls
+test-live-staging-steemd-calls:
+	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitstage.com
+
+
+.PHONY: test-live-prod-steemd-calls
+test-live-prod-steemd-calls:
+	pipenv run pytest --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl https://api.steemit.com
+
 
 ./perf:
 	mkdir $@
@@ -108,9 +151,9 @@ steemd-calls:
 	pipenv run gprof2dot -f pstats $< | dot -Tpng -o $@
 
 .PHONY: clean-perf
-clean-perf:
+clean-perf: ## clean pstats and flamegraph svgs
 	rm -rf $(ROOT_DIR)/perf
 
 .PHONY: install-python-steem-macos
-install-python-steem-macos:
+install-python-steem-macos: ## install steem-python lib on macos using homebrew's openssl
 	env LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include" pipenv install steem

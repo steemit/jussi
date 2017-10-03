@@ -8,7 +8,7 @@ from jussi.cache.method_settings import TTLS
 def test_globals():
     assert TTL.DEFAULT_TTL.value == 3
     assert TTL.NO_CACHE.value == -1
-    assert TTL.NO_EXPIRE.value == None
+    assert TTL.NO_EXPIRE.value is None
     assert TTL.NO_EXPIRE_IF_IRREVERSIBLE.value == -2
 
 

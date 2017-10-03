@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 import pytest
+
 from jussi.cache.backends import SimpleMaxTTLMemoryCache
 from jussi.cache.cache_group import CacheGroup
 from jussi.cache.utils import jsonrpc_cache_key
-from jussi.validators import is_get_block_header_request
-
 from .extra_caches import SimpleMemoryCache2
 from .extra_caches import SimpleMemoryCache3
 from .extra_caches import SimpleMemoryCache4
 
-jrpc_req_1 = {"id": "1", "jsonrpc": "2.0",
-              "method": "get_block", "params": [1000]}
+jrpc_req_1 = {
+    "id": "1", "jsonrpc": "2.0",
+    "method": "get_block", "params": [1000]
+}
 jrpc_resp_1 = {
     "id": 2,
     "result": {
@@ -23,16 +24,18 @@ jrpc_resp_1 = {
         "transactions": [],
         "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 error_response = {"id": "1", "jsonrpc": "2.0", "error": {}}
 
-batch1_jrpc = [{"id": _id, "jsonrpc": "2.0",
-                "method": "get_block", "params": [1000]} for _id in range(10)]
-batch2_jrpc = [{"id": _id, "jsonrpc": "2.0", "method": "get_block",
-                "params": [1000]} for _id in range(20, 30)]
+batch1_jrpc = [{
+    "id": _id, "jsonrpc": "2.0",
+    "method": "get_block", "params": [1000]
+} for _id in range(10)]
+batch2_jrpc = [{
+    "id": _id, "jsonrpc": "2.0", "method": "get_block",
+    "params": [1000]
+} for _id in range(20, 30)]
 
 cached_resp1 = [None for i in batch1_jrpc]
 cached_resp2 = [
@@ -41,17 +44,25 @@ cached_resp2 = [
     None,
     {"id": 98, "jsonrpc": "2.0", "method": "get_block", "params": [1000]}]
 expected2 = [None,
-             {"id": 1, "jsonrpc": "2.0",
-                 "method": "get_block", "params": [1000]},
+             {
+                 "id": 1, "jsonrpc": "2.0",
+                 "method": "get_block", "params": [1000]
+             },
              None,
-             {"id": 3, "jsonrpc": "2.0",
-                 "method": "get_block", "params": [1000]},
+             {
+                 "id": 3, "jsonrpc": "2.0",
+                 "method": "get_block", "params": [1000]
+             },
              ]
 
-request = {"id": "1", "jsonrpc": "2.0",
-           "method": "get_block", "params": [1000]}
-request2 = {"id": "1", "jsonrpc": "2.0", "method": "call",
-            "params": ["database_api", "get_block", [1000]]}
+request = {
+    "id": "1", "jsonrpc": "2.0",
+    "method": "get_block", "params": [1000]
+}
+request2 = {
+    "id": "1", "jsonrpc": "2.0", "method": "call",
+    "params": ["database_api", "get_block", [1000]]
+}
 response = {
     "id": 1,
     "result": {
@@ -64,9 +75,7 @@ response = {
         "transactions": [],
         "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 bad_response1 = {
     "id": 1,
     "result": {
@@ -79,9 +88,7 @@ bad_response1 = {
         "transactions": [],
         "block_id": "00000",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 bad_response2 = {
     "id": 1,
@@ -95,13 +102,10 @@ bad_response2 = {
         "transactions": [],
         "block_id": "000004e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "transaction_ids": []
-    }
-}
+        "transaction_ids": []}}
 
 
 async def test_cache_group_clear():
-
     caches = [SimpleMaxTTLMemoryCache(),
               SimpleMemoryCache2(),
               SimpleMemoryCache3(),
@@ -115,7 +119,7 @@ async def test_cache_group_clear():
         await cache.set('key', 'value')
     await cache_group.clear()
 
-    assert await cache_group.get('key') == None
+    assert await cache_group.get('key') is None
 
 
 async def test_cache_group_get():
@@ -231,7 +235,8 @@ async def test_cache_group_multi_set():
         await cache.clear()
 
 
-async def test_cache_group_cache_jsonrpc_response(steemd_requests_and_responses):
+async def test_cache_group_cache_jsonrpc_response(
+        steemd_requests_and_responses):
     caches = [SimpleMaxTTLMemoryCache(),
               SimpleMemoryCache2(),
               SimpleMemoryCache3(),
@@ -246,7 +251,7 @@ async def test_cache_group_cache_jsonrpc_response(steemd_requests_and_responses)
     key = jsonrpc_cache_key(req)
 
     assert await cache_group.get(key) is None
-    await cache_group.cache_jsonrpc_response(req, resp)
+    await cache_group.cache_jsonrpc_response(req, resp, 15_000_000)
 
     for cache in caches:
         assert await cache.get(key) == resp
@@ -266,8 +271,8 @@ async def test_cache_group_get_jsonrpc_response(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
     resp['jsonrpc'] = '2.0'
     key = jsonrpc_cache_key(req)
-    assert await cache_group.get(key) == None
-    await cache_group.cache_jsonrpc_response(req, resp)
+    assert await cache_group.get(key) is None
+    await cache_group.cache_jsonrpc_response(req, resp, 15_000_000)
 
     assert await cache_group.get(key) == resp
     assert await cache_group.get_jsonrpc_response(req) == resp
@@ -275,7 +280,8 @@ async def test_cache_group_get_jsonrpc_response(steemd_requests_and_responses):
         assert await cache.get(key) == resp
 
 
-async def test_cache_group_get_single_jsonrpc_response(steemd_requests_and_responses):
+async def test_cache_group_get_single_jsonrpc_response(
+        steemd_requests_and_responses):
     caches = [SimpleMaxTTLMemoryCache(),
               SimpleMemoryCache2(),
               SimpleMemoryCache3(),
@@ -288,15 +294,16 @@ async def test_cache_group_get_single_jsonrpc_response(steemd_requests_and_respo
     req, resp = steemd_requests_and_responses
     resp['jsonrpc'] = '2.0'
     key = jsonrpc_cache_key(req)
-    assert await cache_group.get(key) == None
-    await cache_group.cache_jsonrpc_response(req, resp)
+    assert await cache_group.get(key) is None
+    await cache_group.cache_jsonrpc_response(req, resp, 15_000_000)
     assert await cache_group.get(key) == resp
     assert await cache_group.get_single_jsonrpc_response(req) == resp
     for cache in caches:
         assert await cache.get(key) == resp
 
 
-async def test_cache_group_get_batch_jsonrpc_responses(steemd_requests_and_responses):
+async def test_cache_group_get_batch_jsonrpc_responses(
+        steemd_requests_and_responses):
     caches = [SimpleMaxTTLMemoryCache(),
               SimpleMemoryCache2(),
               SimpleMemoryCache3(),
@@ -313,9 +320,10 @@ async def test_cache_group_get_batch_jsonrpc_responses(steemd_requests_and_respo
     batch_resp = [resp, resp, resp]
     key = jsonrpc_cache_key(req)
     assert await cache_group.get(key) is None
-    await cache_group.cache_jsonrpc_response(batch_req, batch_resp)
+    await cache_group.cache_jsonrpc_response(batch_req, batch_resp, 15_000_000)
     assert await cache_group.get(key) == resp
-    assert await cache_group.get_batch_jsonrpc_responses(batch_req) == batch_resp
+    assert await cache_group.get_batch_jsonrpc_responses(
+        batch_req) == batch_resp
 
 
 def test_cache_group_is_complete_response(steemd_requests_and_responses):

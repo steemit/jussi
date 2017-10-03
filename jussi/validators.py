@@ -34,14 +34,16 @@ async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
     """
     json_response = await call()
     try:
-        assert is_valid_single_jsonrpc_response(json_response)
         if is_get_block_request(call.jsonrpc_request):
             assert is_valid_get_block_response(
                 call.jsonrpc_request, json_response)
         return json_response
-    except Exception as e:
+    except AssertionError as e:
         raise ServerError(sanic_request=call.sanic_http_request,
-                          data={'message': 'Bad or missing server response'},
+                          data={
+                              'message': 'Bad or missing upstream response',
+                              'upstream_response': json_response
+                          },
                           exception=e)
 
 
@@ -52,7 +54,9 @@ async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
 
 def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
     if isinstance(jsonrpc_request, list):
-        _ = [validate_jsonrpc_request(r) for r in jsonrpc_request]
+        # pylint: disable=expression-not-assigned
+        [validate_jsonrpc_request(r) for r in jsonrpc_request]
+        # pylint: enable=expression-not-assigned
     elif isinstance(jsonrpc_request, dict):
         assert JSONRPC_REQUEST_KEYS.issuperset(jsonrpc_request.keys())
         assert len(jsonrpc_request.keys()) >= 2
@@ -94,7 +98,7 @@ def is_valid_jsonrpc_request(
         validate_jsonrpc_request(jsonrpc_request)
         return True
     except Exception as e:
-        logger.error(e)
+        logger.error(f'{e}')
     return False
 
 
@@ -156,6 +160,31 @@ def is_valid_jussi_response(
         if not is_valid_jsonrpc_request(jsonrpc_request):
             return False
         if isinstance(jsonrpc_request, dict):
+            if not is_valid_jsonrpc_response(
+                    jsonrpc_request, response):
+                return False
+            if is_get_block_request(jsonrpc_request):
+                return is_valid_get_block_response(jsonrpc_request, response)
+            return True
+        if isinstance(jsonrpc_request, list):
+            return len(jsonrpc_request) > 0 and len(jsonrpc_request) == len(
+                response) and all(
+                is_valid_jussi_response(req, resp) for req,
+                resp in
+                zip(jsonrpc_request, response))
+        return False
+    except Exception as e:
+        logger.error(f'{e}')
+    return False
+
+
+def is_valid_non_error_jussi_response(
+        jsonrpc_request: SingleJsonRpcRequest,
+        response: SingleJsonRpcResponse) -> bool:
+    try:
+        if not is_valid_jsonrpc_request(jsonrpc_request):
+            return False
+        if isinstance(jsonrpc_request, dict):
             if not is_valid_non_error_jsonrpc_response(
                     jsonrpc_request, response):
                 return False
@@ -170,7 +199,7 @@ def is_valid_jussi_response(
                 zip(jsonrpc_request, response))
         return False
     except Exception as e:
-        logger.error(e)
+        logger.error(f'{e}')
     return False
 
 
@@ -190,6 +219,15 @@ def is_get_block_header_request(
         return jussi_jrpc_call.method == 'get_block_header'
     except Exception as e:
         logger.debug(f'is_get_block_request errored: {e}')
+        return False
+
+
+def is_get_dynamic_global_properties_request(
+        jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
+    try:
+        jussi_jrpc_call = urn_parts(jsonrpc_request)
+        return jussi_jrpc_call.namespace == 'steemd' and jussi_jrpc_call.method == 'get_dynamic_global_properties'
+    except Exception:
         return False
 
 

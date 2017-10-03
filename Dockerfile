@@ -49,8 +49,8 @@ RUN \
         libssl-dev \
         libxml2-dev \
         libxslt-dev \
-        make \
         nginx \
+        make \
         nginx-extras \
         lua-zlib \
         runit \
@@ -84,11 +84,11 @@ RUN \
   touch /var/run/nginx.pid && \
   chown www-data:www-data /var/run/nginx.pid
 
+COPY . /app
+
 RUN \
     python3.6 -m pip install --upgrade pip && \
     python3.6 -m pip install pipenv
-
-COPY . /app
 
 RUN \
     mv /app/service/* /etc/service && \

@@ -11,6 +11,9 @@ import jussi.logging_config
 import jussi.middlewares
 from jussi.typedefs import WebApp
 
+STEEMIT_MAX_BLOCK_SIZE = 393216000
+REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
+
 
 def setup_routes(app: WebApp) -> WebApp:
     app.add_route(jussi.handlers.healthcheck, '/', methods=['GET'])
@@ -23,7 +26,7 @@ def setup_routes(app: WebApp) -> WebApp:
     return app
 
 
-def parse_args(args: list=None):
+def parse_args(args: list = None):
     """parse CLI args and add them to app.config
     """
     parser = argparse.ArgumentParser(description="jussi reverse proxy server")
@@ -33,14 +36,15 @@ def parse_args(args: list=None):
     parser.add_argument('--server_host', type=str, default='0.0.0.0')
     parser.add_argument('--server_port', type=int, default=9000)
     parser.add_argument('--server_workers', type=int, default=os.cpu_count())
-    parser.add_argument('--REQUEST_MAX_SIZE', type=int, default=600000)
+    parser.add_argument('--REQUEST_MAX_SIZE', type=int,
+                        default=REQUEST_MAX_SIZE)
     parser.add_argument('--REQUEST_TIMEOUT', type=int, default=3)
     parser.add_argument('--KEEP_ALIVE', type=bool, default=True)
 
     # serverwebsocket pool config
     parser.add_argument('--websocket_pool_minsize', type=int, default=0)
     parser.add_argument('--websocket_pool_maxsize', type=int, default=5)
-
+    parser.add_argument('--websocket_pool_recycle', type=int, default=-1)
     # server version
     parser.add_argument('--source_commit', type=str, default='')
     parser.add_argument('--docker_tag', type=str, default='')

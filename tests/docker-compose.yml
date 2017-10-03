@@ -6,10 +6,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      LOG_LEVEL: WARNING
       JUSSI_REDIS_HOST: redis
-    env_file:
-      - ../.env
+      JUSSI_STEEMD_WS_URL: wss://steemd.steemit.com
+      LOG_LEVEL: DEBUG
+    #env_file:
+    #  - ../.env
     links:
       - redis
     #volumes:

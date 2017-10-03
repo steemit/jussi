@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
-
 from collections import namedtuple
 from typing import Tuple
-
 
 from ..typedefs import SingleJsonRpcRequest
 
