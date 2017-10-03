@@ -44,7 +44,7 @@ def parse_args(args: list = None):
     # serverwebsocket pool config
     parser.add_argument('--websocket_pool_minsize', type=int, default=0)
     parser.add_argument('--websocket_pool_maxsize', type=int, default=5)
-
+    parser.add_argument('--websocket_pool_recycle', type=int, default=-1)
     # server version
     parser.add_argument('--source_commit', type=str, default='')
     parser.add_argument('--docker_tag', type=str, default='')
