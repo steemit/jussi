@@ -51,9 +51,10 @@ def setup_listeners(app: WebApp) -> WebApp:
             minsize=args.websocket_pool_minsize,
             maxsize=args.websocket_pool_maxsize,
             timeout=5,
-            pool_recycle=args.websocket_pool_recycle)
+            pool_recycle=args.websocket_pool_recycle,
+            max_queue=args.websocket_queue_size)
         # pylint: disable=protected-access
-        app.config.websocket_pool = await jussi.ws.pool._create_pool(
+        app.config.websocket_pool = await jussi.ws.pool.create_pool(
             **app.config.websocket_pool_kwargs)
 
     @app.listener('before_server_start')

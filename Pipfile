@@ -38,6 +38,7 @@ yapf = "*"
 progress = "*"
 jsonschema = "*"
 isort = "*"
+pydevd = "*"
 
 [packages]
 

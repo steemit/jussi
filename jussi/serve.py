@@ -38,13 +38,15 @@ def parse_args(args: list = None):
     parser.add_argument('--server_workers', type=int, default=os.cpu_count())
     parser.add_argument('--REQUEST_MAX_SIZE', type=int,
                         default=REQUEST_MAX_SIZE)
-    parser.add_argument('--REQUEST_TIMEOUT', type=int, default=3)
+    parser.add_argument('--REQUEST_TIMEOUT', type=int, default=5)
     parser.add_argument('--KEEP_ALIVE', type=bool, default=True)
 
     # serverwebsocket pool config
     parser.add_argument('--websocket_pool_minsize', type=int, default=0)
     parser.add_argument('--websocket_pool_maxsize', type=int, default=5)
+    parser.add_argument('--websocket_queue_size', type=int, default=1)
     parser.add_argument('--websocket_pool_recycle', type=int, default=-1)
+
     # server version
     parser.add_argument('--source_commit', type=str, default='')
     parser.add_argument('--docker_tag', type=str, default='')

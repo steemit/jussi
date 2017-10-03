@@ -7,14 +7,15 @@ import ujson
 from itertools import islice
 
 import aiohttp
+import uvloop
 import os
 from collections import deque
 from funcy.colls import get_in
 from progress.bar import Bar
 
-# asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 loop = asyncio.get_event_loop()
-# loop.set_debug(True)
+loop.set_debug(True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -111,18 +112,19 @@ class AsyncClient(object):
         if isinstance(request_data, list):
             self._batch_request_count += 1
             self._request_count += len(request_data)
-        async with self.session.post(self.url, json=request_data) as response:
-            try:
-                response_data = await response.json()
-
-                verify(request_data, response, response_data, _raise=True)
-                return response_data
-            except Exception as e:
-                logger.exception(e)
-                content = await response.read()
-                logger.error(f'last block:{request_data["id"]}')
-                logger.error(
-                    f'{response.status}\n {response.raw_headers}\n {response.headers}\n {response._get_encoding()}\n {content}\n\n')
+        attempts = 0
+        while attempts < 5:
+            async with self.session.post(self.url, json=request_data) as response:
+                attempts += 1
+                try:
+                    response_data = await response.json()
+                    verify(response, response_data, _raise=True)
+                    return response_data
+                except Exception as e:
+                    content = await response.read()
+                    logger.error(
+                        f'{response.status}\n {response.raw_headers}\n {response.headers}\n {response._get_encoding()}\n {content}\n\n{e}\n\n')
+        raise ValueError('No data after 4 attempts')
 
     async def get_blocks(self, block_nums):
         requests = (
@@ -160,7 +162,8 @@ class AsyncClient(object):
                         f.cancel()
                     raise
                 except Exception as e:
-                    logger.error(e)
+                    logger.exception(f'client.get_blocks error:{e}')
+                    continue
 
     async def test_batch_support(self, url):
         batch_request = [{
@@ -257,15 +260,19 @@ def verify_get_block_response(response, response_data, _raise=False):
         return True
     except KeyError as e:
         # logger.error(response.headers)
-        logger.exception(f'response:{response_data["result"].keys()}')
+        logger.error(f'response:{response_data["result"].keys()}')
+        if _raise:
+            raise e
     except AssertionError as e:
         logger.error(f'{response_id} {block_num}')
         # logger.error(response.headers)
         # logger.exception(f'response:{response_keys}')
+        if _raise:
+            raise e
     return False
 
 
-def verify(request_data, response, response_data, _raise=True):
+def verify(response, response_data, _raise=True):
     if isinstance(response_data, list):
 
         for i, data in enumerate(response_data):
@@ -293,6 +300,7 @@ async def get_blocks(args):
         async for result in client.get_blocks(block_nums):
             if result:
                 bar.next(n=len(result))
+
                 print(result)
             else:
                 logger.error('encountered missing result')
@@ -302,7 +310,7 @@ async def get_blocks(args):
         raise
     except Exception as e:
         client.close()
-        logger.error(e)
+        logger.error(f'get_blocks error:{e}')
         raise e
     finally:
         bar.finish()

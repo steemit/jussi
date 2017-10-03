@@ -8,7 +8,6 @@ from websockets import connect as websockets_connect
 from .utils import PY_35
 from .utils import _PoolAcquireContextManager
 from .utils import _PoolConnectionContextManager
-from .utils import _PoolContextManager
 from .utils import create_future
 from .utils import ensure_future
 
@@ -55,47 +54,32 @@ The default value is 64kB, equal to asyncio's default (based on the
 current implementation of ``_FlowControlMixin``).
 
 '''
-STEEMIT_MAX_BLOCK_SIZE = 393_216_000
+STEEMIT_MAX_BLOCK_SIZE = 65536  # get_dynamic_global_properties['maximum_block_size']
 MAX_WEBSOCKET_RECV_SIZE = None  # no limit
-MAX_WEBSOCKET_RECV_QUEUE = 0  # no limit
-MAX_WEBSOCKET_READ_LIMIT = 1024 * 128
+MAX_WEBSOCKET_READ_LIMIT = STEEMIT_MAX_BLOCK_SIZE + 1000
 
 
 async def connect(url=None, **kwargs):
     return await websockets_connect(uri=url,
                                     max_size=MAX_WEBSOCKET_RECV_SIZE,
-                                    max_queue=MAX_WEBSOCKET_RECV_QUEUE,
                                     read_limit=MAX_WEBSOCKET_READ_LIMIT,
                                     **kwargs)
 
 
-def create_pool(url=None,
-                *,
-                minsize=1,
-                maxsize=10,
-                loop=None,
-                timeout=1,
-                pool_recycle=-1,
-                **kwargs):
-    coro = _create_pool(
-        url=url,
-        minsize=minsize,
-        maxsize=maxsize,
-        loop=loop,
-        timeout=timeout,
-        pool_recycle=pool_recycle,
-        **kwargs)
-    return _PoolContextManager(coro)
-
-
-async def _create_pool(url=None, *, minsize=1, maxsize=10,
-                       loop=None, timeout=1, pool_recycle=-1, **kwargs):
+async def create_pool(url=None, *,
+                      minsize=1,  # min connections in pool
+                      maxsize=10,  # max connections in pool
+                      loop=None,
+                      timeout=1,  # timeout for closing handshake
+                      pool_recycle=-1,  # recycle connection after x messages
+                      **kwargs):
     # pylint: disable=protected-access
     if loop is None:
         loop = asyncio.get_event_loop()
 
     pool = Pool(url=url, minsize=minsize, maxsize=maxsize, loop=loop,
-                timeout=timeout, pool_recycle=pool_recycle, **kwargs)
+                timeout=timeout, pool_recycle=pool_recycle,
+                **kwargs)
     if minsize > 0:
         with (await pool._cond):
             await pool._fill_free_pool(False)
@@ -162,6 +146,22 @@ class Pool(asyncio.AbstractServer):
     @property
     def closed(self):
         return self._closed
+
+    # pylint: disable=no-self-use
+    def get_connection_info(self, conn):
+        # pylint: disable=protected-access
+        try:
+            return {
+                'conn_id': id(conn),
+                'state': conn.state,
+                'conn.messages.qsize': conn.messages.qsize(),
+                'conn.messages.maxsize': conn.messages.maxsize,
+                'conn.messages._unfinished_tasks': conn.messages._unfinished_tasks,
+                'conn._stream_reader._buffer': conn._stream_reader._buffer
+            }
+        except BaseException:
+            return None
+    # pylint: enable=no-self-use
 
     def close(self):
         """Close pool.
@@ -258,7 +258,7 @@ class Pool(asyncio.AbstractServer):
             elif self._recycle > -1 \
                     and self._connect_message_counter[id(conn)] > self._recycle:
                 yield from self.terminate_connection(conn)
-                logger.error(f'recycling connection id:{id(conn)}')
+                logger.error(f'recycled connection id:{id(conn)}')
                 self._connect_message_counter.clear()
                 self._free.pop()
             else:
@@ -266,7 +266,7 @@ class Pool(asyncio.AbstractServer):
             n += 1
 
         while self.size < self.minsize:
-            logger.error('opening ws connection')
+            logger.info('opening ws connection')
             self._acquiring += 1
             try:
                 conn = yield from connect(
