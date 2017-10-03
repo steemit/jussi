@@ -22,7 +22,6 @@ from .utils import async_retry
 from .utils import chunkify
 from .utils import is_batch_jsonrpc
 from .utils import update_last_irreversible_block_num
-from .ws.utils import dump_ws_conn_info
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +69,6 @@ async def handle_jsonrpc(sanic_http_request: HTTPRequest) -> HTTPResponse:
     jsonrpc_requests = sanic_http_request.json  # type: JsonRpcRequest
 
     # make upstream requests
-
     if is_batch_jsonrpc(sanic_http_request=sanic_http_request):
         jsonrpc_response = await dispatch_batch(sanic_http_request,
                                                 jsonrpc_requests)
@@ -79,7 +77,6 @@ async def handle_jsonrpc(sanic_http_request: HTTPRequest) -> HTTPResponse:
     else:
         jsonrpc_response = await dispatch_single(sanic_http_request,
                                                  jsonrpc_requests)
-
     return response.json(jsonrpc_response)
 
 
@@ -99,36 +96,28 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: SingleJsonRpcRequest
                    ) -> SingleJsonRpcResponse:
     pool = sanic_http_request.app.config.websocket_pool
-    request_id = sanic_http_request.headers.get('x-jussi-request-id')
+
+    upstream_request = {k: jsonrpc_request[k] for k in
+                        {'jsonrpc', 'method', 'params'} if k in jsonrpc_request}
+    upstream_request['id'] = random.getrandbits(32)
+
     conn = await pool.acquire()
-    old_jrpc_id = jsonrpc_request.get('id')
-    new_jrpc_id = random.getrandbits(32)
-    jsonrpc_request['id'] = new_jrpc_id
     with async_timeout.timeout(2):
-        json_response = None
         try:
             await conn.send(ujson.dumps(jsonrpc_request).encode())
-            json_response = ujson.loads(await conn.recv())
-            assert json_response.get(
-                'id') == new_jrpc_id, f'{json_response.get("id")} should be {new_jrpc_id}'
-            if old_jrpc_id is not None:
-                jsonrpc_request['id'] = old_jrpc_id
-                json_response['id'] = old_jrpc_id
-            else:
-                del jsonrpc_request['id']
-                del json_response['id']
-            return json_response
+
+            upstream_response = await conn.recv()
+            upstream_json = ujson.loads(upstream_response)
+            assert upstream_json .get('id') == upstream_json['id'], \
+                f'{upstream_json .get("id")} should be {upstream_json ["id"]}'
+            upstream_json['id'] = jsonrpc_request['id']
+            return upstream_json
 
         except AssertionError as e:
-            dump_ws_conn_info(logger, conn)
+            logger.error(pool.get_connection_info(conn))
             await pool.terminate_connection(conn)
             raise UpstreamResponseError(sanic_request=sanic_http_request,
-                                        exception=e,
-                                        data={'upstream_response': json_response,
-                                              'request_id': request_id,
-                                              'conn_id': id(conn),
-                                              'jrpc_id': old_jrpc_id,
-                                              'upstream_jrpc_id': new_jrpc_id})
+                                        exception=e)
         finally:
             pool.release(conn)
 
@@ -142,10 +131,15 @@ async def fetch_http(sanic_http_request: HTTPRequest = None,
     headers = {}
     headers['x-amzn-trace_id'] = sanic_http_request.headers.get('x-amzn-trace-id')
     headers['x-jussi-request-id'] = sanic_http_request.headers.get('x-jussi-request-id')
+
+    upstream_request = {k: jsonrpc_request[k] for k in
+                        {'jsonrpc', 'method', 'params'} if k in jsonrpc_request}
+    upstream_request['id'] = random.getrandbits(32)
     with async_timeout.timeout(2):
-        async with session.post(url, json=jsonrpc_request, headers=headers) as resp:
-            json_response = await resp.json()
-        return json_response
+        async with session.post(url, json=upstream_request, headers=headers) as resp:
+            upstream_response = await resp.json()
+        upstream_response['id'] = jsonrpc_request['id']
+        return upstream_response
 # pylint: enable=no-value-for-parameter
 
 
