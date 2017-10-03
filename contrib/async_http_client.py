@@ -111,22 +111,18 @@ class AsyncClient(object):
         if isinstance(request_data, list):
             self._batch_request_count += 1
             self._request_count += len(request_data)
-            headers = {
-                'x-jussi-request-id': f'{request_data[0]["id"]}-{request_data[-1]["id"]}'
-            }
-        else:
-            headers = {'x-jussi-request-id': f'{request_data["id"]}'}
-        async with self.session.post(self.url, json=request_data,
-                                     headers=headers) as response:
+        async with self.session.post(self.url, json=request_data) as response:
             try:
                 response_data = await response.json()
+
                 verify(request_data, response, response_data, _raise=True)
                 return response_data
             except Exception as e:
                 logger.exception(e)
                 content = await response.read()
+                logger.error(f'last block:{request_data["id"]}')
                 logger.error(
-                    f'{headers} {response.status}\n {response.raw_headers}\n {response.headers}\n {response._get_encoding()}\n {content}\n\n')
+                    f'{response.status}\n {response.raw_headers}\n {response.headers}\n {response._get_encoding()}\n {content}\n\n')
 
     async def get_blocks(self, block_nums):
         requests = (
@@ -157,11 +153,14 @@ class AsyncClient(object):
                             logger.debug('StopIteration')
                         start = time.perf_counter()
                         yield result
+                except KeyboardInterrupt:
+                    logger.debug('client.get blocks kbi')
+                    self.close()
+                    for f in futures:
+                        f.cancel()
+                    raise
                 except Exception as e:
                     logger.error(e)
-                    tasks = asyncio.Task.all_tasks()
-                    for t in tasks:
-                        t.cancel()
 
     async def test_batch_support(self, url):
         batch_request = [{
@@ -226,9 +225,8 @@ class AsyncClient(object):
         return self._concurrent_tasks_limit
 
     def close(self):
+        logger.debug('client.close')
         self.session.close()
-        for task in asyncio.Task.all_tasks():
-            task.cancel()
 
 
 GET_BLOCK_RESULT_KEYS = {"previous",
@@ -249,8 +247,7 @@ def block_num_from_id(block_hash: str) -> int:
     return int(str(block_hash)[:8], base=16)
 
 
-def verify_get_block_response(
-        request_ids, response, response_data, _raise=False):
+def verify_get_block_response(response, response_data, _raise=False):
     try:
         response_id = response_data['id']
         block_num = block_num_from_id(response_data['result']['block_id'])
@@ -270,13 +267,12 @@ def verify_get_block_response(
 
 def verify(request_data, response, response_data, _raise=True):
     if isinstance(response_data, list):
-        request_ids = {r['id'] for r in request_data}
+
         for i, data in enumerate(response_data):
             verify_get_block_response(
-                request_ids, response, data, _raise=_raise)
+                response, data, _raise=_raise)
     else:
-        verify_get_block_response(
-            {request_data['id']}, response, response_data, _raise=_raise)
+        verify_get_block_response(response, response_data, _raise=_raise)
 
 
 async def get_blocks(args):
@@ -300,11 +296,15 @@ async def get_blocks(args):
                 print(result)
             else:
                 logger.error('encountered missing result')
-    except Exception as e:
-        logger.error(e)
+    except KeyboardInterrupt:
+        logger.debug('get_blocks kbi')
+        client.close()
         raise
+    except Exception as e:
+        client.close()
+        logger.error(e)
+        raise e
     finally:
-        loop = asyncio.get_event_loop()
         bar.finish()
 
 
@@ -339,5 +339,9 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(args.func(args))
-    finally:
-        loop.close()
+    except KeyboardInterrupt:
+        logger.debug('main kbi')
+        for task in asyncio.Task.all_tasks():
+            task.cancel()
+        loop = asyncio.get_event_loop()
+        loop.shutdown_asyncgens()

@@ -177,23 +177,24 @@ class _PoolConnectionContextManager:
 
 
 def dump_ws_conn_info(logger, conn):
-    logger.debug(f'conn.state:{conn.state}')
-
-    # conn messages async queue
-    logger.debug(f'conn.messages:{vars(conn.messages)}')
-    logger.debug(f'conn.messages.maxsize:{conn.messages.maxsize}')
-    logger.debug(f'conn.messages.maxsize:{conn.messages.maxsize}')
-    logger.debug(f'conn.messages._getters:{conn.messages._getters}')
-    logger.debug(f'conn.messages._getters:{conn.messages._getters}')
-    logger.debug(
-        f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
-    logger.debug(
-        f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
-
-    # StreamReaderProtocol info
-    logger.debug(f'conn._stream_reader:{vars(conn._stream_reader)}')
-
-    logger.debug(f'vars:{vars(conn)}')
+    try:
+        logger.error(f'conn_id:{id(conn)}')
+        logger.error(f'conn.state:{conn.state}')
+        # conn messages async queue
+        logger.error(f'conn.messages:{vars(conn.messages)}')
+        logger.error(f'conn.messages.maxsize:{conn.messages.maxsize}')
+        logger.error(f'conn.messages.maxsize:{conn.messages.maxsize}')
+        logger.error(f'conn.messages._getters:{conn.messages._getters}')
+        logger.error(f'conn.messages._getters:{conn.messages._getters}')
+        logger.error(
+            f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
+        logger.error(
+            f'conn.messages._unfinished_tasks:{conn.messages._unfinished_tasks}')
+        # StreamReaderProtocol info
+        logger.error(f'conn._stream_reader:{vars(conn._stream_reader)}')
+        logger.error(f'vars:{vars(conn)}')
+    except Exception as e:
+        logger.error(e)
 
 
 if not PY_35:

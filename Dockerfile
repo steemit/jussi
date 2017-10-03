@@ -49,8 +49,8 @@ RUN \
         libssl-dev \
         libxml2-dev \
         libxslt-dev \
-        make \
         nginx \
+        make \
         nginx-extras \
         lua-zlib \
         runit \

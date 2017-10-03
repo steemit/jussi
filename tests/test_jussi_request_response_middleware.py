@@ -9,7 +9,7 @@ from jussi.middlewares.jussi import add_jussi_response_id
 request = {"id": "1", "jsonrpc": "2.0",
            "method": "get_block", "params": [1000]}
 response = {
-    "id": 2,
+    "id": 1,
     "result": {
         "previous": "000003e7c4fd3221cf407efcf7c1730e2ca54b05",
         "timestamp": "2016-03-24T16:55:30",

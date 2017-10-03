@@ -3,6 +3,7 @@
 import asyncio
 import datetime
 import logging
+import random
 
 import async_timeout
 from sanic import response
@@ -21,8 +22,7 @@ from .utils import async_retry
 from .utils import chunkify
 from .utils import is_batch_jsonrpc
 from .utils import update_last_irreversible_block_num
-from .validators import is_get_block_request
-from .validators import is_valid_get_block_response
+from .ws.utils import dump_ws_conn_info
 
 logger = logging.getLogger(__name__)
 
@@ -101,26 +101,34 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
     pool = sanic_http_request.app.config.websocket_pool
     request_id = sanic_http_request.headers.get('x-jussi-request-id')
     conn = await pool.acquire()
-
+    old_jrpc_id = jsonrpc_request.get('id')
+    new_jrpc_id = random.getrandbits(32)
+    jsonrpc_request['id'] = new_jrpc_id
     with async_timeout.timeout(2):
-        logger.debug(f'request-id:{request_id} conn-id:{id(conn)} --> {jsonrpc_request} ')
         json_response = None
         try:
             await conn.send(ujson.dumps(jsonrpc_request).encode())
             json_response = ujson.loads(await conn.recv())
-            logger.debug(f'request-id:{request_id} conn-id:{id(conn)} <-- {json_response} ')
-            if is_get_block_request(jsonrpc_request):
-                assert is_valid_get_block_response(jsonrpc_request,
-                                                   json_response)
+            assert json_response.get(
+                'id') == new_jrpc_id, f'{json_response.get("id")} should be {new_jrpc_id}'
+            if old_jrpc_id is not None:
+                jsonrpc_request['id'] = old_jrpc_id
+                json_response['id'] = old_jrpc_id
+            else:
+                del jsonrpc_request['id']
+                del json_response['id']
             return json_response
 
         except AssertionError as e:
+            dump_ws_conn_info(logger, conn)
             await pool.terminate_connection(conn)
             raise UpstreamResponseError(sanic_request=sanic_http_request,
                                         exception=e,
                                         data={'upstream_response': json_response,
                                               'request_id': request_id,
-                                              'conn_id': id(conn)})
+                                              'conn_id': id(conn),
+                                              'jrpc_id': old_jrpc_id,
+                                              'upstream_jrpc_id': new_jrpc_id})
         finally:
             pool.release(conn)
 

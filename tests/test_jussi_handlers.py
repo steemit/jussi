@@ -27,7 +27,7 @@ test_request = {
 error_response1 = {'id': 1, 'jsonrpc': '2.0', 'error': {
     'code': -32603, 'message': 'Internal Error', 'data': {'error_id': '123'}}}
 
-error_response2 = {'jsonrpc': '2.0', 'error': {
+error_response2 = {'id': 1, 'jsonrpc': '2.0', 'error': {
     'code': -32603, 'message': 'Internal Error', 'data': {'error_id': '123'}}}
 
 error_response3 = {
@@ -37,6 +37,7 @@ error_response3 = {
 }
 
 error_response4 = {
+    'id': 1,
     'jsonrpc': '2.0',
     'error': {'code': -32603, 'message': 'Internal Error'}
 }
@@ -49,12 +50,13 @@ error_response4 = {
     (test_request, error_response4),
     (test_request, correct_get_block_1000_response)
 ])
-async def test_upstream_error_responses(mocked_app_test_cli, jsonrpc_request,
+async def test_upstream_error_responses(mocker, mocked_app_test_cli, jsonrpc_request,
                                         expected):
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-    mocked_ws_conn.recv.return_value = json.dumps(expected)
-    response = await test_cli.post('/', json=test_request)
-    assert response.status == 200
-    assert response.headers['Content-Type'] == 'application/json'
-    json_response = await response.json()
-    assert json_response == expected
+    with mocker.patch('jussi.handlers.random', getrandbits=lambda x: 1) as mocked_rand:
+        mocked_ws_conn, test_cli = mocked_app_test_cli
+        mocked_ws_conn.recv.return_value = json.dumps(expected)
+        response = await test_cli.post('/', json=jsonrpc_request)
+        assert response.status == 200
+        assert response.headers['Content-Type'] == 'application/json'
+        json_response = await response.json()
+        assert json_response == expected

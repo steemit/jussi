@@ -122,9 +122,24 @@ curl-9000:
 	localhost:9000
 
 
-.PHONY: steemd-calls
-steemd-calls:
-	pipenv run python tests/make_api_calls.py tests/steemd_jsonrpc_calls.json http://localhost:8080
+.PHONY: test-local-steemd-calls
+test-local-steemd-calls:
+	pipenv run pytest -vv --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl http://localhost:8080
+
+
+.PHONY: test-live-dev-steemd-calls
+test-live-dev-steemd-calls:
+	pipenv run pytest -vv --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitdev.com
+
+.PHONY: test-live-staging-steemd-calls
+test-live-staging-steemd-calls:
+	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitstage.com
+
+
+.PHONY: test-live-prod-steemd-calls
+test-live-prod-steemd-calls:
+	pipenv run pytest --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl https://api.steemit.com
+
 
 ./perf:
 	mkdir $@
