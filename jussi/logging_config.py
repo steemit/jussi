@@ -89,6 +89,10 @@ LOGGING = {
             'datefmt': LOG_DATETIME_FORMAT,
             'json_indent': None
         },
+        'json_request': {
+            '()': CustomJsonFormatter,
+            'format': '%(message)',
+        },
         'json': {
             '()': CustomJsonFormatter,
             'format': JSON_LOG_FORMAT,
@@ -119,6 +123,13 @@ LOGGING = {
             'class': 'logging.handlers.SysLogHandler',
             'formatter': 'json'
         },
+        'jussiUpstream': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'json',
+            'filename': 'upstream_traffic.json',
+            'maxBytes': 1024 * 100_000,
+            'backupCount': 10
+        },
         'jussiStdOut': {
             'class': 'logging.StreamHandler',
             'formatter': 'json'
@@ -136,7 +147,11 @@ LOGGING = {
         'jussi': {
             'level': logging.DEBUG,
             'handlers': ['jussiStdOut']
-        }
+        },
+        'jussi_upstream': {
+            'level': logging.INFO,
+            'handlers': ['jussiUpstream']
+        },
     }
 }
 
