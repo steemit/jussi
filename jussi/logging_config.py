@@ -137,11 +137,11 @@ LOGGING = {
     },
     'loggers': {
         'sanic': {
-            'level': logging.DEBUG,
+            'level': logging.INFO,
             'handlers': ['errorStream']
         },
         'network': {
-            'level': logging.DEBUG,
+            'level': logging.INFO,
             'handlers': []
         },
         'jussi': {
@@ -150,7 +150,7 @@ LOGGING = {
         },
         'jussi_upstream': {
             'level': logging.DEBUG,
-            'handlers': ['jussiUpstream']
+            #'handlers': ['jussiUpstream']
         },
     }
 }
