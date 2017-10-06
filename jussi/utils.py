@@ -57,7 +57,7 @@ async def async_retry(call: Call, tries: int) -> Optional[SingleJsonRpcResponse]
                 f'fetch upstream attempt {attempt+1}/{tries}, retyring')
             # Reraise error on last attempt
             if attempt + 1 == tries:
-                logger.error(f'fetch failed after {tries} attempts')
+                logger.exception(f'fetch failed after {tries} attempts')
                 raise e
 
 

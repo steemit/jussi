@@ -138,18 +138,18 @@ LOGGING = {
     'loggers': {
         'sanic': {
             'level': logging.DEBUG,
-            'handlers': ['internal', 'errorStream']
+            'handlers': ['errorStream']
         },
         'network': {
             'level': logging.DEBUG,
-            'handlers': ['accessStream']
+            'handlers': []
         },
         'jussi': {
             'level': logging.DEBUG,
             'handlers': ['jussiStdOut']
         },
         'jussi_upstream': {
-            'level': logging.INFO,
+            'level': logging.DEBUG,
             'handlers': ['jussiUpstream']
         },
     }

@@ -106,7 +106,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
 
     conn = await pool.acquire()
     with async_timeout.timeout(args.upstream_websocket_timeout):
-        logger.info(pool.get_pool_info())
+        logger.debug(pool.get_pool_info())
         try:
             upstream_request_json = ujson.dumps(upstream_request).encode()
             await conn.send(upstream_request_json)
@@ -128,6 +128,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             return upstream_response
 
         except AssertionError as e:
+            logger.error(pool.get_pool_info())
             logger.error(pool.get_connection_info(conn))
             await pool.terminate_connection(conn)
             raise UpstreamResponseError(sanic_request=sanic_http_request,
