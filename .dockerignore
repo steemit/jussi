@@ -50,3 +50,5 @@ deploy/
 .cache/
 perf/
 *.log
+.elasticbeanstalk/
+upstream_traffic.json

@@ -50,8 +50,8 @@ RUN \
         libxml2-dev \
         libxslt-dev \
         nginx \
-        make \
         nginx-extras \
+        make \
         lua-zlib \
         runit \
         tk-dev \

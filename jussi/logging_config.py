@@ -89,6 +89,10 @@ LOGGING = {
             'datefmt': LOG_DATETIME_FORMAT,
             'json_indent': None
         },
+        'json_request': {
+            '()': CustomJsonFormatter,
+            'format': '%(message)',
+        },
         'json': {
             '()': CustomJsonFormatter,
             'format': JSON_LOG_FORMAT,
@@ -115,10 +119,6 @@ LOGGING = {
             'formatter': 'simple',
             'stream': sys.stderr
         },
-        'jussiSysLog': {
-            'class': 'logging.handlers.SysLogHandler',
-            'formatter': 'json'
-        },
         'jussiStdOut': {
             'class': 'logging.StreamHandler',
             'formatter': 'json'
@@ -126,15 +126,19 @@ LOGGING = {
     },
     'loggers': {
         'sanic': {
-            'level': logging.DEBUG,
-            'handlers': ['internal', 'errorStream']
+            'level': logging.INFO,
+            'handlers': ['errorStream']
         },
         'network': {
-            'level': logging.DEBUG,
-            'handlers': ['accessStream']
+            'level': logging.INFO,
+            'handlers': []
         },
         'jussi': {
-            'level': logging.DEBUG,
+            'level': logging.INFO,
+            'handlers': ['jussiStdOut']
+        },
+        'jussi_upstream': {
+            'level': logging.INFO,
             'handlers': ['jussiStdOut']
         }
     }

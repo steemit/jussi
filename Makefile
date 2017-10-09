@@ -3,7 +3,7 @@ ROOT_DIR := $(shell pwd)
 
 PROJECT_NAME := $(notdir $(ROOT_DIR))
 PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
-PROJECT_DOCKER_RUN_ARGS := -p8080:8080
+PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env
 
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
@@ -54,7 +54,7 @@ run: ## run docker image
 
 .PHONY: run-local
 run-local: ## run the python app without docker
-	pipenv run python3 -m jussi.serve  --server_workers=1
+	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_steemd_url wss://steemd.steemit.com
 
 .PHONY: test
 test: ## run all tests
@@ -72,7 +72,7 @@ lint: ## lint python files
 fmt: ## format python files
     # yapf is disabled until the update 3.6 fstring compat
 	#pipenv run yapf --in-place --style pep8 --recursive $(PROJECT_NAME)
-	pipenv run autopep8 --verbose --verbose --max-line-length=100 --experimental --aggressive --aggressive --jobs -1 --in-place  --recursive $(PROJECT_NAME)
+	pipenv run autopep8 --verbose --verbose --max-line-length=100 --aggressive --jobs -1 --in-place  --recursive $(PROJECT_NAME)
 
 .PHONY: fix-imports
 fix-imports: remove-unused-imports sort-imports ## remove unused and then sort imports

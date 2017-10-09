@@ -159,9 +159,27 @@ class Pool(asyncio.AbstractServer):
                 'conn.messages._unfinished_tasks': conn.messages._unfinished_tasks,
                 'conn._stream_reader._buffer': conn._stream_reader._buffer
             }
-        except BaseException:
-            return None
+        except Exception as e:
+            logger.exception(e)
     # pylint: enable=no-self-use
+
+    def get_pool_info(self):
+        try:
+            return {
+                'minsize': self.minsize,
+                'maxsize': self.maxsize,
+                'recycling': self._recycle,
+                'timeout': self.timeout,
+                'size': self.size,
+                'freesize': self.freesize,
+                'acquiring': self._acquiring,
+                'free_conns': [id(c) for c in self._free],
+                'used_conns': [id(c) for c in self._used],
+                'terminated_conns': [id(c) for c in self._terminated],
+                'connection_message_counts': self._connect_message_counter
+            }
+        except Exception as e:
+            logger.exception(e)
 
     def close(self):
         """Close pool.
@@ -179,18 +197,21 @@ class Pool(asyncio.AbstractServer):
         Close pool with instantly closing all acquired connections also.
         """
         self.close()
-
         for conn in list(self._used):
-            self._loop.run_until_complete(conn.close_connection(force=True))
-            conn.worker_task.cancel()
-            self.terminate_connection(conn)
-            self._terminated.add(conn)
+            asyncio.run_coroutine_threadsafe(self.terminate_connection(conn), self._loop)
         self._used.clear()
 
     async def terminate_connection(self, conn):
-        logger.info(f'terminating connection:{id(conn)}')
-        await conn.close_connection(force=True)
-        conn.worker_task.cancel()
+        try:
+            logger.debug(f'terminating connection:{id(conn)}')
+            await asyncio.shield(conn.close_connection(force=True))
+            conn.worker_task.cancel()
+            conn.close()
+            self._terminated.add(conn)
+            self.release(conn)
+        except Exception as e:
+            logger.exception(e)
+            self._terminated.remove(conn)
 
     @asyncio.coroutine
     def wait_closed(self):
@@ -203,7 +224,7 @@ class Pool(asyncio.AbstractServer):
                                "after .close()")
         while self._free:
             conn = self._free.popleft()
-            logger.info(f'closing free connection {conn}')
+            logger.debug(f'closing free connection {conn}')
             yield from conn.close_connection(force=True)
             conn.worker_task.cancel()
 
@@ -240,7 +261,7 @@ class Pool(asyncio.AbstractServer):
                     # pylint: disable=not-callable
                     if self._on_connect is not None:
                         yield from self._on_connect(conn)
-                    if self._recycle:
+                    if self._recycle > -1:
                         self._connect_message_counter[id(conn)] += 1
                     return conn
                 else:
@@ -258,7 +279,7 @@ class Pool(asyncio.AbstractServer):
             elif self._recycle > -1 \
                     and self._connect_message_counter[id(conn)] > self._recycle:
                 yield from self.terminate_connection(conn)
-                logger.error(f'recycled connection id:{id(conn)}')
+                logger.debug(f'recycled connection id:{id(conn)}')
                 self._connect_message_counter.clear()
                 self._free.pop()
             else:
@@ -266,7 +287,7 @@ class Pool(asyncio.AbstractServer):
             n += 1
 
         while self.size < self.minsize:
-            logger.info('opening ws connection')
+            logger.debug('opening ws connection')
             self._acquiring += 1
             try:
                 conn = yield from connect(

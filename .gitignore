@@ -117,3 +117,5 @@ tests/failed_blocks/
 /tests/async_deco.py
 /tests/perf/*.json
 service/*/supervise/
+.elasticbeanstalk/
+upstream_traffic.json

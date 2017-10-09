@@ -41,11 +41,13 @@ def parse_args(args: list = None):
     parser.add_argument('--REQUEST_TIMEOUT', type=int, default=5)
     parser.add_argument('--KEEP_ALIVE', type=bool, default=True)
 
-    # serverwebsocket pool config
+    # server websocket pool config
     parser.add_argument('--websocket_pool_minsize', type=int, default=0)
     parser.add_argument('--websocket_pool_maxsize', type=int, default=5)
     parser.add_argument('--websocket_queue_size', type=int, default=1)
     parser.add_argument('--websocket_pool_recycle', type=int, default=-1)
+    parser.add_argument('--upstream_websocket_timeout', type=int, default=10)
+    parser.add_argument('--upstream_http_timeout', type=int, default=2)
 
     # server version
     parser.add_argument('--source_commit', type=str, default='')
@@ -77,25 +79,6 @@ def parse_args(args: list = None):
     parser.add_argument('--statsd_prefix', type=str, default='jussi')
 
     return parser.parse_args(args=args)
-
-
-def main():
-    args = parse_args()
-    # run app
-    app = Sanic(__name__)
-    app.config.args = args
-    app = jussi.logging_config.setup_logging(app)
-    app = setup_routes(app)
-    app = jussi.middlewares.setup_middlewares(app)
-    app = jussi.errors.setup_error_handlers(app)
-    app = jussi.listeners.setup_listeners(app)
-
-    app.config.logger.info('app.run')
-    app.run(
-        debug=app.config.args.debug,
-        host=app.config.args.server_host,
-        port=app.config.args.server_port,
-        workers=app.config.args.server_workers)
 
 
 if __name__ == '__main__':
