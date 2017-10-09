@@ -108,17 +108,18 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
     with async_timeout.timeout(args.upstream_websocket_timeout):
         logger.debug(pool.get_pool_info())
         try:
+
             upstream_request_json = ujson.dumps(upstream_request).encode()
             await conn.send(upstream_request_json)
             upstream_response_json = await conn.recv()
             upstream_response = ujson.loads(upstream_response_json)
 
-            upstream_logger.info(dict(jussi_request_id=jussi_request_id,
-                                      jsonrpc_request_id=jsonrpc_request.get('id'),
-                                      pool_info=pool.get_pool_info(),
-                                      conn_id=id(conn),
-                                      upstream_request=upstream_request,
-                                      upstream_response=upstream_response))
+            upstream_logger.debug(dict(jussi_request_id=jussi_request_id,
+                                       jsonrpc_request_id=jsonrpc_request.get('id'),
+                                       pool_info=pool.get_pool_info(),
+                                       conn_id=id(conn),
+                                       upstream_request=upstream_request,
+                                       upstream_response=upstream_response))
 
             assert upstream_response.get('id') == upstream_request['id'], \
                 f'{upstream_response.get("id")} should be {upstream_request["id"]}'
@@ -129,8 +130,16 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             return upstream_response
 
         except AssertionError as e:
-            logger.error(pool.get_pool_info())
-            logger.error(pool.get_connection_info(conn))
+            error_info = dict(jussi_request_id=jussi_request_id,
+                              jsonrpc_request_id=jsonrpc_request.get('id'),
+                              pool_info=pool.get_pool_info(),
+                              conn_id=id(conn),
+                              upstream_request=upstream_request)
+            try:
+                error_info['upstream_response'] = upstream_response
+            except NameError:
+                pass
+            logger.error(error_info)
             await pool.terminate_connection(conn)
             raise UpstreamResponseError(sanic_request=sanic_http_request,
                                         exception=e)

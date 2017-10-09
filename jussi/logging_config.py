@@ -119,17 +119,6 @@ LOGGING = {
             'formatter': 'simple',
             'stream': sys.stderr
         },
-        'jussiSysLog': {
-            'class': 'logging.handlers.SysLogHandler',
-            'formatter': 'json'
-        },
-        'jussiUpstream': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'formatter': 'json',
-            'filename': 'upstream_traffic.json',
-            'maxBytes': 1024 * 100_000,
-            'backupCount': 10
-        },
         'jussiStdOut': {
             'class': 'logging.StreamHandler',
             'formatter': 'json'
@@ -145,13 +134,13 @@ LOGGING = {
             'handlers': []
         },
         'jussi': {
-            'level': logging.DEBUG,
+            'level': logging.INFO,
             'handlers': ['jussiStdOut']
         },
         'jussi_upstream': {
-            'level': logging.DEBUG,
-            #'handlers': ['jussiUpstream']
-        },
+            'level': logging.INFO,
+            'handlers': ['jussiStdOut']
+        }
     }
 }
 

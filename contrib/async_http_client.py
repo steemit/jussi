@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: skip-file
 import asyncio
+import concurrent.futures
 import logging
 import time
 import ujson
@@ -52,9 +53,21 @@ CORRECT_BATCH_TEST_RESPONSE = [
 
 NO_BATCH_SUPPORT_RESPONSE = '7 bad_cast_exception: Bad Cast'
 
+GET_BLOCK_RESULT_KEYS = {"previous",
+                         "timestamp",
+                         "witness",
+                         "transaction_merkle_root",
+                         "extensions",
+                         "witness_signature",
+                         "transactions",
+                         "block_id",
+                         "signing_key",
+                         "transaction_ids"}
+
 
 class RateBar(Bar):
     suffix = '%(index)d (%(rate)d/sec) time remaining: %(eta_td)s'
+    sma_window = 10000
 
     @property
     def rate(self):
@@ -114,17 +127,22 @@ class AsyncClient(object):
             self._request_count += len(request_data)
         attempts = 0
         while attempts < 5:
-            async with self.session.post(self.url, json=request_data) as response:
-                attempts += 1
-                try:
+            try:
+                async with self.session.post(self.url, json=request_data, compress='gzip') as response:
+                    attempts += 1
                     response_data = await response.json()
                     verify(response, response_data, _raise=True)
                     return response_data
-                except Exception as e:
-                    content = await response.read()
-                    logger.error(
-                        f'{response.status}\n {response.raw_headers}\n {response.headers}\n {response._get_encoding()}\n {content}\n\n{e}\n\n')
-        raise ValueError('No data after 4 attempts')
+            except aiohttp.client_exceptions.ServerDisconnectedError:
+                self.session = self._new_session()
+            except RuntimeError:
+                self.close()
+                raise KeyboardInterrupt
+            except concurrent.futures._base.CancelledError:
+                raise KeyboardInterrupt
+            except Exception as e:
+                logger.exception(e)
+                raise e
 
     async def get_blocks(self, block_nums):
         requests = (
@@ -153,14 +171,16 @@ class AsyncClient(object):
                             futures.append(asyncio.ensure_future(next(coros)))
                         except StopIteration as e:
                             logger.debug('StopIteration')
+                        except concurrent.futures._base.CancelledError:
+                            return
                         start = time.perf_counter()
                         yield result
                 except KeyboardInterrupt:
                     logger.debug('client.get blocks kbi')
-                    self.close()
                     for f in futures:
                         f.cancel()
-                    raise
+                    self.close()
+                    return
                 except Exception as e:
                     logger.exception(f'client.get_blocks error:{e}')
                     continue
@@ -230,18 +250,8 @@ class AsyncClient(object):
     def close(self):
         logger.debug('client.close')
         self.session.close()
-
-
-GET_BLOCK_RESULT_KEYS = {"previous",
-                         "timestamp",
-                         "witness",
-                         "transaction_merkle_root",
-                         "extensions",
-                         "witness_signature",
-                         "transactions",
-                         "block_id",
-                         "signing_key",
-                         "transaction_ids"}
+        for task in asyncio.Task.all_tasks():
+            task.cancel()
 
 
 def block_num_from_id(block_hash: str) -> int:
@@ -300,7 +310,6 @@ async def get_blocks(args):
         async for result in client.get_blocks(block_nums):
             if result:
                 bar.next(n=len(result))
-
                 print(result)
             else:
                 logger.error('encountered missing result')
@@ -330,7 +339,7 @@ if __name__ == '__main__':
     parser.add_argument('--url', type=str,
                         default='https://api.steemitdev.com')
     parser.add_argument('--start_block', type=int, default=1)
-    parser.add_argument('--end_block', type=int, default=15_000_000)
+    parser.add_argument('--end_block', type=int, default=16_000_000)
     parser.add_argument('--batch_request_size', type=int, default=100)
     parser.add_argument('--concurrent_tasks_limit', type=int, default=5)
     parser.add_argument('--concurrent_connections', type=int, default=5)
@@ -349,7 +358,8 @@ if __name__ == '__main__':
         loop.run_until_complete(args.func(args))
     except KeyboardInterrupt:
         logger.debug('main kbi')
+    finally:
         for task in asyncio.Task.all_tasks():
             task.cancel()
         loop = asyncio.get_event_loop()
-        loop.shutdown_asyncgens()
+        loop.call_soon_threadsafe(loop.shutdown_asyncgens())
