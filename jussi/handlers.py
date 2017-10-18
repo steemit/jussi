@@ -25,7 +25,7 @@ from .utils import is_batch_jsonrpc
 from .utils import update_last_irreversible_block_num
 
 logger = logging.getLogger(__name__)
-upstream_logger = logging.getLogger('jussi_upstream')
+request_logger = logging.getLogger('jussi_upstream')
 
 
 async def jussi_get_blocks(sanic_http_request: HTTPRequest) -> HTTPResponse:
@@ -106,7 +106,6 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
 
     urn = get_urn(upstream_request)
     timeout = sanic_http_request.app.config.timeout_from_request(upstream_request)
-    logger.info(f'timeout:{timeout}')
     conn = await pool.acquire()
     with async_timeout.timeout(timeout):
         try:
@@ -116,13 +115,13 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             upstream_response_json = await conn.recv()
             upstream_response = ujson.loads(upstream_response_json)
 
-            logger.debug(dict(jussi_request_id=jussi_request_id,
-                              jsonrpc_request_id=jsonrpc_request.get('id'),
-                              conn_id=id(conn),
-                              urn=urn,
-                              timeout=timeout,
-                              upstream_request=upstream_request,
-                              upstream_response=upstream_response))
+            request_logger.info(dict(jussi_request_id=jussi_request_id,
+                                     jsonrpc_request_id=jsonrpc_request.get('id'),
+                                     conn_id=id(conn),
+                                     urn=urn,
+                                     timeout=timeout,
+                                     upstream_request=upstream_request,
+                                     upstream_response=upstream_response))
 
             assert upstream_response.get('id') == upstream_request['id'], \
                 f'{upstream_response.get("id")} should be {upstream_request["id"]}'

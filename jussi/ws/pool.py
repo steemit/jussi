@@ -162,7 +162,7 @@ class Pool(asyncio.AbstractServer):
                 'conn._stream_reader._buffer': conn._stream_reader._buffer
             }
         except Exception as e:
-            logger.exception(e)
+            logger.info(f'get_connection_info error: {e}')
     # pylint: enable=no-self-use
 
     def get_pool_info(self):
@@ -181,7 +181,7 @@ class Pool(asyncio.AbstractServer):
                 'connection_message_counts': self._connect_message_counter
             }
         except Exception as e:
-            logger.exception(e)
+            logger.info(f'get_pool_info error: {e}')
 
     def close(self):
         """Close pool.
