@@ -2,7 +2,7 @@
 """
 Upstream URL Settings
 ---------------
-- Each tuple in the METHOD_SETTING's list of tuples is a setting
+- Each tuple in URL_SETTINGS's list of tuples is a setting
 - Each setting is a two-tuple of `prefix` and `url_reference`, eg, ('steemd.database_api.get_block', 'steemd_default')
 - Settings are stored in a trie structure, the longest matching prefix for a method is it's setting
 

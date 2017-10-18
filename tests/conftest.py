@@ -813,7 +813,13 @@ def mocked_app_test_cli(app, loop, test_client):
         mocked_ws_conn.close_connection = asynctest.CoroutineMock()
         mocked_ws_conn.worker_task = asynctest.MagicMock()
         mocked_ws_conn.messages = asynctest.MagicMock()
+        mocked_ws_conn.messages.qsize.return_value = 0
+        mocked_ws_conn.messages.maxsize.return_value = 1
+        mocked_ws_conn.messages._unfinished_tasks.return_value = 0
+        mocked_ws_conn.messages.empty.return_value = True
+        mocked_ws_conn._stream_reader = asynctest.MagicMock()
         mocked_connect.return_value = mocked_ws_conn
+
         yield mocked_ws_conn, loop.run_until_complete(test_client(app))
 
 

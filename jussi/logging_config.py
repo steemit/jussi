@@ -145,8 +145,8 @@ LOGGING = {
 }
 
 
-def setup_logging(app: WebApp) -> WebApp:
-    LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
+def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
+    LOG_LEVEL = log_level or getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
     LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL

@@ -86,16 +86,18 @@ if __name__ == '__main__':
     # run app
     app = Sanic(__name__)
     app.config.args = args
-
     app = jussi.logging_config.setup_logging(app)
     app = setup_routes(app)
     app = jussi.middlewares.setup_middlewares(app)
     app = jussi.errors.setup_error_handlers(app)
     app = jussi.listeners.setup_listeners(app)
 
-    app.config.logger.info('app.run')
-    app.run(
+    run_config = dict(
         host=app.config.args.server_host,
         port=app.config.args.server_port,
         log_config=jussi.logging_config.LOGGING,
-        workers=app.config.args.server_workers)
+        workers=app.config.args.server_workers,
+        debug=app.config.args.debug)
+
+    app.config.logger.info(f'app.run({run_config})')
+    app.run(**run_config)

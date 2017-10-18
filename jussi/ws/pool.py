@@ -154,13 +154,15 @@ class Pool(asyncio.AbstractServer):
             return {
                 'conn_id': id(conn),
                 'state': conn.state,
+                'conn': conn,
+                'conn.messages': str(conn.messages),
                 'conn.messages.qsize': conn.messages.qsize(),
                 'conn.messages.maxsize': conn.messages.maxsize,
                 'conn.messages._unfinished_tasks': conn.messages._unfinished_tasks,
                 'conn._stream_reader._buffer': conn._stream_reader._buffer
             }
         except Exception as e:
-            logger.exception(e)
+            logger.info(f'get_connection_info error: {e}')
     # pylint: enable=no-self-use
 
     def get_pool_info(self):
@@ -173,13 +175,13 @@ class Pool(asyncio.AbstractServer):
                 'size': self.size,
                 'freesize': self.freesize,
                 'acquiring': self._acquiring,
-                'free_conns': [id(c) for c in self._free],
-                'used_conns': [id(c) for c in self._used],
-                'terminated_conns': [id(c) for c in self._terminated],
+                'free_conns': [self.get_connection_info(conn) for conn in self._free],
+                'used_conns': [self.get_connection_info(conn) for conn in self._used],
+                'terminated_conns': [self.get_connection_info(conn) for conn in self._terminated],
                 'connection_message_counts': self._connect_message_counter
             }
         except Exception as e:
-            logger.exception(e)
+            logger.info(f'get_pool_info error: {e}')
 
     def close(self):
         """Close pool.
@@ -250,8 +252,7 @@ class Pool(asyncio.AbstractServer):
                     conn = self._free.popleft()
                     logger.debug(
                         f'pool connections free:{self.freesize} used: {len(self._used)} acquiring:{self._acquiring}')
-                    logger.debug(
-                        f'pool.conn.{id(conn)} queue: {conn.messages.qsize()}')
+                    logger.debug(f'conn_info:{self.get_connection_info(conn)}')
                     if self._recycle > -1:
                         logger.debug(
                             f'pool.conn.{id(conn)} handled messages:{self._connect_message_counter[id(conn)]}')
@@ -321,6 +322,12 @@ class Pool(asyncio.AbstractServer):
     def release(self, conn):
         """Release free connection back to the connection pool.
         """
+        logger.debug(f'releasing conn.info:{self.get_connection_info(conn)}')
+        try:
+            logger.info(f'conn.messages.get_nowait(): {conn.messages.get_nowait()}')
+        except asyncio.queues.QueueEmpty:
+            pass
+
         fut = create_future(self._loop)
         fut.set_result(None)
         if conn in self._terminated:
@@ -328,6 +335,7 @@ class Pool(asyncio.AbstractServer):
             self._terminated.remove(conn)
             return fut
         assert conn in self._used, (conn, self._used)
+        assert conn.messages.empty() is True
         self._used.remove(conn)
         if conn.open:
             if self._closing:

@@ -18,13 +18,14 @@ from .typedefs import HTTPResponse
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
 from .upstream.url import url_from_jsonrpc_request
+from .upstream.urn import urn as get_urn
 from .utils import async_retry
 from .utils import chunkify
 from .utils import is_batch_jsonrpc
 from .utils import update_last_irreversible_block_num
 
 logger = logging.getLogger(__name__)
-upstream_logger = logging.getLogger('jussi_upstream')
+request_logger = logging.getLogger('jussi_upstream')
 
 
 async def jussi_get_blocks(sanic_http_request: HTTPRequest) -> HTTPResponse:
@@ -97,29 +98,30 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: SingleJsonRpcRequest
                    ) -> SingleJsonRpcResponse:
     pool = sanic_http_request.app.config.websocket_pool
-    args = sanic_http_request.app.config.args
     jussi_request_id = sanic_http_request.headers.get('x-jussi-request-id')
 
     upstream_request = {k: jsonrpc_request[k] for k in
                         {'jsonrpc', 'method', 'params'} if k in jsonrpc_request}
     upstream_request['id'] = random.getrandbits(32)
 
+    urn = get_urn(upstream_request)
+    timeout = sanic_http_request.app.config.timeout_from_request(upstream_request)
     conn = await pool.acquire()
-    with async_timeout.timeout(args.upstream_websocket_timeout):
-        logger.debug(pool.get_pool_info())
+    with async_timeout.timeout(timeout):
         try:
-
-            upstream_request_json = ujson.dumps(upstream_request).encode()
+            upstream_request_json = ujson.dumps(upstream_request,
+                                                ensure_ascii=False).encode()
             await conn.send(upstream_request_json)
             upstream_response_json = await conn.recv()
             upstream_response = ujson.loads(upstream_response_json)
 
-            upstream_logger.debug(dict(jussi_request_id=jussi_request_id,
-                                       jsonrpc_request_id=jsonrpc_request.get('id'),
-                                       pool_info=pool.get_pool_info(),
-                                       conn_id=id(conn),
-                                       upstream_request=upstream_request,
-                                       upstream_response=upstream_response))
+            request_logger.info(dict(jussi_request_id=jussi_request_id,
+                                     jsonrpc_request_id=jsonrpc_request.get('id'),
+                                     conn_id=id(conn),
+                                     urn=urn,
+                                     timeout=timeout,
+                                     upstream_request=upstream_request,
+                                     upstream_response=upstream_response))
 
             assert upstream_response.get('id') == upstream_request['id'], \
                 f'{upstream_response.get("id")} should be {upstream_request["id"]}'
@@ -145,6 +147,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                                         exception=e)
         except Exception as e:
             logger.error(f'fetch_ws failed: {e}')
+            await pool.terminate_connection(conn)
             raise e
         finally:
             await pool.release(conn)
