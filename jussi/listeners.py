@@ -2,6 +2,7 @@
 import aiohttp
 
 import jussi.logging_config
+import jussi.upstream.timeouts
 import jussi.ws.pool
 import ujson
 
@@ -12,6 +13,12 @@ from .upstream.url import deref_urls
 
 def setup_listeners(app: WebApp) -> WebApp:
     # pylint: disable=unused-argument, unused-variable
+    @app.listener('before_server_start')
+    def setup_debug(app: WebApp, loop) -> None:
+        logger = app.config.logger
+        logger.info('before_server_start -> setup_debug')
+        loop.set_debug(app.config.args.debug)
+
     @app.listener('before_server_start')
     def setup_jsonrpc_method_url_settings(app: WebApp, loop) -> None:
         logger = app.config.logger
@@ -27,6 +34,12 @@ def setup_listeners(app: WebApp) -> WebApp:
         }
         app.config.upstream_urls = deref_urls(
             url_mapping=mapping)
+
+    @app.listener('before_server_start')
+    def setup_timeouts(app: WebApp, loop) -> None:
+        logger = app.config.logger
+        logger.info('before_server_start -> setup_timeouts')
+        app.config.timeout_from_request = jussi.upstream.timeouts.timeout_from_request
 
     @app.listener('before_server_start')
     def setup_aiohttp_session(app: WebApp, loop) -> None:
