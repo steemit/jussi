@@ -150,6 +150,8 @@ def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
     LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
+    LOGGING['loggers']['jussi_upstream']['level'] = os.environ.get(
+        'REQUEST_LOG_LEVEL', logging.INFO)
     logger = logging.getLogger('jussi')
     logger.info('configuring jussi logger')
     app.config.logger = logger

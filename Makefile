@@ -54,7 +54,7 @@ run: ## run docker image
 
 .PHONY: run-local
 run-local: ## run the python app without docker
-	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_steemd_url wss://steemd.steemit.com
+	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_steemd_url wss://steemd.steemitdev.com
 
 .PHONY: test
 test: ## run all tests

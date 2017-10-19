@@ -115,13 +115,13 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             upstream_response_json = await conn.recv()
             upstream_response = ujson.loads(upstream_response_json)
 
-            request_logger.info(dict(jussi_request_id=jussi_request_id,
-                                     jsonrpc_request_id=jsonrpc_request.get('id'),
-                                     conn_id=id(conn),
-                                     urn=urn,
-                                     timeout=timeout,
-                                     upstream_request=upstream_request,
-                                     upstream_response=upstream_response))
+            request_logger.debug(dict(jussi_request_id=jussi_request_id,
+                                      jsonrpc_request_id=jsonrpc_request.get('id'),
+                                      conn_id=id(conn),
+                                      urn=urn,
+                                      timeout=timeout,
+                                      upstream_request=upstream_request,
+                                      upstream_response=upstream_response))
 
             assert upstream_response.get('id') == upstream_request['id'], \
                 f'{upstream_response.get("id")} should be {upstream_request["id"]}'
