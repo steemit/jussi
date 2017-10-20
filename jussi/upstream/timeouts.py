@@ -17,7 +17,7 @@ from .urn import urn as get_urn
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT = 2  # seconds
+DEFAULT_TIMEOUT = 12  # seconds
 NO_TIMEOUT = None  # disable timeout
 
 TIMEOUT_SETTINGS = (
