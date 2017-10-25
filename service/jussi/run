@@ -27,6 +27,7 @@ exec 2>&1 \
       --upstream_overseer_url "${JUSSI_OVERSEER_HTTP_URL}" \
       --upstream_sbds_url "${JUSSI_SBDS_HTTP_URL}" \
       --upstream_steemd_url "${JUSSI_STEEMD_WS_URL}" \
+      --upstream_steemd_broadcast_url "${JUSSI_STEEMD_WS_BROADCAST_URL}" \
       --upstream_yo_url "${JUSSI_YO_HTTP_URL}" \
       --redis_host "${JUSSI_REDIS_HOST}" \
       --redis_port "${JUSSI_REDIS_PORT:-6379}" \

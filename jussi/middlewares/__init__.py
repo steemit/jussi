@@ -2,7 +2,7 @@
 
 from .jsonrpc import validate_jsonrpc_request
 from .jussi import add_jussi_request_id
-from .jussi import add_jussi_response_id
+from .jussi import finalize_jussi_response
 from .caching import get_response
 from .caching import cache_response
 
@@ -17,7 +17,7 @@ def setup_middlewares(app):
     app.request_middleware.append(get_response)
 
     # response middlware
-    app.response_middleware.append(add_jussi_response_id)
+    app.response_middleware.append(finalize_jussi_response)
     app.response_middleware.append(cache_response)
 
     logger.info(f'configured request middlewares:{app.request_middleware}')
