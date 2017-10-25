@@ -99,6 +99,8 @@ METHOD_SETTINGS = (
     ("steemd.database_api.get_state.params=['trending']", 30),
     ("steemd.database_api.get_state.params=['/hot']", 30),
     ("steemd.database_api.get_state.params=['/welcome']", 30),
+    ("steemd.database_api.get_state.params=['/promoted']", 30),
+    ("steemd.database_api.get_state.params=['/created']", 10),
     ('steemd.database_api.get_dynamic_global_properties', 1),
 
     # yo default
