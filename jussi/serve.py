@@ -66,8 +66,7 @@ def parse_args(args: list = None):
         '--upstream_steemd_url', type=str,
         default='wss://steemd.steemit.com')
     parser.add_argument(
-        '--upstream_steemd_broadcast_url', type=str,
-        default='wss://steemd.steemit.com')
+        '--upstream_steemd_broadcast_url', type=str, default=os.environ.get('JUSSI_STEEMD_WS_URL', 'wss://steemd.steemit.com'))
     parser.add_argument(
         '--upstream_yo_url', type=str, default='https://yo.steemitdev.com')
 
