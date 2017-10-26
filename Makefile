@@ -156,4 +156,4 @@ clean-perf: ## clean pstats and flamegraph svgs
 
 .PHONY: install-python-steem-macos
 install-python-steem-macos: ## install steem-python lib on macos using homebrew's openssl
-	env LDFLAGS="-L$(brew --prefix openssl)/lib" CFLAGS="-I$(brew --prefix openssl)/include" pipenv install steem
+	env LDFLAGS="-L$(shell brew --prefix openssl)/lib" CFLAGS="-I$(shell brew --prefix openssl)/include" pipenv install steem
