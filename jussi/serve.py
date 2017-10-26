@@ -64,10 +64,10 @@ def parse_args(args: list = None):
         '--upstream_sbds_url', type=str, default='https://sbds.steemitdev.com')
     parser.add_argument(
         '--upstream_steemd_url', type=str,
-        default='wss://steemd.steemitdev.com')
+        default='wss://steemd.steemit.com')
     parser.add_argument(
         '--upstream_steemd_broadcast_url', type=str,
-        default='wss://steemd.steemitdev.com')
+        default='wss://steemd.steemit.com')
     parser.add_argument(
         '--upstream_yo_url', type=str, default='https://yo.steemitdev.com')
 
