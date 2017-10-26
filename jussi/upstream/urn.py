@@ -3,6 +3,7 @@ import logging
 from collections import namedtuple
 from typing import Tuple
 
+from ..typedefs import JsonRpcRequest
 from ..typedefs import SingleJsonRpcRequest
 
 logger = logging.getLogger(__name__)
@@ -67,3 +68,11 @@ def urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> URNParts:
         else:
             api = 'database_api'
     return URNParts(namespace, api, method, params)
+
+
+def x_jussi_urn(request: JsonRpcRequest) -> str:
+    if isinstance(request, dict):
+        return urn(request)
+    elif isinstance(request, list):
+        return 'batch'
+    return 'null'

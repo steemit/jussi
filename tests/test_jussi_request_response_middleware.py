@@ -4,7 +4,7 @@ from sanic import Sanic
 
 import pytest
 from jussi.middlewares.jussi import add_jussi_request_id
-from jussi.middlewares.jussi import add_jussi_response_id
+from jussi.middlewares.jussi import finalize_jussi_response
 
 request = {"id": "1", "jsonrpc": "2.0",
            "method": "get_block", "params": [1000]}
@@ -31,9 +31,12 @@ def test_request_response_id_middleware():
         return sanic.response.text('Hello')
 
     app.request_middleware.append(add_jussi_request_id)
-    app.response_middleware.append(add_jussi_response_id)
+    app.response_middleware.append(finalize_jussi_response)
     _, response = app.test_client.get(
         '/health')
 
     assert 'x-jussi-response-id' in response.headers
     assert '->' in response.headers['x-jussi-response-id']
+    assert 'x-jussi-urn' in response.headers
+    assert 'x-jussi-response-time' in response.headers
+    assert float(response.headers['x-jussi-response-time']) > 0

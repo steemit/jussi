@@ -124,7 +124,7 @@ curl-9000:
 
 .PHONY: test-local-steemd-calls
 test-local-steemd-calls:
-	pipenv run pytest -vv --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl http://localhost:8080
+	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl http://localhost:8080
 
 
 .PHONY: test-live-dev-steemd-calls
