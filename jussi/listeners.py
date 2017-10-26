@@ -30,7 +30,9 @@ def setup_listeners(app: WebApp) -> WebApp:
             'overseer_default': args.upstream_overseer_url,
             'sbds_default': args.upstream_sbds_url,
             'steemd_default': args.upstream_steemd_url,
+            'steemd_broadcast': args.upstream_steemd_broadcast_url,
             'yo_default': args.upstream_yo_url,
+
         }
         app.config.upstream_urls = deref_urls(
             url_mapping=mapping)
@@ -55,20 +57,27 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.aiohttp = aio
 
     @app.listener('before_server_start')
-    async def setup_websocket_connection_pool(app: WebApp, loop) -> None:
+    async def setup_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('before_server_start -> setup_websocket_connection_pool')
+        logger.info('before_server_start -> setup_websocket_connection_pools')
         args = app.config.args
+        upstream_urls = app.config.upstream_urls
         app.config.websocket_pool_kwargs = dict(
-            url=args.upstream_steemd_url,
             minsize=args.websocket_pool_minsize,
             maxsize=args.websocket_pool_maxsize,
             timeout=5,
             pool_recycle=args.websocket_pool_recycle,
             max_queue=args.websocket_queue_size)
+
+        pools = dict()
+        for url in set(upstream_urls.itervalues()):
+            if url.startswith('ws'):
+                logger.info('creating websocket pool for %s', url)
+                pools[url] = await jussi.ws.pool.create_pool(url=url,
+                                                             **app.config.websocket_pool_kwargs)
+
         # pylint: disable=protected-access
-        app.config.websocket_pool = await jussi.ws.pool.create_pool(
-            **app.config.websocket_pool_kwargs)
+        app.config.websocket_pools = pools
 
     @app.listener('before_server_start')
     async def setup_caching(app: WebApp, loop) -> None:
@@ -79,12 +88,14 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.last_irreversible_block_num = 15_000_000
 
     @app.listener('after_server_stop')
-    async def close_websocket_connection_pool(app: WebApp, loop) -> None:
+    async def close_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('after_server_stop -> close_websocket_connection_pool')
-        pool = app.config.websocket_pool
-        pool.terminate()
-        await pool.wait_closed()
+        logger.info('after_server_stop -> close_websocket_connection_pools')
+        pools = app.config.websocket_pools
+        for url, pool in pools.items():
+            logger.info('terminating websocket pool for %s', url)
+            pool.terminate()
+            await pool.wait_closed()
 
     @app.listener('after_server_stop')
     async def close_aiohttp_session(app: WebApp, loop) -> None:

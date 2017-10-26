@@ -168,6 +168,7 @@ class Pool(asyncio.AbstractServer):
     def get_pool_info(self):
         try:
             return {
+                'url': self._url,
                 'minsize': self.minsize,
                 'maxsize': self.maxsize,
                 'recycling': self._recycle,

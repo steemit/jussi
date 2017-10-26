@@ -96,9 +96,10 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
 @async_retry(tries=3)
 @update_last_irreversible_block_num
 async def fetch_ws(sanic_http_request: HTTPRequest,
-                   jsonrpc_request: SingleJsonRpcRequest
-                   ) -> SingleJsonRpcResponse:
-    pool = sanic_http_request.app.config.websocket_pool
+                   jsonrpc_request: SingleJsonRpcRequest,
+                   url: str = None) -> SingleJsonRpcResponse:
+    pools = sanic_http_request.app.config.websocket_pools
+    pool = pools[url]
     jussi_request_id = sanic_http_request.headers.get('x-jussi-request-id')
 
     upstream_request = {k: jsonrpc_request[k] for k in
@@ -119,6 +120,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             request_info = dict(jussi_request_id=jussi_request_id,
                                 jsonrpc_request_id=jsonrpc_request.get('id'),
                                 conn_id=id(conn),
+                                url=url,
                                 namespace=urn_parts.namespace,
                                 api=urn_parts.api,
                                 method=urn_parts.method,
@@ -129,6 +131,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             upstream_response = ujson.loads(upstream_response_json)
             request_logger.debug(dict(jussi_request_id=jussi_request_id,
                                       jsonrpc_request_id=jsonrpc_request.get('id'),
+                                      url=url,
                                       upstream_request=upstream_request,
                                       upstream_response=upstream_response))
 
@@ -145,6 +148,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                               jsonrpc_request_id=jsonrpc_request.get('id'),
                               pool_info=pool.get_pool_info(),
                               conn_id=id(conn),
+                              url=url,
                               namespace=urn_parts.namespace,
                               api=urn_parts.api,
                               method=urn_parts.method,
@@ -198,7 +202,8 @@ async def dispatch_single(sanic_http_request: HTTPRequest,
     if url.startswith('ws'):
         json_response = await fetch_ws(
             sanic_http_request,
-            jsonrpc_request)
+            jsonrpc_request,
+            url)
     else:
         json_response = await fetch_http(
             sanic_http_request,

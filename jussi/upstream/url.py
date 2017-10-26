@@ -29,6 +29,7 @@ URL_SETTINGS = (
 
     # steemd default
     ('steemd', 'steemd_default'),
+    ('steemd.network_broadcast_api.broadcast_transaction_synchronous', 'steemd_broadcast'),
 
     # yo default
     ('yo', 'yo_default')
