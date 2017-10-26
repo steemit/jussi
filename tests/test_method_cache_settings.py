@@ -25,8 +25,8 @@ def test_globals():
          TTL.NO_CACHE),
 
         # steemd follow_api
-        ('steemd.follow_api', TTL.DEFAULT_TTL),
-        ('steemd.follow_api.', TTL.DEFAULT_TTL),
+        ('steemd.follow_api', 10),
+        ('steemd.follow_api.', 10),
 
         # steemd market_history_api
         ('steemd.market_history_api', 1),
