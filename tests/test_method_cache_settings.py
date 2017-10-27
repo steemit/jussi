@@ -49,6 +49,7 @@ def test_globals():
          TTL.NO_EXPIRE_IF_IRREVERSIBLE),
         ('steemd.database_api.get_block_header.params',
          TTL.NO_EXPIRE_IF_IRREVERSIBLE),
+        ('steemd.database_api.get_content', 1),
         ('steemd.database_api.get_state', 1),
         ('steemd.database_api.get_dynamic_global_properties', 1),
 
