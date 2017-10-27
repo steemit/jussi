@@ -94,6 +94,7 @@ METHOD_SETTINGS = (
     ('steemd.database_api', TTL.DEFAULT_TTL),
     ('steemd.database_api.get_block', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
     ('steemd.database_api.get_block_header', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
+    ('steemd.database_api.get_content', 1),
     ('steemd.database_api.get_state', 1),
     ("steemd.database_api.get_state.params=['/trending']", 30),
     ("steemd.database_api.get_state.params=['trending']", 30),
