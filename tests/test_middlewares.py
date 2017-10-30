@@ -33,7 +33,6 @@ invalid_request_error = {
                     'batch_request_count': None
                 },
                 'amzn_trace_id': None,
-                'amzn_request_id': None,
                 'jussi_request_id': '123'
             }
         }
@@ -61,7 +60,7 @@ async def test_validate_jsonrpc_request_middleware(mocked_app_test_cli,
                                                    jrpc_request, expected):
     mocked_ws_conn, test_cli = mocked_app_test_cli
     mocked_ws_conn.recv.return_value = ujson.dumps(expected)
-    response = await test_cli.post('/', json=jrpc_request)
+    response = await test_cli.post('/', json=jrpc_request, headers={'x-jussi-request-id': str(jrpc_request['id'])})
 
     assert response.status == 200
     assert response.headers['Content-Type'] == 'application/json'

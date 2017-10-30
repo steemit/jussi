@@ -23,20 +23,116 @@ response = {
         "transaction_ids": []}}
 
 
-def test_request_response_id_middleware():
+def test_request_id_in_response_headers():
     app = Sanic()
 
-    @app.post('/')
+    @app.post('/post')
     def handler(request):
-        return sanic.response.text('Hello')
+        return sanic.response.text('post')
+
+    @app.post('/get')
+    def handler(request):
+        return sanic.response.text('get')
 
     app.request_middleware.append(add_jussi_request_id)
     app.response_middleware.append(finalize_jussi_response)
-    _, response = app.test_client.get(
-        '/health')
 
-    assert 'x-jussi-response-id' in response.headers
-    assert '->' in response.headers['x-jussi-response-id']
-    assert 'x-jussi-urn' in response.headers
+    _, response = app.test_client.get('/get')
+    assert 'x-jussi-request-id' in response.headers
+
+    _, response = app.test_client.post('/post')
+    assert 'x-jussi-request-id' in response.headers
+
+
+def test_response_time_in_response_headers():
+    app = Sanic()
+
+    @app.post('/post')
+    def handler(request):
+        return sanic.response.text('post')
+
+    @app.post('/get')
+    def handler(request):
+        return sanic.response.text('get')
+
+    app.request_middleware.append(add_jussi_request_id)
+    app.response_middleware.append(finalize_jussi_response)
+    _, response = app.test_client.post('/post')
+
     assert 'x-jussi-response-time' in response.headers
     assert float(response.headers['x-jussi-response-time']) > 0
+
+    _, response = app.test_client.get('/get')
+    assert 'x-jussi-response-time' in response.headers
+    assert float(response.headers['x-jussi-response-time']) > 0
+
+
+def test_urn_parts_in_response_headers():
+    app = Sanic()
+
+    @app.post('/post')
+    def handler(request):
+        return sanic.response.text('post')
+
+    @app.post('/get')
+    def handler(request):
+        return sanic.response.text('get')
+
+    app.request_middleware.append(add_jussi_request_id)
+    app.response_middleware.append(finalize_jussi_response)
+
+    _, response = app.test_client.get('/get')
+    assert 'x-jussi-request-namespace' not in response.headers
+    assert 'x-jussi-request-api' not in response.headers
+    assert 'x-jussi-request-method' not in response.headers
+    assert 'x-jussi-request-params' not in response.headers
+
+    _, response = app.test_client.post('/post', json=request)
+    assert 'x-jussi-request-id' in response.headers
+
+    assert response.headers['x-jussi-namespace'] == 'steemd'
+    assert response.headers['x-jussi-api'] == 'database_api'
+    assert response.headers['x-jussi-method'] == 'get_block'
+    assert response.headers['x-jussi-params'] == '[1000]'
+
+
+def test_urn_parts_not_in_batch_response_headers():
+    app = Sanic()
+
+    @app.post('/post')
+    def handler(request):
+        return sanic.response.text('post')
+
+    @app.post('/get')
+    def handler(request):
+        return sanic.response.text('get')
+
+    app.request_middleware.append(add_jussi_request_id)
+    app.response_middleware.append(finalize_jussi_response)
+
+    _, response = app.test_client.post('/post', json=[request, request])
+    assert 'x-jussi-request-namespace' not in response.headers
+    assert 'x-jussi-request-api' not in response.headers
+    assert 'x-jussi-request-method' not in response.headers
+    assert 'x-jussi-request-params' not in response.headers
+
+
+def test_urn_parts_not_in_get_response_headers():
+    app = Sanic()
+
+    @app.post('/post')
+    def handler(request):
+        return sanic.response.text('post')
+
+    @app.post('/get')
+    def handler(request):
+        return sanic.response.text('get')
+
+    app.request_middleware.append(add_jussi_request_id)
+    app.response_middleware.append(finalize_jussi_response)
+
+    _, response = app.test_client.get('/get')
+    assert 'x-jussi-request-namespace' not in response.headers
+    assert 'x-jussi-request-api' not in response.headers
+    assert 'x-jussi-request-method' not in response.headers
+    assert 'x-jussi-request-params' not in response.headers

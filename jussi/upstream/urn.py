@@ -2,6 +2,7 @@
 import logging
 from collections import namedtuple
 from typing import Tuple
+from typing import Union
 
 from ..typedefs import JsonRpcRequest
 from ..typedefs import SingleJsonRpcRequest
@@ -70,9 +71,23 @@ def urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> URNParts:
     return URNParts(namespace, api, method, params)
 
 
-def x_jussi_urn(request: JsonRpcRequest) -> str:
-    if isinstance(request, dict):
-        return urn(request)
-    elif isinstance(request, list):
-        return 'batch'
-    return 'null'
+def x_jussi_urn_parts(request: JsonRpcRequest) -> Union[URNParts, str]:
+    try:
+        if isinstance(request, dict):
+            parts = urn_parts(request)
+            if not isinstance(parts.params, list):
+                return parts
+            try:
+                params = parts.params
+                for i, p in enumerate(params):
+                    if isinstance(p, str) and len(p) > 100:
+                        params[i] = ''.join([p[:100], '...'])
+                return URNParts(parts.namespace, parts.api, parts.method, params)
+            except Exception:
+                logger.exception('error abbreviating params')
+                return parts
+        elif isinstance(request, list):
+            return 'batch'
+        return 'null'
+    except BaseException:
+        return 'null'

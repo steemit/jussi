@@ -129,8 +129,6 @@ class JsonRpcError(Exception):
         if request.headers:
             request_data['amzn_trace_id'] = request.headers.get(
                 'X-Amzn-Trace-Id')
-            request_data['amzn_request_id'] = request.headers.get(
-                'X-Amzn-RequestId')
             request_data['jussi_request_id'] = request.headers.get(
                 'x-jussi-request-id')
 

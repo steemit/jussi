@@ -60,12 +60,12 @@ def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
     elif isinstance(jsonrpc_request, dict):
         assert JSONRPC_REQUEST_KEYS.issuperset(jsonrpc_request.keys())
         assert len(jsonrpc_request.keys()) >= 2
-        assert jsonrpc_request.get('jsonrpc') == '2.0'
+        assert jsonrpc_request.get('jsonrpc') == '2.0', 'bad jsonrpc version'
         assert isinstance(jsonrpc_request.get('method'), str), ''
         assert isinstance(jsonrpc_request.get('id'),
-                          (int, str, float, type(None)))
+                          (int, str, float, type(None))), 'bad jsonrpc id'
         assert isinstance(jsonrpc_request.get('params'),
-                          (list, dict, type(None)))
+                          (list, dict, type(None))), 'bad jsonrpc params'
     else:
         raise TypeError('Bad JSONRPC Request Type')
 
