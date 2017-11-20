@@ -36,7 +36,6 @@ def make_fake_request(
 
     headers = headers or {
         'X-Amzn-Trace-Id': 'amzn_trace_id',
-        'X-Amzn-RequestId': 'amzn_request_id',
         'x-jussi-request-id': 'jussi_request_id'
     }
 
@@ -71,7 +70,6 @@ default_error_message_data = {
         'path': '/path',
         'body': default_error_message_body_data,
         'amzn_trace_id': 'amzn_trace_id',
-        'amzn_request_id': 'amzn_request_id',
         'jussi_request_id': 'jussi_request_id'
     }
 }
@@ -98,7 +96,7 @@ minimal_error0 = {
                     'is_batch': False,
                     'batch_request_count': None},
                 'amzn_trace_id': None,
-                'amzn_request_id': None,
+
                 'jussi_request_id': None}}},
     'id': 1}
 
@@ -113,7 +111,7 @@ minimal_error = {
        'body':
        {'body': {'jsonrpc': '2.0', 'method': 'yo.test_method'},
         'is_batch': False, 'batch_request_count': None},
-       'amzn_trace_id': None, 'amzn_request_id': None,
+       'amzn_trace_id': None,
        'jussi_request_id': None}}}}
 minimal_error2 = {
     'jsonrpc': '2.0',
@@ -129,7 +127,7 @@ minimal_error2 = {
            {'id': 1, 'jsonrpc': '2.0', 'method': 'yo.test_method',
             'params': [1, 2, 3]},
            'is_batch': False, 'batch_request_count': None},
-       'amzn_trace_id': 'amzn_trace_id', 'amzn_request_id': 'amzn_request_id',
+       'amzn_trace_id': 'amzn_trace_id',
        'jussi_request_id': 'jussi_request_id'}}},
     'id': 1}
 
@@ -162,7 +160,6 @@ jrpc_error_with_data = {
                 'path': '/path',
                 'body': default_error_message_body_data,
                 'amzn_trace_id': 'amzn_trace_id',
-                'amzn_request_id': 'amzn_request_id',
                 'jussi_request_id': 'jussi_request_id'
             },
             'data': test_data

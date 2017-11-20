@@ -51,10 +51,12 @@ class CustomJsonFormatter(JsonFormatter):
             message_dict)
         if getattr(record, 'asctime', None):
             log_record['timestamp'] = record.asctime
-            del log_record['asctime']
+            if 'asctime' in log_record:
+                del log_record['asctime']
         if getattr(record, 'levelname', None):
             log_record['severity'] = record.levelname
-            del log_record['levelname']
+            if 'levelname' in log_record:
+                del log_record['levelname']
 
     # pylint: disable=no-self-use
     def _jsonify_log_record(self, log_record):
@@ -91,7 +93,7 @@ LOGGING = {
         },
         'json_request': {
             '()': CustomJsonFormatter,
-            'format': '%(message)',
+            'format': '%(asctime)s',
         },
         'json': {
             '()': CustomJsonFormatter,
@@ -122,6 +124,10 @@ LOGGING = {
         'jussiStdOut': {
             'class': 'logging.StreamHandler',
             'formatter': 'json'
+        },
+        'jussiRequest': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json_request'
         }
     },
     'loggers': {
@@ -137,10 +143,14 @@ LOGGING = {
             'level': logging.INFO,
             'handlers': ['jussiStdOut']
         },
-        'jussi_upstream': {
+        'jussi_debug': {
             'level': logging.INFO,
             'handlers': ['jussiStdOut']
-        }
+        },
+        'jussi_request': {
+            'level': logging.INFO,
+            'handlers': ['jussiRequest']
+        },
     }
 }
 
@@ -150,8 +160,10 @@ def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
     LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
-    LOGGING['loggers']['jussi_upstream']['level'] = os.environ.get(
+    LOGGING['loggers']['jussi_debug']['level'] = os.environ.get(
         'REQUEST_LOG_LEVEL', logging.INFO)
+    LOGGING['loggers']['jussi_request']['level'] = LOG_LEVEL
+
     logger = logging.getLogger('jussi')
     logger.info('configuring jussi logger')
     app.config.logger = logger
