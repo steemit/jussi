@@ -3,10 +3,7 @@
 import asyncio
 import datetime
 import logging
-import random
 import time
-
-from typing import Optional
 
 import async_timeout
 from sanic import response
@@ -18,7 +15,6 @@ from .typedefs import BatchJsonRpcRequest
 from .typedefs import BatchJsonRpcResponse
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
-from .typedefs import JsonRpcRequest
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
 from .upstream.url import url_from_jsonrpc_request

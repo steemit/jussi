@@ -82,7 +82,9 @@ RUN \
   touch /var/log/nginx/error.log && \
   chown www-data:www-data /var/log/nginx/* && \
   touch /var/run/nginx.pid && \
-  chown www-data:www-data /var/run/nginx.pid
+  chown www-data:www-data /var/run/nginx.pid && \
+  mkdir -p /var/www/.cache && \
+  chown www-data:www-data /var/www/.cache
 
 COPY . /app
 
