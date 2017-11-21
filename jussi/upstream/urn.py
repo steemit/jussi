@@ -75,7 +75,8 @@ def x_jussi_urn_parts(request: JsonRpcRequest) -> Union[URNParts, str]:
     try:
         if isinstance(request, dict):
             parts = urn_parts(request)
-            params = limit_len(parts.params)
+            params = stringify(limit_len(parts.params))
+
             return URNParts(parts.namespace, parts.api, parts.method, params)
         elif isinstance(request, list):
             return 'batch'
@@ -98,5 +99,5 @@ def limit_len(item, maxlen=100):
         return item
 
 
-def stringify(items):
-    return f'{items}'.replace(' ', '')
+def stringify(items, maxlen=1000):
+    return f'{items}'.replace(' ', '')[:maxlen]

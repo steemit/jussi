@@ -4,6 +4,7 @@ from collections import OrderedDict
 import pytest
 from jussi.upstream.urn import x_jussi_urn_parts
 from jussi.upstream.urn import limit_len
+from jussi.upstream.urn import stringify
 
 str_len_120 = ''.join('a' for i in range(120))
 str_len_99 = ''.join('a' for i in range(99))
@@ -101,7 +102,7 @@ REQUESTS = [
                        'method': 'call',
                        'params': ['test_api', 'test_method', [str_len_99]]
         },
-        [str_len_99]
+        stringify([str_len_99])
     ),
 
     # item 1
@@ -112,7 +113,7 @@ REQUESTS = [
                        'method': 'test_method',
                        'params': [str_len_99]
         },
-        [str_len_99]
+        stringify([str_len_99])
     ),
 
     # item 2
@@ -123,7 +124,7 @@ REQUESTS = [
                        'method': 'call',
                        'params': ['test_api', 'test_method', [str_len_100]]
         },
-        [str_len_100]
+        stringify([str_len_100])
     ),
 
     # item 3
@@ -134,7 +135,7 @@ REQUESTS = [
                        'method': 'test_method',
                        'params': [str_len_100]
         },
-        [str_len_100]
+        stringify([str_len_100])
     ),
 
     # item 4
@@ -145,7 +146,7 @@ REQUESTS = [
                        'method': 'call',
                        'params': ['test_api', 'test_method', [str_len_101]]
         },
-        [abbrev_str]
+        stringify([abbrev_str])
     ),
 
     # item 5
@@ -156,7 +157,7 @@ REQUESTS = [
                        'method': 'test_method',
                        'params': [str_len_101]
         },
-        [abbrev_str]
+        stringify([abbrev_str])
     ),
 
     # item 6
@@ -167,7 +168,7 @@ REQUESTS = [
                        'method': 'call',
                        'params': ['test_api', 'test_method', [str_len_120]]
         },
-        [abbrev_str]
+        stringify([abbrev_str])
     ),
 
     # item 7
@@ -178,7 +179,7 @@ REQUESTS = [
                        'method': 'test_method',
                        'params': [str_len_120]
         },
-        [abbrev_str]
+        stringify([abbrev_str])
     ),
 
     # item 8
@@ -198,17 +199,7 @@ REQUESTS = [
             'str_len_120': str_len_120,
         }
     },
-        {
-        'str': '1',
-        'none': None,
-        'dict': {},
-        'int': 1,
-        'list': [],
-        'str_len_99': str_len_99,
-        'str_len_100': str_len_100,
-        'str_len_101': abbrev_str,
-        'str_len_120': abbrev_str,
-    }
+        "{'dict':{},'int':1,'list':[],'none':None,'str':'1','str_len_100':'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','str_len_101':'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...','str_len_120':'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...','str_len_99':'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'}"
     ),
 
     # item 9
@@ -228,17 +219,17 @@ REQUESTS = [
             str_len_120
         ]
     },
-        [
-        '1',
-        None,
-        {},
-        1,
-        [],
-        str_len_99,
-        str_len_100,
-        abbrev_str,
-        abbrev_str
-    ]
+        stringify([
+            '1',
+            None,
+            {},
+            1,
+            [],
+            str_len_99,
+            str_len_100,
+            abbrev_str,
+            abbrev_str
+        ])
     ),
 
     # item 10
@@ -258,17 +249,17 @@ REQUESTS = [
                        str_len_120
                    ]
     },
-        [
-        '1',
-        None,
-        {},
-        1,
-        [],
-        str_len_99,
-        str_len_100,
-        abbrev_str,
-        abbrev_str
-    ]
+        stringify([
+            '1',
+            None,
+            {},
+            1,
+            [],
+            str_len_99,
+            str_len_100,
+            abbrev_str,
+            abbrev_str
+        ])
     )
 ]
 
