@@ -48,7 +48,7 @@ async def async_retry(call: Call, tries: int) -> Optional[SingleJsonRpcResponse]
     """Makes decorated async function retry up to tries times.
        Retries only on specified errors.
     """
-    parts = urn_parts = get_urn_parts(call.jsonrpc_request)
+    parts = get_urn_parts(call.jsonrpc_request)
     if parts.api == 'network_broadcast_api':
         return await call()
     for attempt in range(tries):

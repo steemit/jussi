@@ -75,19 +75,28 @@ def x_jussi_urn_parts(request: JsonRpcRequest) -> Union[URNParts, str]:
     try:
         if isinstance(request, dict):
             parts = urn_parts(request)
-            if not isinstance(parts.params, list):
-                return parts
-            try:
-                params = parts.params
-                for i, p in enumerate(params):
-                    if isinstance(p, str) and len(p) > 100:
-                        params[i] = ''.join([p[:100], '...'])
-                return URNParts(parts.namespace, parts.api, parts.method, params)
-            except Exception:
-                logger.exception('error abbreviating params')
-                return parts
+            params = limit_len(parts.params)
+            return URNParts(parts.namespace, parts.api, parts.method, params)
         elif isinstance(request, list):
             return 'batch'
         return 'null'
     except BaseException:
         return 'null'
+
+
+def limit_len(item, maxlen=100):
+    if isinstance(item, (list, tuple)):
+        return [limit_len(i, maxlen=maxlen) for i in item]
+    elif isinstance(item, dict):
+        return {k: limit_len(v, maxlen=maxlen) for k, v in item.items()}
+    elif isinstance(item, str):
+        if len(item) > maxlen:
+            return ''.join([item[:maxlen], '...'])
+        else:
+            return item
+    else:
+        return item
+
+
+def stringify(items):
+    return f'{items}'.replace(' ', '')

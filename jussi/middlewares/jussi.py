@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
-import time
 import random
+import time
 
 from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..upstream.urn import x_jussi_urn_parts
 from ..upstream.urn import URNParts
+from ..upstream.urn import x_jussi_urn_parts
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger('jussi_request')

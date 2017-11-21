@@ -8,7 +8,7 @@ PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
 PYTHON_VERSION := 3.6
-
+PYTHON := $(shell which python$(PYTHON_VERSION))
 ENVFILE := .env
 
 .DEFAULT_GOAL := help
@@ -19,20 +19,19 @@ help:
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: init
-init: ## install project requrements into .venv
-	#pip3 install pipenv
-	pipenv install --three --dev
+init: clean ## install project requrements into .venv
+	pip3 install --upgrade pipenv
+	-pipenv --rm
+	if [[ $(shell uname) == 'Darwin' ]]; then \
+	brew install openssl; \
+	env LDFLAGS="-L$(shell brew --prefix openssl)/lib" CFLAGS="-I$(shell brew --prefix openssl)/include" pipenv update --python $(PYTHON) --dev; \
+	else \
+		pipenv update --python $(PYTHON) --dev; \
+	fi
 	pipenv run pre-commit install
 
-.PHONY: reset-venv
-reset-venv: ## reinstall pipenv
-	-rm -rf .venv
-	pip3 uninstall pipenv
-	pip3 install --upgrade pip
-	pip3 install pipenv
-
-.PHONY: re-init
-re-init: reset-venv init ##  and project requirements into .venv
+Pipfile.lock:
+	$(shell docker run $(PROJECT_DOCKER_TAG) /bin/bash -c 'pipenv lock && cat Pipfile.lock' > $@)
 
 .PHONY: clean
 clean: ## clean python and dev junk
@@ -85,6 +84,10 @@ remove-unused-imports: ## remove unused imports from python files
 sort-imports: ## sorts python imports using isort with settings from .editorconfig
 	pipenv run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $(PROJECT_NAME)
 
+.PHONY: pipenv-check
+pipenv-check:
+	pipenv check
+
 .PHONY: pre-commit
 pre-commit: ## run pre-commit against modified files
 	pipenv run pre-commit run
@@ -97,7 +100,7 @@ pre-commit-all: ## run pre-commit against all files
 prepare: test fmt fix-imports lint pre-commit-all ## test fmt fix-imports lint and pre-commit
 
 .PHONY: prepare-and-build
-prepare-and-build: prepare build ## run all tests, formatting and pre-commit checks, then build docker image
+prepare-and-build: prepare build Pipfile.lock ## run all tests, formatting and pre-commit checks, then build docker image
 
 .PHONY: mypy
 mypy: ## run mypy type checking on python files
