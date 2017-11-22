@@ -22,7 +22,7 @@ def test_response_results_type(
     response.raise_for_status()
 
     assert response.headers['Content-Type'] == 'application/json'
-    assert 'x-jussi-response-id' in response.headers
+    assert 'x-jussi-request-id' in response.headers
     response_json = response.json()
     assert response_json['id'] == request['id']
 
@@ -40,8 +40,7 @@ def test_response_results_type(
         assert expected_keys == result_keys
 
 
-@pytest.mark.live
-def test_repeated_response_equality(
+def repeated_response_equality(
         steemd_requests_and_responses, requests_session, jussi_url):
     request, expected = steemd_requests_and_responses
     expected_result = expected['result']
@@ -57,3 +56,12 @@ def test_repeated_response_equality(
             result_keys = set(jrpc_result.keys())
             expected_keys = set(expected_result.keys())
             assert expected_keys == result_keys
+
+
+@pytest.mark.live
+def test_long_request_live(long_request, requests_session, jussi_url,
+                           steemd_jrpc_response_validator,):
+    response = requests_session.post(jussi_url, json=long_request)
+    response.raise_for_status()
+    response_json = response.json()
+    assert steemd_jrpc_response_validator(response_json) is None
