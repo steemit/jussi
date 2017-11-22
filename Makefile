@@ -30,7 +30,7 @@ init: clean ## install project requrements into .venv
 	fi
 	pipenv run pre-commit install
 
-Pipfile.lock:
+Pipfile.lock: Pipfile
 	$(shell docker run $(PROJECT_DOCKER_TAG) /bin/bash -c 'pipenv lock && cat Pipfile.lock' > $@)
 
 .PHONY: clean
@@ -59,9 +59,9 @@ run-local: ## run the python app without docker
 test: ## run all tests
 	pipenv run pytest
 
-.PHONY: test-with-docker
+.PHONY: build test-with-docker
 test-with-docker: ## run tests that depend on docker
-	pipenv run pytest -m'docker'
+	pipenv run pytest --rundocker --jussiurl http://localhost:8080
 
 .PHONY: lint
 lint: ## lint python files
@@ -100,29 +100,26 @@ pre-commit-all: ## run pre-commit against all files
 prepare: test fmt fix-imports lint pre-commit-all ## test fmt fix-imports lint and pre-commit
 
 .PHONY: prepare-and-build
-prepare-and-build: prepare build Pipfile.lock ## run all tests, formatting and pre-commit checks, then build docker image
+prepare-and-build: prepare Pipfile.lock test-with-docker ## run all tests, formatting and pre-commit checks, then build docker image
 
 .PHONY: mypy
 mypy: ## run mypy type checking on python files
 	pipenv run mypy --ignore-missing-imports --python-version $(PYTHON_VERSION) $(PROJECT_NAME)
 
-.PHONY: curl-8080
-curl-8080:
-	curl http://localhost:8080/
-	curl http://localhost:8080/health
-	curl http://localhost:8080/.well-known/healthcheck.json
-	curl -d '{"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]}' \
-	-H'Content-Type:application/json' \
-	localhost:8080
+.PHONY: 8080
+8080:
+	http :8080/
+	http :8080/health
+	http :8080/.well-known/healthcheck.json
+	http --json id=1 jsonrpc="2.0" method=get_block params:='[1000]' :8080/
 
-.PHONY: curl-9000
-curl-9000:
-	curl http://localhost:9000/
-	curl http://localhost:9000/health
-	curl http://localhost:9000/.well-known/healthcheck.json
-	curl -d '{"id":1,"jsonrpc":"2.0","method":"get_block","params":[1000]}' \
-	-H'Content-Type:application/json' \
-	localhost:9000
+
+.PHONY: 9000
+9000:
+	http :9000/
+	http :9000/health
+	http :9000/.well-known/healthcheck.json
+	http --json id:=1 jsonrpc=2.0 method=get_block params:='[1000]' :9000/
 
 
 .PHONY: test-local-steemd-calls

@@ -228,8 +228,8 @@ class Pool(asyncio.AbstractServer):
         while self._free:
             conn = self._free.popleft()
             logger.debug(f'closing free connection {conn}')
-            yield from conn.close_connection(force=True)
-            conn.worker_task.cancel()
+            yield from conn.close_connection(after_handshake=False)
+            conn.transfer_data_task.cancel()
 
         with (yield from self._cond):
             while self.size > self.freesize:
