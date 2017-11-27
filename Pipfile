@@ -1,6 +1,8 @@
 [[source]]
+
 url = "https://pypi.python.org/simple"
 verify_ssl = true
+
 
 [dev-packages]
 
@@ -14,31 +16,27 @@ crayons = "*"
 ipython = "*"
 mypy = "*"
 "pep8" = "*"
-"pre-commit" = "*"
+pre_commit = "*"
 pylint = "*"
 "pyprof2calltree" = "*"
 pytest = "*"
-"pytest-asyncio" = "*"
-"pytest-console-scripts" = "*"
-"pytest-cov" = "*"
-"pytest-docker" = "*"
-"pytest-mock" = "*"
-"pytest-profiling" = "*"
-"pytest-pylint" = "*"
-"pytest-sanic" = "*"
-"pytest-timeout" = "*"
-recommonmark = "*"
-redis = "*"
+pytest-asyncio = "*"
+pytest-console-scripts = "*"
+pytest-cov = "*"
+pytest-docker = "*"
+pytest-mock = "*"
+pytest-profiling = "*"
+pytest-pylint = "*"
+pytest-sanic = "*"
+pytest-timeout = "*"
 requests = "*"
-sphinx = "*"
-"sphinxcontrib-programoutput" = "*"
-"sphinxcontrib-restbuilder" = "*"
 "urllib3" = "*"
 yapf = "*"
 progress = "*"
 jsonschema = "*"
 isort = "*"
 pydevd = "*"
+
 
 [packages]
 
@@ -49,18 +47,20 @@ websockets = "*"
 uvloop = "*"
 statsd = "*"
 aiodns = "*"
-aiocache = "*"
 pygtrie = "*"
 funcy = "*"
 pipenv = "*"
-sanic = "*"
+Sanic = "*"
 cytoolz = "*"
 janus = "*"
-"python-json-logger" = "*"
+python-json-logger = "*"
 cchardet = "*"
-"async-timeout" = "*"
+async_timeout = "*"
 progress = "*"
 pytest = "*"
+aiocache = {extras = ["redis"]}
+
 
 [requires]
+
 python_version = "3.6"
