@@ -59,8 +59,8 @@ run-local: ## run the python app without docker
 test: ## run all tests
 	pipenv run pytest
 
-.PHONY: build test-with-docker
-test-with-docker: ## run tests that depend on docker
+.PHONY: test-with-docker
+test-with-docker: Pipfile.lock build  ## run tests that depend on docker
 	pipenv run pytest --rundocker --jussiurl http://localhost:8080
 
 .PHONY: lint
@@ -111,7 +111,7 @@ mypy: ## run mypy type checking on python files
 	http :8080/
 	http :8080/health
 	http :8080/.well-known/healthcheck.json
-	http --json id=1 jsonrpc="2.0" method=get_block params:='[1000]' :8080/
+	http --json :8080/ id=1 jsonrpc="2.0" method=get_block params:='[1000]'
 
 
 .PHONY: 9000
@@ -119,7 +119,7 @@ mypy: ## run mypy type checking on python files
 	http :9000/
 	http :9000/health
 	http :9000/.well-known/healthcheck.json
-	http --json id:=1 jsonrpc=2.0 method=get_block params:='[1000]' :9000/
+	http --json :9000/ id:=1 jsonrpc=2.0 method=get_block params:='[1000]'
 
 
 .PHONY: test-local-steemd-calls

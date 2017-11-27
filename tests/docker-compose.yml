@@ -6,12 +6,11 @@ services:
       - "8080:8080"
     env_file:
       - ../.env
+    environment:
+      JUSSI_REDIS_HOST: redis
+      JUSSI_REDIS_PORT: 6379
     links:
       - redis
-    #volumes:
-    #  - ../jussi:/app/jussi
-    #  - ../service/jussi:/etc/service/jussi
-    #  - ../service/nginx:/etc/service/nginx
   redis:
     image: "redis:3.2"
     ports:
