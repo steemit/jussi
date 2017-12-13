@@ -84,7 +84,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                         params=urn_parts.params,
                         timeout=timeout)
 
-    with async_timeout.timeout(2000):
+    with async_timeout.timeout(timeout):
         elapsed = -1
         try:
             upstream_request_json = ujson.dumps(upstream_request, ensure_ascii=False)
