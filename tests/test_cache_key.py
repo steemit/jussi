@@ -43,7 +43,10 @@ from jussi.cache.utils import jsonrpc_cache_key
         # test no params
         (OrderedDict([('id', 1), ('jsonrpc', '2.0'),
                       ('method', 'yo.test_no_params')]),
-         'yo.test_no_params')
+         'yo.test_no_params'),
+        (OrderedDict([('id', 1), ('jsonrpc', '2.0'),
+                      ('method', 'condenser_api.get_dynamic_global_properties')]),
+         'steemd.condenser_api.get_dynamic_global_properties'),
     ],
     ids=lambda v: v['method'])
 def test_cache_key(jsonrpc_request, expected):

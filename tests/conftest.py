@@ -62,6 +62,12 @@ with open(os.path.join(TEST_DIR, 'steemd-response-schema.json')) as f:
 with open(os.path.join(TEST_DIR, 'jrpc_requests_and_responses.json')) as f:
     JRPC_REQUESTS_AND_RESPONSES = ujson.load(f)
 
+with open(os.path.join(TEST_DIR, 'appbase_jrpc_requests_and_responses.json')) as f:
+    APPBASE_REQUESTS_AND_RESPONSES = ujson.load(f)
+
+APPBASE_REQUESTS = [p[0] for p in APPBASE_REQUESTS_AND_RESPONSES]
+
+
 INVALID_JRPC_REQUESTS = [
     # bad/missing jsonrpc
     {
@@ -721,7 +727,12 @@ STEEMD_JSON_RPC_CALLS = [{
         'method': 'lookup_witness_accounts',
         'params': ['steemit', 10]
 }
+
+
 ]
+
+COMBINED_STEEMD_APPBASE_JSONRPC_CALLS = STEEMD_JSON_RPC_CALLS + APPBASE_REQUESTS
+
 
 STEEMD_JSONRPC_CALL_PAIRS = []
 for c in STEEMD_JSON_RPC_CALLS:
@@ -902,7 +913,7 @@ def invalid_jrpc_responses(request):
     yield request.param
 
 
-@pytest.fixture(params=STEEMD_JSON_RPC_CALLS, ids=lambda c: c['method'])
+@pytest.fixture(params=COMBINED_STEEMD_APPBASE_JSONRPC_CALLS, ids=lambda c: c['method'])
 def all_steemd_jrpc_calls(request):
     yield request.param
 
@@ -913,7 +924,7 @@ def steemd_method_pairs(request):
 
 
 @pytest.fixture(
-    scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
+    scope='function', params=JRPC_REQUESTS_AND_RESPONSES + APPBASE_REQUESTS_AND_RESPONSES,
     ids=lambda reqresp: urn(reqresp[0]))
 def steemd_requests_and_responses(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])

@@ -4,6 +4,7 @@ from collections import namedtuple
 from typing import Tuple
 from typing import Union
 
+from ..errors import InvalidNamespaceError
 from ..typedefs import JsonRpcRequest
 from ..typedefs import SingleJsonRpcRequest
 
@@ -14,20 +15,43 @@ URNParts = namedtuple('URNParts', ['namespace', 'api', 'method', 'params'])
 NAMESPACES = frozenset(
     ['hivemind', 'jussi', 'overseer', 'sbds', 'steemd', 'yo'])
 
+APPBASE_APIS = frozenset((
+    'account_by_key_api',
+    'account_by_key_api',
+    'account_history_api',
+    'block_api',
+    'chain_api',
+    'condenser_api',
+    'database_api',
+    'debug_node_api',
+    'follow_api',
+    'market_history_api',
+    'network_broadcast_api',
+    'tags_api',
+    'test_api',
+    'witness_api'
+))
+
+COMBINED_NAMESPACES = NAMESPACES.union(APPBASE_APIS)
+
 
 def parse_namespaced_method(namespaced_method: str,
                             default_namespace: str='steemd',
-                            namespaces: frozenset=NAMESPACES
+                            namespaces: frozenset=COMBINED_NAMESPACES,
+                            steemd_apis: frozenset=APPBASE_APIS
                             ) -> Tuple[str, str]:
     parts = namespaced_method.split('.', maxsplit=1)
     if len(parts) == 0:
-        raise ValueError(
-            f'{namespaced_method} is an invalid namespaced method')
+        raise InvalidNamespaceError(namespace=namespaced_method)
     if len(parts) == 1:
         return default_namespace, namespaced_method
+    if parts[0] in steemd_apis:
+        return default_namespace, namespaced_method
     if parts[0] not in namespaces:
-        raise ValueError(f'{parts[0]} is an invalid namespace')
+        raise InvalidNamespaceError(namespace=namespaced_method)
     return parts[0], parts[1]
+
+# pylint: disable=no-member
 
 
 def urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
@@ -43,9 +67,17 @@ def urn(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
             assert isinstance(params, list)
             api = params[0]
             method = params[1]
-            params = params[2]
+            if len(params) > 2:
+                params = params[2]
+            else:
+                params = None
         else:
-            api = 'database_api'
+            method_parts = method.split('.')
+            if len(method_parts) == 1:
+                api = 'database_api'
+            if len(method_parts) == 2:
+                api = method_parts[0]
+                method = method_parts[1]
     if params and params != []:
         query = f'.params={params}'.replace(' ', '')
     return '.'.join([p for p in (
@@ -65,9 +97,15 @@ def urn_parts(single_jsonrpc_request: SingleJsonRpcRequest) -> URNParts:
         if method == 'call':
             api = params[0]
             method = params[1]
-            params = params[2]
+            if len(params) > 2:
+                params = params[2]
         else:
-            api = 'database_api'
+            method_parts = method.split('.')
+            if len(method_parts) == 1:
+                api = 'database_api'
+            if len(method_parts) == 2:
+                api = method_parts[0]
+                method = method_parts[1]
     return URNParts(namespace, api, method, params)
 
 

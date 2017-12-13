@@ -239,8 +239,18 @@ def is_valid_get_block_response(
             response):
         return False
     try:
-        request_block_num = urn_parts(jsonrpc_request).params[0]
-        response_block_num = block_num_from_id(response['result']['block_id'])
+        params = urn_parts(jsonrpc_request).params
+        if isinstance(params, list):
+            request_block_num = params[0]
+        elif isinstance(params, dict):
+            request_block_num = params['block_num']
+        else:
+            raise ValueError(f'bad urn params from {jsonrpc_request}: {params} ')
+        if 'block_id' in response['result']:
+            block_id = response['result']['block_id']
+        else:
+            block_id = response['result']['block']['block_id']
+        response_block_num = block_num_from_id(block_id)
         assert int(request_block_num) == response_block_num
         return True
     except KeyError as e:

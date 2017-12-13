@@ -101,18 +101,26 @@ class JsonRpcError(Exception):
                  exception: Exception = None,
                  error_id: str = None,
                  log_error: bool = True,
-                 error_logger: logging.Logger = None) -> None:
-        super(JsonRpcError, self).__init__(self.message)
+                 error_logger: logging.Logger = None,
+                 **kwargs) -> None:
+        self.kwargs = kwargs
+        super(JsonRpcError, self).__init__(self.format_message())
 
         self.logger = error_logger or logger
         self.sanic_request = sanic_request
         self.data = data
         self.exception = exception
         self.error_id = error_id or str(uuid.uuid4())
-
         self._id = self.jrpc_request_id()
         if log_error:
             self.log()
+
+    def format_message(self):
+        try:
+            return self.message.format(**self.kwargs)
+        except Exception as e:
+            logger.error(e)
+            return self.message
 
     def request_data(self):
         if not isinstance(self.sanic_request, SanicRequest):
@@ -203,7 +211,7 @@ class JsonRpcError(Exception):
                 'jsonrpc': '2.0',
                 'error': {
                     'code': self.code,
-                    'message': self.message,
+                    'message': self.format_message(),
                     'data': self.compose_error_data(
                         include_exception=include_exception)
                 }
@@ -220,7 +228,7 @@ class JsonRpcError(Exception):
             'jsonrpc': '2.0',
             'error': {
                 'code': self.code,
-                'message': self.message
+                'message': self.format_message()
 
             }
         }
@@ -267,3 +275,8 @@ class RequestTimeourError(JsonRpcError):
 class UpstreamResponseError(JsonRpcError):
     code = 1100
     message = 'Bad or missing upstream response'
+
+
+class InvalidNamespaceError(JsonRpcError):
+    code = 1200
+    message = 'Invalid JSONRPC method namespace {namespace}'

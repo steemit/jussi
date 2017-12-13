@@ -53,7 +53,7 @@ run: ## run docker image
 
 .PHONY: run-local
 run-local: ## run the python app without docker
-	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_steemd_url wss://steemd.steemit.com
+	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_steemd_url wss://steemd.steemitdev.com
 
 .PHONY: test
 test: ## run all tests
@@ -124,7 +124,7 @@ mypy: ## run mypy type checking on python files
 
 .PHONY: test-local-steemd-calls
 test-local-steemd-calls:
-	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl http://localhost:8080
+	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl http://localhost:9000
 
 
 .PHONY: test-live-dev-steemd-calls

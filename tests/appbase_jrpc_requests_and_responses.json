@@ -1,0 +1,517 @@
+[
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "database_api",
+        "get_dynamic_global_properties"
+      ],
+      "id": 1000
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "id": 0,
+        "head_block_number": 18035105,
+        "head_block_id": "011331a1e0c3586bed40cfb19107a70c222e03c9",
+        "time": "2017-12-13T00:26:18",
+        "current_witness": "anyx",
+        "total_pow": 514415,
+        "num_pow_witnesses": 172,
+        "virtual_supply": "263341048.389 STEEM",
+        "current_supply": "261153331.709 STEEM",
+        "confidential_supply": "0.000 STEEM",
+        "current_sbd_supply": "3716930.640 SBD",
+        "confidential_sbd_supply": "0.000 SBD",
+        "total_vesting_fund_steem": "194131066.850 STEEM",
+        "total_vesting_shares": "398185476038.719072 VESTS",
+        "total_reward_fund_steem": "0.000 STEEM",
+        "total_reward_shares2": "0",
+        "pending_rewarded_vesting_shares": "400476687.300224 VESTS",
+        "pending_rewarded_vesting_steem": "194367.226 STEEM",
+        "sbd_interest_rate": 0,
+        "sbd_print_rate": 10000,
+        "maximum_block_size": 65536,
+        "current_aslot": 18096526,
+        "recent_slots_filled": "340282366920938463463374607431768211455",
+        "participation_count": 128,
+        "last_irreversible_block_num": 18035088,
+        "vote_power_reserve_rate": 10
+      },
+      "id": 1000
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "database_api",
+        "get_dynamic_global_properties",
+        {}
+      ],
+      "id": 1001
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "id": 0,
+        "head_block_number": 18035105,
+        "head_block_id": "011331a1e0c3586bed40cfb19107a70c222e03c9",
+        "time": "2017-12-13T00:26:18",
+        "current_witness": "anyx",
+        "total_pow": 514415,
+        "num_pow_witnesses": 172,
+        "virtual_supply": "263341048.389 STEEM",
+        "current_supply": "261153331.709 STEEM",
+        "confidential_supply": "0.000 STEEM",
+        "current_sbd_supply": "3716930.640 SBD",
+        "confidential_sbd_supply": "0.000 SBD",
+        "total_vesting_fund_steem": "194131066.850 STEEM",
+        "total_vesting_shares": "398185476038.719072 VESTS",
+        "total_reward_fund_steem": "0.000 STEEM",
+        "total_reward_shares2": "0",
+        "pending_rewarded_vesting_shares": "400476687.300224 VESTS",
+        "pending_rewarded_vesting_steem": "194367.226 STEEM",
+        "sbd_interest_rate": 0,
+        "sbd_print_rate": 10000,
+        "maximum_block_size": 65536,
+        "current_aslot": 18096526,
+        "recent_slots_filled": "340282366920938463463374607431768211455",
+        "participation_count": 128,
+        "last_irreversible_block_num": 18035088,
+        "vote_power_reserve_rate": 10
+      },
+      "id": 1001
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "database_api.get_dynamic_global_properties",
+      "id": 1002
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "id": 0,
+        "head_block_number": 18035105,
+        "head_block_id": "011331a1e0c3586bed40cfb19107a70c222e03c9",
+        "time": "2017-12-13T00:26:18",
+        "current_witness": "anyx",
+        "total_pow": 514415,
+        "num_pow_witnesses": 172,
+        "virtual_supply": "263341048.389 STEEM",
+        "current_supply": "261153331.709 STEEM",
+        "confidential_supply": "0.000 STEEM",
+        "current_sbd_supply": "3716930.640 SBD",
+        "confidential_sbd_supply": "0.000 SBD",
+        "total_vesting_fund_steem": "194131066.850 STEEM",
+        "total_vesting_shares": "398185476038.719072 VESTS",
+        "total_reward_fund_steem": "0.000 STEEM",
+        "total_reward_shares2": "0",
+        "pending_rewarded_vesting_shares": "400476687.300224 VESTS",
+        "pending_rewarded_vesting_steem": "194367.226 STEEM",
+        "sbd_interest_rate": 0,
+        "sbd_print_rate": 10000,
+        "maximum_block_size": 65536,
+        "current_aslot": 18096526,
+        "recent_slots_filled": "340282366920938463463374607431768211455",
+        "participation_count": 128,
+        "last_irreversible_block_num": 18035088,
+        "vote_power_reserve_rate": 10
+      },
+      "id": 1002
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "database_api.get_dynamic_global_properties",
+      "params": {},
+      "id": 1003
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "id": 0,
+        "head_block_number": 18035105,
+        "head_block_id": "011331a1e0c3586bed40cfb19107a70c222e03c9",
+        "time": "2017-12-13T00:26:18",
+        "current_witness": "anyx",
+        "total_pow": 514415,
+        "num_pow_witnesses": 172,
+        "virtual_supply": "263341048.389 STEEM",
+        "current_supply": "261153331.709 STEEM",
+        "confidential_supply": "0.000 STEEM",
+        "current_sbd_supply": "3716930.640 SBD",
+        "confidential_sbd_supply": "0.000 SBD",
+        "total_vesting_fund_steem": "194131066.850 STEEM",
+        "total_vesting_shares": "398185476038.719072 VESTS",
+        "total_reward_fund_steem": "0.000 STEEM",
+        "total_reward_shares2": "0",
+        "pending_rewarded_vesting_shares": "400476687.300224 VESTS",
+        "pending_rewarded_vesting_steem": "194367.226 STEEM",
+        "sbd_interest_rate": 0,
+        "sbd_print_rate": 10000,
+        "maximum_block_size": 65536,
+        "current_aslot": 18096526,
+        "recent_slots_filled": "340282366920938463463374607431768211455",
+        "participation_count": 128,
+        "last_irreversible_block_num": 18035088,
+        "vote_power_reserve_rate": 10
+      },
+      "id": 1003
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "condenser_api",
+        "get_dynamic_global_properties",
+        []
+      ],
+      "id": 1004
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "id": 0,
+        "head_block_number": 18035105,
+        "head_block_id": "011331a1e0c3586bed40cfb19107a70c222e03c9",
+        "time": "2017-12-13T00:26:18",
+        "current_witness": "anyx",
+        "total_pow": 514415,
+        "num_pow_witnesses": 172,
+        "virtual_supply": "263341048.389 STEEM",
+        "current_supply": "261153331.709 STEEM",
+        "confidential_supply": "0.000 STEEM",
+        "current_sbd_supply": "3716930.640 SBD",
+        "confidential_sbd_supply": "0.000 SBD",
+        "total_vesting_fund_steem": "194131066.850 STEEM",
+        "total_vesting_shares": "398185476038.719072 VESTS",
+        "total_reward_fund_steem": "0.000 STEEM",
+        "total_reward_shares2": "0",
+        "pending_rewarded_vesting_shares": "400476687.300224 VESTS",
+        "pending_rewarded_vesting_steem": "194367.226 STEEM",
+        "sbd_interest_rate": 0,
+        "sbd_print_rate": 10000,
+        "maximum_block_size": 65536,
+        "current_aslot": 18096526,
+        "recent_slots_filled": "340282366920938463463374607431768211455",
+        "participation_count": 128,
+        "last_irreversible_block_num": 18035088,
+        "vote_power_reserve_rate": 10,
+        "average_block_size": 0,
+        "current_reserve_ratio": 1,
+        "max_virtual_bandwidth": "0"
+      },
+      "id": 1004
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "condenser_api.get_dynamic_global_properties",
+      "params": [],
+      "id": 1005
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "id": 0,
+        "head_block_number": 18035105,
+        "head_block_id": "011331a1e0c3586bed40cfb19107a70c222e03c9",
+        "time": "2017-12-13T00:26:18",
+        "current_witness": "anyx",
+        "total_pow": 514415,
+        "num_pow_witnesses": 172,
+        "virtual_supply": "263341048.389 STEEM",
+        "current_supply": "261153331.709 STEEM",
+        "confidential_supply": "0.000 STEEM",
+        "current_sbd_supply": "3716930.640 SBD",
+        "confidential_sbd_supply": "0.000 SBD",
+        "total_vesting_fund_steem": "194131066.850 STEEM",
+        "total_vesting_shares": "398185476038.719072 VESTS",
+        "total_reward_fund_steem": "0.000 STEEM",
+        "total_reward_shares2": "0",
+        "pending_rewarded_vesting_shares": "400476687.300224 VESTS",
+        "pending_rewarded_vesting_steem": "194367.226 STEEM",
+        "sbd_interest_rate": 0,
+        "sbd_print_rate": 10000,
+        "maximum_block_size": 65536,
+        "current_aslot": 18096526,
+        "recent_slots_filled": "340282366920938463463374607431768211455",
+        "participation_count": 128,
+        "last_irreversible_block_num": 18035088,
+        "vote_power_reserve_rate": 10,
+        "average_block_size": 0,
+        "current_reserve_ratio": 1,
+        "max_virtual_bandwidth": "0"
+      },
+      "id": 1005
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "database_api",
+        "find_accounts",
+        {
+          "accounts": [
+            "init_miner"
+          ]
+        }
+      ],
+      "id": 1006
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "accounts": []
+      },
+      "id": 1006
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "database_api.find_accounts",
+      "params": {
+        "accounts": [
+          "init_miner"
+        ]
+      },
+      "id": 1007
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "accounts": []
+      },
+      "id": 1007
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "database_api",
+        "find_accounts",
+        {}
+      ],
+      "id": 1008
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "accounts": []
+      },
+      "id": 1008
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "database_api",
+        "find_accounts"
+      ],
+      "id": 1009
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "accounts": []
+      },
+      "id": 1009
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "database_api.find_accounts",
+      "params": {
+        "accounts": [
+          "init_miner"
+        ]
+      },
+      "id": 1010
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "accounts": []
+      },
+      "id": 1010
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "database_api.find_accounts",
+      "params": {},
+      "id": 1011
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "accounts": []
+      },
+      "id": 1011
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "database_api.find_accounts",
+      "id": 1012
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "accounts": []
+      },
+      "id": 1012
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "condenser_api",
+        "get_accounts",
+        [
+          [
+            "init_miner"
+          ]
+        ]
+      ],
+      "id": 1013
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": [],
+      "id": 1013
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "condenser_api.get_accounts",
+      "params": [
+        [
+          "init_miner"
+        ]
+      ],
+      "id": 1014
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": [],
+      "id": 1014
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "condenser_api",
+        "get_accounts",
+        [
+          []
+        ]
+      ],
+      "id": 1015
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": [],
+      "id": 1015
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "condenser_api.get_accounts",
+      "params": [
+        []
+      ],
+      "id": 1016
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": [],
+      "id": 1016
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": [
+        "block_api",
+        "get_block",
+        {
+          "block_num": 23
+        }
+      ],
+      "id": 1017
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "block": {
+          "previous": "00000016d710f59ab6f922bd85492166e9a4d62a",
+          "timestamp": "2016-03-24T16:06:39",
+          "witness": "initminer",
+          "transaction_merkle_root": "0000000000000000000000000000000000000000",
+          "extensions": [],
+          "witness_signature": "1f4a32015e0bc3e2a664c7847eb3dc8049445da3bdc78c0f5b9e4cd162851f1ef05104f0b00ab4c50b9cc0579d28941493d6a2f756718d43dfb81a7536dffc5678",
+          "transactions": [],
+          "block_id": "000000173b3c916f608e99bf6f390af66be880e8",
+          "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+          "transaction_ids": []
+        }
+      },
+      "id": 1017
+    }
+  ],
+  [
+    {
+      "jsonrpc": "2.0",
+      "method": "block_api.get_block",
+      "params": {
+        "block_num": 1
+      },
+      "id": 1018
+    },
+    {
+      "jsonrpc": "2.0",
+      "result": {
+        "block": {
+          "previous": "0000000000000000000000000000000000000000",
+          "timestamp": "2016-03-24T16:05:00",
+          "witness": "initminer",
+          "transaction_merkle_root": "0000000000000000000000000000000000000000",
+          "extensions": [],
+          "witness_signature": "204f8ad56a8f5cf722a02b035a61b500aa59b9519b2c33c77a80c0a714680a5a5a7a340d909d19996613c5e4ae92146b9add8a7a663eef37d837ef881477313043",
+          "transactions": [],
+          "block_id": "0000000109833ce528d5bbfb3f6225b39ee10086",
+          "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+          "transaction_ids": []
+        }
+      },
+      "id": 1018
+    }
+  ]
+]

@@ -84,16 +84,17 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                         params=urn_parts.params,
                         timeout=timeout)
 
-    with async_timeout.timeout(timeout):
+    with async_timeout.timeout(2000):
         elapsed = -1
         try:
-            upstream_request_json = ujson.dumps(upstream_request, ensure_ascii=False).encode()
+            upstream_request_json = ujson.dumps(upstream_request, ensure_ascii=False)
 
             await conn.send(upstream_request_json)
             upstream_response_json = await conn.recv()
+
             elapsed = time.perf_counter() - start
             request_info.update(elapsed=elapsed)
-            request_logger.info(request_info)
+            request_logger.debug(request_info)
             upstream_response = ujson.loads(upstream_response_json)
             debug_logger.debug(dict(jussi_request_id=jussi_request_id,
                                     jsonrpc_request_id=jsonrpc_request.get('id'),

@@ -92,7 +92,7 @@ async def test_upstream_error_responses(mocker, mocked_app_test_cli, jsonrpc_req
 
 
 @pytest.mark.parametrize('jsonrpc_request, expected', [
-    (utf8_request, ujson.dumps(utf8_request, ensure_ascii=False).encode())
+    (utf8_request, ujson.dumps(utf8_request, ensure_ascii=False))
 ])
 async def test_content_encoding(mocker, mocked_app_test_cli, jsonrpc_request,
                                 expected):
