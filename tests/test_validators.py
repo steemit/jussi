@@ -2,6 +2,7 @@
 
 import pytest
 
+from jussi.request import JussiJSONRPCRequest
 from jussi.validators import is_get_block_header_request
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
@@ -12,14 +13,16 @@ from jussi.validators import is_valid_non_error_single_jsonrpc_response
 from jussi.validators import is_valid_single_jsonrpc_response
 from jussi.validators import validate_response_decorator
 
-request = {
+request = JussiJSONRPCRequest.from_request({
     "id": "1", "jsonrpc": "2.0",
     "method": "get_block", "params": [1000]
-}
-request2 = {
+})
+
+request2 = JussiJSONRPCRequest.from_request({
     "id": "1", "jsonrpc": "2.0", "method": "call",
     "params": ["database_api", "get_block", [1000]]
-}
+})
+
 response = {
     "id": 1,
     "result": {
@@ -62,14 +65,14 @@ bad_response2 = {
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
         "transaction_ids": []}}
 
-bh_request1 = {
+bh_request1 = JussiJSONRPCRequest.from_request({
     "id": "1", "jsonrpc": "2.0",
     "method": "get_block_header", "params": [1000]
-}
-bh_request2 = {
+})
+bh_request2 = JussiJSONRPCRequest.from_request({
     "id": "1", "jsonrpc": "2.0", "method": "call",
     "params": ["database_api", "get_block_header", [1000]]
-}
+})
 
 batch_request = [request, request2]
 batch_response = [response, response]
@@ -165,6 +168,7 @@ def test_is_valid_jsonrpc_response(req, resp, expected):
 
 def test_is_valid_jsonrpc_response_using_steemd(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
+    req = JussiJSONRPCRequest.from_request(req)
     assert is_valid_jsonrpc_response(req, resp) is True
 
 
@@ -191,6 +195,7 @@ def test_is_valid_single_jsonrpc_response(value, expected):
 def test_is_valid_single_jsonrpc_response_using_steemd(
         steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
+    req = JussiJSONRPCRequest.from_request(req)
     assert is_valid_single_jsonrpc_response(resp) is True
 
 
@@ -214,6 +219,7 @@ def test_is_valid_non_error_single_jsonrpc_response(value, expected):
 def test_is_valid_non_error_single_jsonrpc_response_using_steemd(
         steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
+    req = JussiJSONRPCRequest.from_request(req)
     assert is_valid_non_error_single_jsonrpc_response(resp) is True
 
 
@@ -249,6 +255,7 @@ def test_is_valid_non_error_jsonrpc_response(req, resp, expected):
 def test_is_valid_non_error_jsonrpc_response_using_steemd(
         steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
+    req = JussiJSONRPCRequest.from_request(req)
     assert is_valid_non_error_jsonrpc_response(req, resp) is True
 
 
@@ -288,6 +295,7 @@ def test_is_valid_jussi_response(req, resp, expected):
 
 def test_is_valid_jussi_response_using_steemd(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
+    req = JussiJSONRPCRequest.from_request(req)
     assert is_valid_jussi_response(req, resp) is True
 
 

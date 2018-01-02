@@ -1,0 +1,95 @@
+[
+  {
+    "name":"steemd",
+    "urls": [
+      ["steemd","wss://steemd.steemitdev.com"]
+    ],
+    "ttls": [
+      ["steemd",3],
+      ["steemd.login_api", -1],
+      ["steemd.network_broadcast_api",-1],
+      ["steemd.follow_api", 10],
+      ["steemd.market_history_api", 1],
+      ["steemd.database_api", 3],
+      ["steemd.database_api.get_block", -2],
+      ["steemd.database_api.get_block_header", -2],
+      ["steemd.database_api.get_content", 1],
+      ["steemd.database_api.get_state", 1],
+      ["steemd.database_api.get_state.params=['/trending']", 30],
+      ["steemd.database_api.get_state.params=['trending']", 30],
+      ["steemd.database_api.get_state.params=['/hot']", 30],
+      ["steemd.database_api.get_state.params=['/welcome']", 30],
+      ["steemd.database_api.get_state.params=['/promoted']", 30],
+      ["steemd.database_api.get_state.params=['/created']", 10],
+      ["steemd.database_api.get_dynamic_global_properties", 1]
+    ],
+    "timeouts": [
+      ["steemd",3],
+      ["steemd.network_broadcast_api",0]
+    ],
+    "retries": [
+      ["steemd",3],
+      ["steemd.network_broadcast_api", 0]
+    ]
+  },
+  {
+    "name":"overseer",
+    "urls": [
+      ["overseer","https://overseer.steemitdev.com"]
+    ],
+    "ttls": [
+      ["overseer",3]
+    ],
+    "timeouts": [
+      ["overseer",3]
+    ],
+    "retries": [
+      ["overseer",3]
+    ]
+  },
+  {
+    "name":"sbds",
+    "urls": [
+      ["sbds","https://sbds.steemitdev.com"]
+    ],
+    "ttls": [
+      ["sbds",3]
+    ],
+    "timeouts": [
+      ["sbds",3]
+    ],
+    "retries": [
+      ["sbds",3]
+    ]
+  },
+  {
+    "name":"hivemind",
+    "urls": [
+      ["hivemind", "https://hivemind.steemitdev.com"]
+    ],
+    "ttls": [
+      ["hivemind",3]
+    ],
+    "timeouts": [
+      ["hivemind",3]
+    ],
+    "retries": [
+      ["hivemind",3]
+    ]
+  },
+  {
+    "name":"yo",
+    "urls": [
+      ["yo","https://yo.steemitdev.com"]
+    ],
+    "ttls": [
+      ["yo",3]
+    ],
+    "timeouts": [
+      ["yo",3]
+    ],
+    "retries": [
+      ["yo",3]
+    ]
+  }
+]

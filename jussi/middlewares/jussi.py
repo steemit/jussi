@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
 import random
+import reprlib
 import time
 
 from ..errors import handle_middleware_exceptions
+from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..upstream.urn import URNParts
-from ..upstream.urn import x_jussi_urn_parts
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger('jussi_request')
@@ -21,14 +21,31 @@ async def add_jussi_request_id(request: HTTPRequest) -> None:
         rid = request.headers['x-jussi-request-id']
         request['request_id_int'] = int(rid.translate(mt)[:19])
     except BaseException:
-        logger.warning('bad/missing x-jussi-request-id-header: %s',
-                       request.headers.get('x-jussi-request-id'))
+        logger.debug('bad/missing x-jussi-request-id-header: %s',
+                     request.headers.get('x-jussi-request-id'))
         rid = random.getrandbits(64)
         request.headers['x-jussi-request-id'] = rid
-        request['request_id_int'] = int(str(rid)[:19])
+        request['request_id_int'] = int(str(rid)[:15])
 
     request['logger'] = request_logger
     request['timing'] = time.perf_counter()
+
+
+@handle_middleware_exceptions
+async def convert_to_jussi_request(request: HTTPRequest) -> None:
+    # pylint: disable=no-member
+    try:
+        jsonrpc_request = request.json
+        if isinstance(jsonrpc_request, dict):
+            request.parsed_json = JussiJSONRPCRequest.from_request(jsonrpc_request)
+        elif isinstance(jsonrpc_request, list):
+            reqs = []
+            for req in jsonrpc_request:
+                reqs.append(JussiJSONRPCRequest.from_request(req))
+            request.parsed_json = reqs
+
+    except BaseException:
+        logger.exception('error adding info to request', extra=dict(request=request))
 
 
 @handle_middleware_exceptions
@@ -36,25 +53,15 @@ async def finalize_jussi_response(request: HTTPRequest,
                                   response: HTTPResponse) -> None:
     jussi_request_id = request.headers.get('x-jussi-request-id')
     # pylint: disable=bare-except
-    log_extra = dict(jussi_request_id=jussi_request_id,
-                     upstream_id_prefix=request['request_id_int'])
     if request.method == 'POST':
         try:
-            parts = x_jussi_urn_parts(request.json)
-            if isinstance(parts, URNParts):
-                response.headers['x-jussi-namespace'] = parts.namespace
-                response.headers['x-jussi-api'] = parts.api
-                response.headers['x-jussi-method'] = parts.method
-                response.headers['x-jussi-params'] = parts.params
-                log_extra.update(namespace=parts.namespace,
-                                 api=parts.api,
-                                 method=parts.method,
-                                 params=parts.params)
+            response.headers['x-jussi-namespace'] = request.json.urn.namespace
+            response.headers['x-jussi-api'] = request.json.urn.api
+            response.headers['x-jussi-method'] = request.json.urn.method
+            response.headers['x-jussi-params'] = reprlib.repr(request.json.urn.params)
         except BaseException as e:
-            logger.error('urn error: %s', e)
+            logger.info(e)
 
     request_elapsed = time.perf_counter() - request['timing']
-    log_extra.update(request_elapsed=request_elapsed)
-    request['logger'].info(log_extra)
     response.headers['x-jussi-request-id'] = jussi_request_id
     response.headers['x-jussi-response-time'] = request_elapsed

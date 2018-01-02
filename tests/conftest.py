@@ -19,7 +19,7 @@ import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
-from jussi.upstream.urn import urn
+from jussi.urn import URN
 
 
 def pytest_addoption(parser):
@@ -54,8 +54,10 @@ TEST_DIR = os.path.abspath(os.path.dirname(__file__))
 
 with open(os.path.join(TEST_DIR, 'request-schema.json')) as f:
     REQUEST_SCHEMA = ujson.load(f)
+
 with open(os.path.join(TEST_DIR, 'response-schema.json')) as f:
     RESPONSE_SCHEMA = ujson.load(f)
+
 with open(os.path.join(TEST_DIR, 'steemd-response-schema.json')) as f:
     STEEMD_RESPONSE_SCHEMA = ujson.load(f)
 
@@ -924,15 +926,15 @@ def steemd_method_pairs(request):
 
 
 @pytest.fixture(
-    scope='function', params=JRPC_REQUESTS_AND_RESPONSES + APPBASE_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: urn(reqresp[0]))
+    scope='function', params=APPBASE_REQUESTS_AND_RESPONSES + JRPC_REQUESTS_AND_RESPONSES,
+    ids=lambda reqresp: URN(reqresp[0]))
 def steemd_requests_and_responses(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
 
 
 @pytest.fixture(
     scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: urn(reqresp[0]))
+    ids=lambda reqresp: URN(reqresp[0]))
 def steemd_requests_and_responses_without_resp_id(request):
     req, resp = copy.deepcopy(
         request.param[0]), copy.deepcopy(request.param[1])

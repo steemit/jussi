@@ -5,7 +5,7 @@ verify_ssl = true
 
 
 [dev-packages]
-
+sanic = "==0.6.0"
 asynctest = "*"
 autoflake = "*"
 "autopep8" = "*"
@@ -33,12 +33,14 @@ requests = "*"
 "urllib3" = "*"
 yapf = "*"
 progress = "*"
-jsonschema = "*"
+jsonschema = "==2.6.0"
 isort = "*"
 pydevd = "*"
+line-profiler = "*"
 
 
 [packages]
+
 ujson = "*"
 aiohttp = "*"
 toolz = "*"
@@ -58,6 +60,7 @@ pytest = "*"
 aiocache = {extras = ["redis"]}
 websockets = "*"
 sanic = "==0.6.0"
+
 
 
 [requires]

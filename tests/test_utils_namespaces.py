@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from jussi.upstream.urn import parse_namespaced_method
-from jussi.upstream.urn import urn
+from jussi.urn import parse_namespaced_method, URN
 import pytest
 
 
@@ -162,13 +161,13 @@ def test_parse_namespaced_method(namspaced_method, expected):
 
 ])
 def test_urns(jsonrpc_request, expected):
-    result = urn(jsonrpc_request)
+    result = str(URN.from_request(jsonrpc_request))
     assert result == expected
 
 
 def test_urn_pairs(steemd_method_pairs):
     old, new = steemd_method_pairs
-    old_urn = urn(old)
-    new_urn = urn(new)
+    old_urn = str(URN.from_request(old))
+    new_urn = str(URN.from_request(new))
     assert old_urn == new_urn
     assert old_urn.startswith('steemd.database_api')

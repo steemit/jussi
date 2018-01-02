@@ -53,7 +53,7 @@ run: ## run docker image
 
 .PHONY: run-local
 run-local: ## run the python app without docker
-	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_steemd_url wss://steemd.steemitdev.com
+	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_config_file PROD_UPSTREAM_CONFIG.json
 
 .PHONY: test
 test: ## run all tests
@@ -129,7 +129,7 @@ test-local-steemd-calls:
 
 .PHONY: test-live-dev-steemd-calls
 test-live-dev-steemd-calls:
-	pipenv run pytest -vv --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitdev.com
+	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitdev.com
 
 .PHONY: test-live-staging-steemd-calls
 test-live-staging-steemd-calls:
@@ -145,10 +145,10 @@ test-live-prod-steemd-calls:
 	mkdir $@
 
 %.pstats: perf
-	pipenv run python -m cProfile -o $*.pstats tests/perf/$(notdir $*).py
+	-pipenv run python -m cProfile -o $*.pstats contrib/serve.py
 
 %.png: %.pstats
-	pipenv run gprof2dot -f pstats $< | dot -Tpng -o $@
+	-pipenv run gprof2dot -f pstats $< | dot -Tpng -o $@
 
 .PHONY: clean-perf
 clean-perf: ## clean pstats and flamegraph svgs
