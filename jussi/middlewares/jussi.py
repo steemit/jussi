@@ -34,14 +34,17 @@ async def add_jussi_request_id(request: HTTPRequest) -> None:
 @handle_middleware_exceptions
 async def convert_to_jussi_request(request: HTTPRequest) -> None:
     # pylint: disable=no-member
+    upstreams = request.app.config.upstreams
     try:
         jsonrpc_request = request.json
         if isinstance(jsonrpc_request, dict):
-            request.parsed_json = JussiJSONRPCRequest.from_request(jsonrpc_request)
+            request.parsed_json = JussiJSONRPCRequest.from_request(jsonrpc_request,
+                                                                   upstreams=upstreams)
         elif isinstance(jsonrpc_request, list):
             reqs = []
             for req in jsonrpc_request:
-                reqs.append(JussiJSONRPCRequest.from_request(req))
+                reqs.append(JussiJSONRPCRequest.from_request(req,
+                                                             upstreams=upstreams))
             request.parsed_json = reqs
 
     except BaseException:

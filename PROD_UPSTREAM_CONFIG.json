@@ -24,7 +24,7 @@
       ["steemd.database_api.get_dynamic_global_properties", 1]
     ],
     "timeouts": [
-      ["steemd",3],
+      ["steemd",5],
       ["steemd.network_broadcast_api",0]
     ],
     "retries": [
@@ -41,7 +41,7 @@
       ["overseer",3]
     ],
     "timeouts": [
-      ["overseer",3]
+      ["overseer",5]
     ],
     "retries": [
       ["overseer",3]
@@ -56,7 +56,7 @@
       ["sbds",3]
     ],
     "timeouts": [
-      ["sbds",3]
+      ["sbds",5]
     ],
     "retries": [
       ["sbds",3]
@@ -71,7 +71,7 @@
       ["hivemind",3]
     ],
     "timeouts": [
-      ["hivemind",3]
+      ["hivemind",5]
     ],
     "retries": [
       ["hivemind",3]
@@ -86,7 +86,7 @@
       ["yo",3]
     ],
     "timeouts": [
-      ["yo",3]
+      ["yo",5]
     ],
     "retries": [
       ["yo",3]

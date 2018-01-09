@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import itertools as it
 import logging
+import os
+import re
 from typing import NamedTuple
 
 import pygtrie
@@ -8,6 +10,9 @@ import pygtrie
 from .urn import URN
 
 logger = logging.getLogger(__name__)
+
+ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\\?/@(.*)/transfers$')
+
 
 #-------------------
 # TTLS
@@ -152,6 +157,16 @@ class _Upstreams(object):
             separator='.')
 
     def url(self, request_urn: URN) -> str:
+        try:
+            logger.debug(request_urn.parts.params[0])
+            if request_urn.parts.api == 'database_api' and ACCOUNT_TRANSFER_PATTERN.match(
+                    request_urn.parts.params[0]):
+                logger.debug('matched')
+                url = os.environ.get('JUSSI_ACCOUNT_TRANSFER_STEEMD_URL')
+            if url:
+                return url
+        except Exception:
+            pass
         _, url = self.__URLS.longest_prefix(str(request_urn))
         return url
 

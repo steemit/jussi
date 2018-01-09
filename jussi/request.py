@@ -21,7 +21,7 @@ class JussiJSONRPCRequest(NamedTuple):
 
     # pylint: disable=no-member
     @classmethod
-    def from_request(cls, request: Dict[str, any]) -> NamedTuple:
+    def from_request(cls, request: Dict[str, any], upstreams=None) -> NamedTuple:
         if not isinstance(request, dict):
             raise ValueError('request must be dict')
 
@@ -30,7 +30,7 @@ class JussiJSONRPCRequest(NamedTuple):
         method = request['method']
         params = request.get('params', False)
         urn = URN.from_request(request)
-        upstream = Upstream.from_urn(urn)
+        upstream = Upstream.from_urn(urn, upstreams=upstreams)
 
         return cls(_id, jsonrpc, method, params, urn, upstream)
     # pylint: enable=no-member
