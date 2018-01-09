@@ -146,11 +146,14 @@ async def dispatch_single(sanic_http_request: HTTPRequest,
             sanic_http_request,
             jsonrpc_request,
             batch_index)
-    else:
+    elif jsonrpc_request.upstream.url.startswith('http'):
         json_response = await fetch_http(
             sanic_http_request,
             jsonrpc_request,
             batch_index)
+    else:
+        raise ValueError(f'Bad url {jsonrpc_request.upstream.url}')
+
     return json_response
 
 

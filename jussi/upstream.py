@@ -168,7 +168,10 @@ class _Upstreams(object):
         except Exception:
             pass
         _, url = self.__URLS.longest_prefix(str(request_urn))
-        return url
+
+        if url.startswith('ws') or url.startswith('http'):
+            return url
+        raise ValueError(f'Bad/missing url {url}')
 
     def ttl(self, request_urn: URN) -> str:
         _, ttl = self.__TTLS.longest_prefix(str(request_urn))
