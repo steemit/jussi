@@ -114,16 +114,15 @@ async def fetch_http(sanic_http_request: HTTPRequest,
 
     session = sanic_http_request.app.config.aiohttp['session']
     headers = {}
-    headers['x-amzn-trace_id'] = sanic_http_request.headers.get('x-amzn-trace-id')
-    headers['x-jussi-request-id'] = sanic_http_request.headers.get('x-jussi-request-id')
+    headers['x-amzn-trace_id'] = sanic_http_request.headers.get('x-amzn-trace-id', 'none')
+    headers['x-jussi-request-id'] = sanic_http_request.headers.get('x-jussi-request-id', 'none')
 
     upstream_id = sanic_http_request['request_id_int'] + batch_index
     upstream_request = jsonrpc_request.to_upstream_request(upstream_id, as_json=False)
 
     with async_timeout.timeout(jsonrpc_request.upstream.timeout):
         async with session.post(jsonrpc_request.upstream.url,
-                                json=upstream_request,
-                                headers=headers) as resp:
+                                json=upstream_request) as resp:
             upstream_response = await resp.json()
 
         del upstream_response['id']
