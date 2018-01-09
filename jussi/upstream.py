@@ -176,6 +176,8 @@ class _Upstreams(object):
 
     def timeout(self, request_urn: URN) -> int:
         _, timeout = self.__TIMEOUTS.longest_prefix(str(request_urn))
+        if timeout is 0:
+            timeout = None
         return timeout
 
     def retries(self, request_urn: URN) -> int:
