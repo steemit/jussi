@@ -23,9 +23,9 @@ async def add_jussi_request_id(request: HTTPRequest) -> None:
     except BaseException:
         logger.warning('bad/missing x-jussi-request-id-header: %s',
                        request.headers.get('x-jussi-request-id'))
+        rid = random.getrandbits(53)
         request.headers['x-jussi-request-id'] = rid
         request['request_id_int'] = int(str(rid)[:19])
-        rid = random.getrandbits(53)
 
     request['logger'] = request_logger
     request['timing'] = time.perf_counter()
