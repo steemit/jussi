@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import logging
 
 from sanic import response
@@ -8,8 +9,8 @@ import ujson
 from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..upstream.urn import urn_parts
 from ..utils import async_exclude_methods
+from ..utils import async_nowait_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -27,24 +28,20 @@ async def get_response(request: HTTPRequest) -> None:
             cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
 
 
+@async_nowait_middleware
 async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
     try:
         if request.method != 'POST':
             return
         if 'x-jussi-cache-hit' in response.headers:
             return
-        try:
-            parts = urn_parts(request.json)
-            if parts.method == 'get_blocks':
-                return
-        except BaseException:
-            pass
+
         cache_group = request.app.config.cache_group
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)
         last_irreversible_block_num = request.app.config.last_irreversible_block_num or 15_000_000
-        await cache_group.cache_jsonrpc_response(jsonrpc_request,
-                                                 jsonrpc_response,
-                                                 last_irreversible_block_num)
+        asyncio.ensure_future(cache_group.cache_jsonrpc_response(jsonrpc_request,
+                                                                 jsonrpc_response,
+                                                                 last_irreversible_block_num))
     except Exception as e:
-        logger.warning(f'ignoring error while querying cache: {e}')
+        logger.warning('ignoring error while querying cache: %s', e)

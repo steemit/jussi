@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
 
-from sanic import Sanic
 
-import asynctest
 import pytest
-from jussi.middlewares.caching import cache_response
-from jussi.middlewares.caching import get_response
+
 
 req = {"id": 1, "jsonrpc": "2.0", "method": "get_block", "params": [1000]}
 

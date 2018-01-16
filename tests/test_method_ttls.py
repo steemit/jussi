@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import pytest
-from jussi.cache.method_settings import TTL
+from jussi.cache.ttl import TTL
 from jussi.cache.utils import ttl_from_jsonrpc_request
+from jussi.request import JussiJSONRPCRequest
 
-SBDS_DEFAULT_CACHE = 10
+SBDS_DEFAULT_CACHE = 3
 
 
-ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
-               "method": "get_block", "params": [1000]}
+ttl_rpc_req = JussiJSONRPCRequest.from_request({"id": "1", "jsonrpc": "2.0",
+                                                "method": "get_block", "params": [1000]})
 rpc_resp = {
     "id": 1,
     "result": {
@@ -22,8 +23,8 @@ rpc_resp = {
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
         "transaction_ids": []}}
 
-non_ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
-                   "method": "sbds.get_block", "params": [1000]}
+non_ttl_rpc_req = JussiJSONRPCRequest.from_request({"id": "1", "jsonrpc": "2.0",
+                                                    "method": "sbds.get_block", "params": [1000]})
 
 
 @pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num,expected', [

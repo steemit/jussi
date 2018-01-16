@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import functools
 import logging
 from typing import Callable
 from typing import Optional
 from typing import Tuple
 
-from funcy.decorators import Call
-from funcy.decorators import decorator
-
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import JsonRpcRequest
-from .typedefs import SingleJsonRpcResponse
-from .upstream.urn import urn_parts as get_urn_parts
-from .validators import is_get_dynamic_global_properties_request
 
 logger = logging.getLogger(__name__)
 
@@ -43,47 +38,20 @@ def async_exclude_methods(
     return f
 
 
-@decorator
-async def async_retry(call: Call, tries: int) -> Optional[SingleJsonRpcResponse]:
-    """Makes decorated async function retry up to tries times.
-       Retries only on specified errors.
+def async_nowait_middleware(middleware_func: Callable) -> Callable:
+    """Execute middlware function asynchronously but don't wait for result
+
+    Args:
+        middleware_func:
+
+    Returns:
+        middleware_func
+
     """
-    parts = get_urn_parts(call.jsonrpc_request)
-    if parts.api == 'network_broadcast_api':
-        return await call()
-    for attempt in range(tries):
-        # pylint: disable=catching-non-exception
-        try:
-            logger.debug(f'fetch upstream attempt {attempt+1}/{tries}')
-            return await call()
-        except Exception as e:
-            logger.info(
-                f'fetch upstream attempt {attempt+1}/{tries}, retyring')
-            # Reraise error on last attempt
-            if attempt + 1 == tries:
-                logger.exception(f'fetch failed after {tries} attempts')
-                raise e
-
-
-@decorator
-async def update_last_irreversible_block_num(call: Call) -> None:
-    try:
-        json_response = await call()
-    except Exception as e:
-        raise e
-    try:
-        if is_get_dynamic_global_properties_request(call.jsonrpc_request):
-            last_irreversible_block_num = json_response['result'][
-                'last_irreversible_block_num']
-            assert isinstance(last_irreversible_block_num, int)
-            assert last_irreversible_block_num > 15_500_000
-            app = call.sanic_http_request.app
-            app.config.last_irreversible_block_num = last_irreversible_block_num
-            logger.info(
-                f'updated last_irreversible_block_num: {last_irreversible_block_num}')
-    except Exception as e:
-        logger.info(f'skipping update of last_irreversible_block_num: {e}')
-    return json_response
+    @functools.wraps(middleware_func)
+    async def f(request: HTTPRequest, response: Optional[HTTPResponse]=None) -> None:
+        asyncio.ensure_future(middleware_func(request, response))
+    return f
 
 
 def is_batch_jsonrpc(

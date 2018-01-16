@@ -4,10 +4,12 @@ from sanic import Sanic
 
 import pytest
 from jussi.middlewares.jussi import add_jussi_request_id
+from jussi.middlewares.jussi import convert_to_jussi_request
 from jussi.middlewares.jussi import finalize_jussi_response
+from jussi.upstream import Upstreams
 
-request = {"id": "1", "jsonrpc": "2.0",
-           "method": "get_block", "params": [1000]}
+req = {"id": "1", "jsonrpc": "2.0",
+       "method": "get_block", "params": [1000]}
 response = {
     "id": 1,
     "result": {
@@ -27,14 +29,15 @@ def test_request_id_in_response_headers():
     app = Sanic()
 
     @app.post('/post')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('post')
 
     @app.post('/get')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('get')
 
     app.request_middleware.append(add_jussi_request_id)
+    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.get('/get')
@@ -48,14 +51,15 @@ def test_response_time_in_response_headers():
     app = Sanic()
 
     @app.post('/post')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('post')
 
     @app.post('/get')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('get')
 
     app.request_middleware.append(add_jussi_request_id)
+    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
     _, response = app.test_client.post('/post')
 
@@ -71,23 +75,25 @@ def test_urn_parts_in_response_headers():
     app = Sanic()
 
     @app.post('/post')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('post')
 
     @app.post('/get')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('get')
 
+    app.config.upstreams = Upstreams
     app.request_middleware.append(add_jussi_request_id)
+    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.get('/get')
-    assert 'x-jussi-request-namespace' not in response.headers
-    assert 'x-jussi-request-api' not in response.headers
-    assert 'x-jussi-request-method' not in response.headers
-    assert 'x-jussi-request-params' not in response.headers
+    assert 'x-jussi-namespace' not in response.headers
+    assert 'x-jussi-api' not in response.headers
+    assert 'x-jussi-method' not in response.headers
+    assert 'x-jussi-params' not in response.headers
 
-    _, response = app.test_client.post('/post', json=request)
+    _, response = app.test_client.post('/post', json=req)
     assert 'x-jussi-request-id' in response.headers
 
     assert response.headers['x-jussi-namespace'] == 'steemd'
@@ -100,17 +106,19 @@ def test_urn_parts_not_in_batch_response_headers():
     app = Sanic()
 
     @app.post('/post')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('post')
 
     @app.post('/get')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('get')
 
+    app.config.upstreams = Upstreams
     app.request_middleware.append(add_jussi_request_id)
+    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
-    _, response = app.test_client.post('/post', json=[request, request])
+    _, response = app.test_client.post('/post', json=[req, req])
     assert 'x-jussi-request-namespace' not in response.headers
     assert 'x-jussi-request-api' not in response.headers
     assert 'x-jussi-request-method' not in response.headers
@@ -121,14 +129,16 @@ def test_urn_parts_not_in_get_response_headers():
     app = Sanic()
 
     @app.post('/post')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('post')
 
     @app.post('/get')
-    def handler(request):
+    def handler(r):
         return sanic.response.text('get')
 
+    app.config.upstreams = Upstreams
     app.request_middleware.append(add_jussi_request_id)
+    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.get('/get')
