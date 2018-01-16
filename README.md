@@ -51,7 +51,7 @@ Content-Type: application/json
 1. if a single jsonrpc request:
    1. check in memory cache, if miss
    1. make a redis `get` call
-   if a batch call:
+1. if a batch call:
    1. check in memory cache for all keys
    1. for any misses:
      1. make a redis `mget` request for any keys not found in memory cache
