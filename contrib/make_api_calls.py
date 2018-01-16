@@ -142,15 +142,17 @@ def test_batch_speed(url, jrpc_calls):
           (total_individual, total_batch, total_individual - total_batch))
 
 
-def generate_test_requests_and_responses(url, jrpc_calls):
-    #jrpc_calls += make_random_batches(jrpc_calls)
+def generate_test_requests_and_responses(args):
+    url = args.url
+    jrpc_calls = args.jrpc_calls
+
     pairs = []
     for jrpc_call in jrpc_calls:
         response = make_jrpc_call(url, jrpc_call)
         response.raise_for_status()
         assert not has_error(response)
         pairs.append([jrpc_call, response.json()])
-        #print(json.dumps([jrpc_call, response.json()], ensure_ascii=False).encode())
+        print(json.dumps([jrpc_call, response.json()], ensure_ascii=False))
     return pairs
 
 
@@ -221,11 +223,12 @@ def test_all_calls(url, jrpc_calls):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('jussi jsonrpc test script')
+    parser = argparse.ArgumentParser('jussi jsonrpc utils')
     subparsers = parser.add_subparsers()
     parser.add_argument('--url', type=str,
                         default='https://api.steemitdev.com')
     parser.add_argument('--jrpc_calls', type=open_json)
+    parser.set_defaults(func=generate_test_requests_and_responses)
 
     parser_repeat = subparsers.add_parser('test-repetition')
     parser_repeat.add_argument('--repeat', type=int, default=10)
@@ -239,6 +242,9 @@ if __name__ == '__main__':
 
     parser_test_all_calls = subparsers.add_parser('test-all-calls')
     parser_test_all_calls.set_defaults(func=test_all_calls)
+
+    parser_make_api_calls = subparsers.add_parser('make-api-calls')
+    parser_test_all_calls.set_defaults(func=generate_test_requests_and_responses)
 
     args = parser.parse_args()
 

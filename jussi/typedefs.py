@@ -9,6 +9,8 @@ from sanic.app import Sanic
 from sanic.request import Request
 from sanic.response import HTTPResponse as SanicHTTPResponse
 
+from .request import JussiJSONRPCRequest
+
 WebApp = Sanic
 HTTPRequest = Request
 HTTPResponse = SanicHTTPResponse
@@ -20,12 +22,14 @@ JsonRpcRequestVersionField = str
 JsonRpcRequestMethodField = str
 
 # JSONRPC Requests
-SingleJsonRpcRequest = Dict[str, Any]
+JsonRpcRequestDict = Dict[str, Any]
+SingleJsonRpcRequest = JussiJSONRPCRequest  # Dict[str, Any]
 BatchJsonRpcRequest = List[SingleJsonRpcRequest]
 JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
 
 # JSONRPC Responses
-SingleJsonRpcResponse = SingleJsonRpcRequest
+JsonRpcResponseDict = Dict[str, Any]
+SingleJsonRpcResponse = Dict[str, Any]
 BatchJsonRpcResponse = List[SingleJsonRpcResponse]
 JsonRpcResponse = Union[SingleJsonRpcResponse, BatchJsonRpcResponse]
 

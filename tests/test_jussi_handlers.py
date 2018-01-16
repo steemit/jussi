@@ -92,7 +92,7 @@ async def test_upstream_error_responses(mocker, mocked_app_test_cli, jsonrpc_req
 
 
 @pytest.mark.parametrize('jsonrpc_request, expected', [
-    (utf8_request, ujson.dumps(utf8_request, ensure_ascii=False).encode())
+    (utf8_request, ujson.dumps(utf8_request, ensure_ascii=False))
 ])
 async def test_content_encoding(mocker, mocked_app_test_cli, jsonrpc_request,
                                 expected):
@@ -107,37 +107,3 @@ async def test_content_encoding(mocker, mocked_app_test_cli, jsonrpc_request,
     assert json.loads(test_request) == utf8_request
     assert json.loads(test_request)[
         'params'][2][0]['operations'][0][1]['body'] == "「又遲到了！」年輕人醒來的時候，已時八時三十分。"
-
-
-async def test_retry(mocker, mocked_app_test_cli):
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-    request = {
-        'id': 1,
-        "jsonrpc": '2.0',
-        'method': 'call',
-        'params': [
-            'database_api',
-            'get_block',
-            [1000]]}
-
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-    mocked_ws_conn.recv.side_effect = Exception()
-    response = await test_cli.post('/', json=request)
-    assert mocked_ws_conn.send.call_count == 3
-
-
-async def test_no_broadcast_retry(mocker, mocked_app_test_cli):
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-    request = {
-        'id': 1,
-        "jsonrpc": '2.0',
-        'method': 'call',
-        'params': [
-            'network_broadcast_api',
-            'broadcast_transaction_synchronous',
-            ['test']]}
-
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-    mocked_ws_conn.recv.side_effect = Exception()
-    response = await test_cli.post('/', json=request)
-    assert mocked_ws_conn.send.call_count == 1

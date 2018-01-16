@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import aiocache
+
 
 import pytest
-from jussi.cache import cache_group
+
 from jussi.cache.utils import jsonrpc_cache_key
+from jussi.request import JussiJSONRPCRequest
 
 caches_config = {
     'default': {
@@ -13,8 +14,8 @@ caches_config = {
 }
 
 
-jrpc_req_1 = {"id": "1", "jsonrpc": "2.0",
-              "method": "get_block", "params": [1000]}
+jrpc_req_1 = JussiJSONRPCRequest.from_request({"id": "1", "jsonrpc": "2.0",
+                                               "method": "get_block", "params": [1000]})
 jrpc_resp_1 = {
     "id": 2,
     "result": {
@@ -30,10 +31,10 @@ jrpc_resp_1 = {
         "transaction_ids": []}}
 
 
-batch1_jrpc = [{"id": _id, "jsonrpc": "2.0",
-                "method": "get_block", "params": [1000]} for _id in range(10)]
-batch2_jrpc = [{"id": _id, "jsonrpc": "2.0", "method": "get_block",
-                "params": [1000]} for _id in range(20, 30)]
+batch1_jrpc = [JussiJSONRPCRequest.from_request({"id": _id, "jsonrpc": "2.0",
+                                                 "method": "get_block", "params": [1000]}) for _id in range(10)]
+batch2_jrpc = [JussiJSONRPCRequest.from_request({"id": _id, "jsonrpc": "2.0", "method": "get_block",
+                                                 "params": [1000]}) for _id in range(20, 30)]
 
 cached_resp1 = [None for i in batch1_jrpc]
 cached_resp2 = [

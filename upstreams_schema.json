@@ -1,0 +1,78 @@
+{
+  "id": "https://schema.steemit.com/jussi/upstreams/schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Jussi upstream configuration file schema",
+  "type": "array",
+  "items": { "$ref": "#/definitions/upstream_definition"},
+  "definitions": {
+    "upstream_definition": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/url_pair"
+          }
+        },
+        "ttls": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/ttl_pair"}
+        },
+        "timeouts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/timeout_pair"
+          }
+        },
+        "retries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/retry_pair"
+          }
+        }
+      },
+      "required": ["name","urls","ttls","timeouts","retries"],
+      "additionalProperties": false
+    },
+    "url_pair": {
+      "type":"array",
+      "items": [{"type":"string"},{"$ref":"#/definitions/url"}]
+    },
+    "ttl_pair": {
+      "type":"array",
+      "items": [{"type":"string"},{"$ref":"#/definitions/ttl"}]
+    },
+    "timeout_pair": {
+      "type":"array",
+      "items": [{"type":"string"},{"$ref":"#/definitions/timeout"}]
+    },
+    "retry_pair": {
+      "type":"array",
+      "items": [{"type":"string"},{"$ref":"#/definitions/retry"}]
+    },
+     "url": {
+      "description":"Upstream URL",
+      "type": "string",
+      "format": "uri"
+    },
+    "ttl": {
+      "description":"Cache TTL in seconds, where 0 means no expiration, -1 means no cache, and -2 means no expiration if block_num is irreversible ",
+      "type": "integer",
+      "minimum": -2
+    },
+    "timeout": {
+      "description":"Timeout in seconds, where 0 means no timeout",
+      "type": "integer",
+      "minimum":0
+    },
+    "retry": {
+      "description":"Number of retry attempts, where 0 means no retry",
+      "type": "integer",
+      "minimum":0,
+      "maxiumum":3
+    }
+  }
+}

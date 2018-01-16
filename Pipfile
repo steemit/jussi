@@ -5,7 +5,7 @@ verify_ssl = true
 
 
 [dev-packages]
-
+sanic = "==0.6.0"
 asynctest = "*"
 autoflake = "*"
 "autopep8" = "*"
@@ -16,7 +16,7 @@ crayons = "*"
 ipython = "*"
 mypy = "*"
 "pep8" = "*"
-pre_commit = "*"
+pre-commit = "*"
 pylint = "*"
 "pyprof2calltree" = "*"
 pytest = "*"
@@ -33,9 +33,10 @@ requests = "*"
 "urllib3" = "*"
 yapf = "*"
 progress = "*"
-jsonschema = "*"
+jsonschema = "==2.6.0"
 isort = "*"
 pydevd = "*"
+line-profiler = "*"
 
 
 [packages]
@@ -43,22 +44,23 @@ pydevd = "*"
 ujson = "*"
 aiohttp = "*"
 toolz = "*"
-websockets = "*"
 uvloop = "*"
 statsd = "*"
 aiodns = "*"
 pygtrie = "*"
 funcy = "*"
 pipenv = "*"
-Sanic = "*"
 cytoolz = "*"
 janus = "*"
 python-json-logger = "*"
 cchardet = "*"
-async_timeout = "*"
+async-timeout = "*"
 progress = "*"
 pytest = "*"
 aiocache = {extras = ["redis"]}
+websockets = "*"
+sanic = "==0.6.0"
+
 
 
 [requires]

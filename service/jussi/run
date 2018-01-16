@@ -19,20 +19,9 @@ exec 2>&1 \
       --websocket_pool_maxsize "${JUSSI_WEBSOCKET_POOL_MAXSIZE:-8}" \
       --websocket_pool_recycle "${JUSSI_WESOCKET_POOL_RECYCLE:- -1}" \
       --websocket_queue_size "${JUSSI_WESOCKET_QUEUE_SIZE:- 0}" \
-      --upstream_websocket_timeout "${JUSSI_UPSTREAM_WEBSOCKET_TIMEOUT:- 10}" \
-      --upstream_http_timeout "${JUSSI_UPSTREAM_HTTP_TIMEOUT:- 2}" \
       --source_commit "${SOURCE_COMMIT}" \
       --docker_tag "${DOCKER_TAG}" \
-      --upstream_hivemind_url "${JUSSI_HIVEMIND_HTTP_URL}" \
-      --upstream_overseer_url "${JUSSI_OVERSEER_HTTP_URL}" \
-      --upstream_sbds_url "${JUSSI_SBDS_HTTP_URL}" \
-      --upstream_steemd_url "${JUSSI_STEEMD_WS_URL}" \
-      --upstream_steemd_broadcast_url "${JUSSI_STEEMD_WS_BROADCAST_URL}" \
-      --upstream_yo_url "${JUSSI_YO_HTTP_URL}" \
+      --upstream_config_file "${JUSSI_UPSTREAM_CONFIG_FILE:- PROD_UPSTREAM_CONFIG.json}" \
       --redis_host "${JUSSI_REDIS_HOST}" \
       --redis_port "${JUSSI_REDIS_PORT:-6379}" \
-      --redis_namespace "${JUSSI_REDIS_NAMESPACE:-jussi}" \
-      --statsd_host "${JUSSI_STATSD_HOST}" \
-      --statsd_port "${JUSSI_STATSD_PORT:-8125}" \
-      --statsd_prefix "${JUSSI_STATSD_PREFIX:-jussi}" \
-      2>&1
+      --redis_namespace "${JUSSI_REDIS_NAMESPACE:-jussi}"

@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
+import json
+
 import aiohttp
+import jsonschema
 
 import jussi.logging_config
-import jussi.upstream.timeouts
 import jussi.ws.pool
 import ujson
 
 from .cache import setup_caches
 from .typedefs import WebApp
-from .upstream.url import deref_urls
+from .upstream import _Upstreams
 
 
 def setup_listeners(app: WebApp) -> WebApp:
@@ -20,28 +22,22 @@ def setup_listeners(app: WebApp) -> WebApp:
         loop.set_debug(app.config.args.debug)
 
     @app.listener('before_server_start')
-    def setup_jsonrpc_method_url_settings(app: WebApp, loop) -> None:
+    def setup_upstreams(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('before_server_start -> setup_jsonrpc_method_url_settings')
+        logger.info('before_server_start -> setup_upstreams')
         args = app.config.args
-        mapping = {
-            'hivemind_default': args.upstream_hivemind_url,
-            'jussi_default': 'localhost',
-            'overseer_default': args.upstream_overseer_url,
-            'sbds_default': args.upstream_sbds_url,
-            'steemd_default': args.upstream_steemd_url,
-            'steemd_broadcast': args.upstream_steemd_broadcast_url,
-            'yo_default': args.upstream_yo_url,
+        upstream_config_file = args.upstream_config_file
+        upstream_schema_file = 'upstreams_schema.json'
+        with open(upstream_schema_file) as f:
+            upstream_schema = json.load(f)
+        jsonschema.Draft4Validator.check_schema(upstream_schema)
+        config_validator = jsonschema.Draft4Validator(upstream_schema)
 
-        }
-        app.config.upstream_urls = deref_urls(
-            url_mapping=mapping)
+        with open(upstream_config_file) as f:
+            upstream_config = json.load(f)
+        config_validator.validate(upstream_config)
 
-    @app.listener('before_server_start')
-    def setup_timeouts(app: WebApp, loop) -> None:
-        logger = app.config.logger
-        logger.info('before_server_start -> setup_timeouts')
-        app.config.timeout_from_request = jussi.upstream.timeouts.timeout_from_request
+        app.config.upstreams = _Upstreams(upstream_config)
 
     @app.listener('before_server_start')
     def setup_aiohttp_session(app: WebApp, loop) -> None:
@@ -61,7 +57,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger = app.config.logger
         logger.info('before_server_start -> setup_websocket_connection_pools')
         args = app.config.args
-        upstream_urls = app.config.upstream_urls
+        upstream_urls = app.config.upstreams.urls()
         app.config.websocket_pool_kwargs = dict(
             minsize=args.websocket_pool_minsize,
             maxsize=args.websocket_pool_maxsize,
@@ -70,7 +66,7 @@ def setup_listeners(app: WebApp) -> WebApp:
             max_queue=args.websocket_queue_size)
 
         pools = dict()
-        for url in set(upstream_urls.itervalues()):
+        for url in upstream_urls:
             if url.startswith('ws'):
                 logger.info('creating websocket pool for %s', url)
                 pools[url] = await jussi.ws.pool.create_pool(url=url,
