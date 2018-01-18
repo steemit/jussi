@@ -19,11 +19,11 @@ REQUEST_ID_TO_INT_TRANSLATE_TABLE = mt = str.maketrans('', '', '-.')
 async def add_jussi_request_id(request: HTTPRequest) -> None:
     try:
         rid = request.headers['x-jussi-request-id']
-        request['request_id_int'] = int(rid.translate(mt)[:19])
+        request['request_id_int'] = int(rid.translate(mt)[:19]) % 2**53
     except BaseException:
         logger.debug('bad/missing x-jussi-request-id-header: %s',
                      request.headers.get('x-jussi-request-id'))
-        rid = random.getrandbits(64)
+        rid = random.getrandbits(53)
         request.headers['x-jussi-request-id'] = rid
         request['request_id_int'] = int(str(rid)[:15])
 
