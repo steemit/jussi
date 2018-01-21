@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 @async_nowait_middleware
 async def update_last_irreversible_block_num(request: HTTPRequest, response: HTTPResponse) -> None:
+    if request.method != 'POST':
+        return
     try:
         app = request.app
         jsonrpc_request = request.json
@@ -24,5 +26,5 @@ async def update_last_irreversible_block_num(request: HTTPRequest, response: HTT
             app.config.last_irreversible_block_num = last_irreversible_block_num
             logger.debug(
                 f'updated last_irreversible_block_num: {last_irreversible_block_num}')
-    except Exception as e:
-        logger.info(f'skipping update of last_irreversible_block_num: {e}')
+    except Exception:
+        logger.exception('skipping update of last_irreversible_block_num')

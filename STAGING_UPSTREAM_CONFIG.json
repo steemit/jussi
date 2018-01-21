@@ -38,28 +38,13 @@
       ["overseer","https://overseer.steemitstage.com"]
     ],
     "ttls": [
-      ["overseer",-1]
+      ["overseer",3]
     ],
     "timeouts": [
-      ["overseer",5]
+      ["overseer",3]
     ],
     "retries": [
-      ["overseer",0]
-    ]
-  },
-  {
-    "name":"conveyor",
-    "urls": [
-      ["conveyor","https://conveyor.steemitstage.com"]
-    ],
-    "ttls": [
-      ["conveyor",-1]
-    ],
-    "timeouts": [
-      ["conveyor",5]
-    ],
-    "retries": [
-      ["conveyor",0]
+      ["overseer",3]
     ]
   },
   {

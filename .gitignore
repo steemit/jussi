@@ -119,3 +119,4 @@ service/*/supervise/
 .elasticbeanstalk/
 upstream_traffic.json
 env
+ALT_config.json

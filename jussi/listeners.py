@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
+import sys
 
 import aiohttp
-import jsonschema
 
 import jussi.logging_config
 import jussi.ws.pool
@@ -27,17 +27,14 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('before_server_start -> setup_upstreams')
         args = app.config.args
         upstream_config_file = args.upstream_config_file
-        upstream_schema_file = 'upstreams_schema.json'
-        with open(upstream_schema_file) as f:
-            upstream_schema = json.load(f)
-        jsonschema.Draft4Validator.check_schema(upstream_schema)
-        config_validator = jsonschema.Draft4Validator(upstream_schema)
-
         with open(upstream_config_file) as f:
             upstream_config = json.load(f)
-        config_validator.validate(upstream_config)
-
-        app.config.upstreams = _Upstreams(upstream_config)
+        try:
+            app.config.upstreams = _Upstreams(upstream_config,
+                                              validate=args.test_upstream_urls)
+        except Exception as e:
+            logger.error('Bad upstream in config: %s', str(e))
+            sys.exit(127)
 
     @app.listener('before_server_start')
     def setup_aiohttp_session(app: WebApp, loop) -> None:
