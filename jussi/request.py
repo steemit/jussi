@@ -77,8 +77,9 @@ class JussiJSONRPCRequest(NamedTuple):
         base_extra = {
             'x-amzn-trace-id': self.amzn_trace_id,
             'jussi_request_id': self.jussi_request_id,
-            'urn': self.urn._asdict(),
+            'jsonrpc_id': self.id,
             'batch_index': self.batch_index,
+            'urn': self.urn._asdict(),
             'upstream': self.upstream._asdict(),
             'upstream_request_id': self.upstream_id,
         }
