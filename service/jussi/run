@@ -22,6 +22,7 @@ exec 2>&1 \
       --source_commit "${SOURCE_COMMIT}" \
       --docker_tag "${DOCKER_TAG}" \
       --upstream_config_file "${JUSSI_UPSTREAM_CONFIG_FILE:- PROD_UPSTREAM_CONFIG.json}" \
+      --test_upstream_urls "${JUSSI_TEST_UPSTREAM_URLS:- True}" \
       --redis_host "${JUSSI_REDIS_HOST}" \
       --redis_port "${JUSSI_REDIS_PORT:-6379}" \
       --redis_namespace "${JUSSI_REDIS_NAMESPACE:-jussi}"
