@@ -5,7 +5,11 @@ import reprlib
 from collections import namedtuple
 from typing import Tuple
 
+from .errors import InvalidNamespaceAPIError
+
 logger = logging.getLogger(__name__)
+
+STEEMD_NUMERIC_API_MAPPING = ('database_api', 'login_api')
 
 
 def parse_namespaced_method(namespaced_method: str=None,
@@ -47,6 +51,12 @@ class URN(namedtuple('URN', 'namespace api method params')):
                 if len(method_parts) == 2:
                     api = method_parts[0]
                     method = method_parts[1]
+            if isinstance(api, int):
+                try:
+                    api = STEEMD_NUMERIC_API_MAPPING[api]
+                except IndexError:
+                    raise InvalidNamespaceAPIError(namespace=namespace, api=api)
+
         if isinstance(params, dict):
             params = dict(sorted(params.items()))
         return namespace, api, method, params
@@ -64,7 +74,10 @@ class URN(namedtuple('URN', 'namespace api method params')):
             params = f'params={self.params}'.replace(' ', '')
         else:
             params = self.params
-        return '.'.join(p for p in (self.namespace, self.api, self.method, params) if p)
+        api = self.api
+        if api is not None:
+            api = str(self.api)
+        return '.'.join(p for p in (self.namespace, api, self.method, params) if p)
 
     def __hash__(self):
         return hash(str(self))
