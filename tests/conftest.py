@@ -20,6 +20,8 @@ import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
 from jussi.urn import URN
+from jussi.upstream import _Upstreams
+from jussi.request import JussiJSONRPCRequest
 
 
 def pytest_addoption(parser):
@@ -67,8 +69,11 @@ with open(os.path.join(TEST_DIR, 'jrpc_requests_and_responses.json')) as f:
 with open(os.path.join(TEST_DIR, 'appbase_jrpc_requests_and_responses.json')) as f:
     APPBASE_REQUESTS_AND_RESPONSES = ujson.load(f)
 
-APPBASE_REQUESTS = [p[0] for p in APPBASE_REQUESTS_AND_RESPONSES]
+with open(os.path.join(TEST_DIR, 'TEST_UPSTREAM_CONFIG.json')) as f:
+    TEST_UPSTREAM_CONFIG = ujson.load(f)
 
+
+APPBASE_REQUESTS = [p[0] for p in APPBASE_REQUESTS_AND_RESPONSES]
 
 INVALID_JRPC_REQUESTS = [
     # bad/missing jsonrpc
@@ -184,6 +189,14 @@ INVALID_JRPC_REQUESTS = [
         'method': None,
         'params': '1000'
     },
+
+    # malformed
+    [],
+    dict(),
+    '',
+    b'',
+    None,
+    False
 ]
 
 INVALID_JRPC_RESPONSES = [
@@ -735,7 +748,6 @@ STEEMD_JSON_RPC_CALLS = [{
 
 COMBINED_STEEMD_APPBASE_JSONRPC_CALLS = STEEMD_JSON_RPC_CALLS + APPBASE_REQUESTS
 
-
 STEEMD_JSONRPC_CALL_PAIRS = []
 for c in STEEMD_JSON_RPC_CALLS:
     if c['method'] == 'call':
@@ -770,15 +782,29 @@ def dummy_app_config():
 
 
 @pytest.fixture
-def dummy_request(dummy_app_config):
-    request = AttrDict()
-    request.app = dummy_app_config
-    return request
+def dummy_request():
+    dummy_request = AttrDict()
+    dummy_request.headers = dict()
+    dummy_request['jussi_request_id'] = '123456789012345'
+    dummy_request.app = AttrDict()
+    dummy_request.app.config = AttrDict()
+    dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG,
+                                                    validate=False)
+    return dummy_request
+
+
+@pytest.fixture(scope='session')
+def upstreams():
+    yield _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
 
 
 @pytest.fixture(scope='function')
 def app(loop):
     args = jussi.serve.parse_args(args=[])
+    upstream_config_path = os.path.abspath(
+        os.path.join(TEST_DIR, 'TEST_UPSTREAM_CONFIG.json'))
+    args.upstream_config_file = upstream_config_path
+    args.test_upstream_urls = False
     # run app
     app = sanic.Sanic('testApp')
     app.config.args = args
@@ -908,6 +934,13 @@ def valid_batch_jrpc_request(valid_single_jrpc_request):
 @pytest.fixture(params=INVALID_JRPC_REQUESTS)
 def invalid_jrpc_requests(request):
     yield request.param
+
+
+@pytest.fixture(scope='session', params=INVALID_JRPC_REQUESTS)
+def invalid_jussi_jsonrpc_requests(request, dummy_request):
+    invalid_request = request.param
+    invalid_jussijsonrpc_request = JussiJSONRPCRequest(dummy_request, 0, invalid_request)
+    yield invalid_jussijsonrpc_request
 
 
 @pytest.fixture(params=INVALID_JRPC_RESPONSES)

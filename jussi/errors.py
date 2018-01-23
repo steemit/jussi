@@ -69,7 +69,7 @@ async def handle_middleware_exceptions(call):
     try:
         return await call()
     except Exception as e:
-        logger.error(f'handling middlware error: {e}')
+        logger.exception(f'handling middlware error')
         # pylint: disable=no-member
         if isinstance(e, JsonRpcError):
             return e.to_sanic_response()
@@ -237,3 +237,18 @@ class UpstreamResponseError(JsonRpcError):
 class InvalidNamespaceError(JsonRpcError):
     code = 1200
     message = 'Invalid JSONRPC method namespace {namespace}'
+
+
+class InvalidNamespaceAPIError(JsonRpcError):
+    code = 1200
+    message = 'Invalid JSONRPC method namespace, unable to resolve {namespace}.{api}'
+
+
+class InvalidUpstreamHost(JsonRpcError):
+    code = 1300
+    message = 'Invalid/unresolvable upstream hostname {url}'
+
+
+class InvalidUpstreamURL(JsonRpcError):
+    code = 1300
+    message = 'Invalid/unhealthy upstream {url} : {reason}'

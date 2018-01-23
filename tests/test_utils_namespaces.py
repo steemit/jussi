@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 from jussi.urn import parse_namespaced_method, URN
 import pytest
+from jussi.errors import InvalidNamespaceAPIError
+from jussi.upstream import _Upstreams
+from jussi.upstream import DEFAULT_UPSTREAM_CONFIG
+upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+namespaces = upstreams.namespaces
 
 
 @pytest.mark.parametrize("namspaced_method,expected", [
@@ -35,7 +40,7 @@ import pytest
     ('block_api.get_block', ('steemd', 'block_api.get_block'))
 ])
 def test_parse_namespaced_method(namspaced_method, expected):
-    result = parse_namespaced_method(namspaced_method)
+    result = parse_namespaced_method(namspaced_method, namespaces=namespaces)
     assert result == expected
 
 
@@ -157,17 +162,37 @@ def test_parse_namespaced_method(namspaced_method, expected):
       'jsonrpc': '2.0',
       'method': 'block_api.get_block',
       'params': {'block_num': 0}},
-     "steemd.block_api.get_block.params={'block_num':0}")
-
+     "steemd.block_api.get_block.params={'block_num':0}"),
+    ({'id': 11,
+      'jsonrpc': '2.0',
+      'method': 'call',
+      'params': [1, "login", ["", ""]]},
+     "steemd.login_api.login.params=['','']"),
+    ({'id': 11,
+      'jsonrpc': '2.0',
+      'method': 'call',
+      'params': [0, "find_accounts", []]},
+     'steemd.database_api.find_accounts')
 ])
 def test_urns(jsonrpc_request, expected):
-    result = str(URN.from_request(jsonrpc_request))
+    result = str(URN.from_request(jsonrpc_request, namespaces=namespaces))
     assert result == expected
+
+
+def test_invalid_numberic_steemd_api():
+    jsonrpc_request = {
+        'id': 11,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [2, "login", ["", ""]]
+    }
+    with pytest.raises(InvalidNamespaceAPIError):
+        result = str(URN.from_request(jsonrpc_request, namespaces=namespaces))
 
 
 def test_urn_pairs(steemd_method_pairs):
     old, new = steemd_method_pairs
-    old_urn = str(URN.from_request(old))
-    new_urn = str(URN.from_request(new))
+    old_urn = str(URN.from_request(old, namespaces=namespaces))
+    new_urn = str(URN.from_request(new, namespaces=namespaces))
     assert old_urn == new_urn
     assert old_urn.startswith('steemd.database_api')

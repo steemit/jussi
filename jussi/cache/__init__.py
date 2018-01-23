@@ -18,15 +18,16 @@ logger = logging.getLogger(__name__)
 def setup_caches(app: WebApp, loop) -> Any:
     logger.info('before_server_start -> cache.setup_caches')
     args = app.config.args
-
     caches = [SimpleMaxTTLMemoryCache()]
     if args.redis_host:
-        caches.append(aiocache.RedisCache(endpoint=args.redis_host,
-                                          port=args.redis_port,
-                                          timeout=10,
-                                          serializer=CompressionSerializer()
-                                          )
-                      )
-
-    cache_group = CacheGroup(caches=caches)
-    return cache_group
+        try:
+            redis_cache = aiocache.RedisCache(endpoint=args.redis_host,
+                                              port=args.redis_port,
+                                              timeout=10,
+                                              serializer=CompressionSerializer())
+            if redis_cache:
+                caches.append(redis_cache)
+        except Exception:
+            logger.exception('failed to add redis cache to caches')
+    configured_cache_group = CacheGroup(caches=caches)
+    return configured_cache_group

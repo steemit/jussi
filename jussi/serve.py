@@ -2,6 +2,8 @@
 import argparse
 import os
 
+from distutils.util import strtobool
+
 from sanic import Sanic
 
 import jussi.errors
@@ -16,12 +18,7 @@ REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
 
 
 def setup_routes(app: WebApp) -> WebApp:
-    app.add_route(jussi.handlers.healthcheck, '/', methods=['GET'])
     app.add_route(jussi.handlers.healthcheck, '/health', methods=['GET'])
-    app.add_route(
-        jussi.handlers.healthcheck,
-        '/.well-known/healthcheck.json',
-        methods=['GET'])
     app.add_route(jussi.handlers.handle_jsonrpc, '/', methods=['POST'])
     return app
 
@@ -32,7 +29,9 @@ def parse_args(args: list = None):
     parser = argparse.ArgumentParser(description="jussi reverse proxy server")
 
     # server config
-    parser.add_argument('--debug', type=bool, default=False)
+    parser.add_argument('--debug',
+                        type=lambda x: bool(strtobool(x)),
+                        default=False)
     parser.add_argument('--server_host', type=str, default='0.0.0.0')
     parser.add_argument('--server_port', type=int, default=9000)
     parser.add_argument('--server_workers', type=int, default=os.cpu_count())
@@ -54,7 +53,9 @@ def parse_args(args: list = None):
     # upstream config
     parser.add_argument('--upstream_config_file', type=str,
                         default='PROD_UPSTREAM_CONFIG.json')
-
+    parser.add_argument('--test_upstream_urls',
+                        type=lambda x: bool(strtobool(x)),
+                        default=True)
     # redis config
     parser.add_argument('--redis_host', type=str, default=None)
     parser.add_argument('--redis_port', type=int, default=6379)

@@ -12,14 +12,14 @@ from ..errors import InvalidRequest
 from ..errors import ParseError
 from ..errors import ServerError
 from ..errors import handle_middleware_exceptions
-from ..utils import async_exclude_methods
+from ..utils import async_include_methods
 from ..validators import validate_jsonrpc_request as validate_request
 
 logger = logging.getLogger(__name__)
 
 
+@async_include_methods(include_http_methods=('POST',))
 @handle_middleware_exceptions
-@async_exclude_methods(exclude_http_methods=('GET',))
 async def validate_jsonrpc_request(
         request: HTTPRequest) -> Optional[HTTPResponse]:
     try:

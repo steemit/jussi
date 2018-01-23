@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
+import http.client
 import itertools as it
+import json
 import logging
 import os
 import re
+import socket
 from typing import NamedTuple
+from urllib.parse import urlparse
 
+import jsonschema
 import pygtrie
 
-from .urn import URN
+from .errors import InvalidUpstreamHost
+from .errors import InvalidUpstreamURL
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +32,6 @@ ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\\?/@(.*)/transfers$')
 #  RETRIES
 #  NO RETRIES: 0
 #-------------------
-
-NAMESPACES = frozenset(
-    ['hivemind', 'jussi', 'overseer', 'sbds', 'steemd', 'yo'])
 
 
 DEFAULT_UPSTREAM_CONFIG = [
@@ -63,21 +66,6 @@ DEFAULT_UPSTREAM_CONFIG = [
         "retries": [
             ["steemd", 3],
             ["steemd.network_broadcast_api", 0]
-        ]
-    },
-    {
-        "name": "overseer",
-        "urls": [
-            ["overseer", "https://overseer.steemit.com"]
-        ],
-        "ttls": [
-            ["overseer", 3]
-        ],
-        "timeouts": [
-            ["overseer", 3]
-        ],
-        "retries": [
-            ["overseer", 3]
         ]
     },
     {
@@ -127,15 +115,21 @@ DEFAULT_UPSTREAM_CONFIG = [
     }
 ]
 
+UPSTREAM_SCHEMA_FILE = 'upstreams_schema.json'
+with open(UPSTREAM_SCHEMA_FILE) as f:
+    UPSTREAM_SCHEMA = json.load(f)
+jsonschema.Draft4Validator.check_schema(UPSTREAM_SCHEMA)
+CONFIG_VALIDATOR = jsonschema.Draft4Validator(UPSTREAM_SCHEMA)
+
 
 class _Upstreams(object):
     __NAMESPACES = None
     __URLS = None
     __TTLS = None
-    __RETRIES = None
     __TIMEOUTS = None
 
-    def __init__(self, config):
+    def __init__(self, config, validate=True):
+        CONFIG_VALIDATOR.validate(config)
         self.config = config
 
         self.__NAMESPACES = frozenset(c['name'] for c in self.config)
@@ -148,15 +142,14 @@ class _Upstreams(object):
             it.chain.from_iterable(c['ttls'] for c in self.config),
             separator='.')
 
-        self.__RETRIES = pygtrie.StringTrie(
-            it.chain.from_iterable(c['timeouts'] for c in self.config),
-            separator='.')
-
         self.__TIMEOUTS = pygtrie.StringTrie(
             it.chain.from_iterable(c['timeouts'] for c in self.config),
             separator='.')
 
-    def url(self, request_urn: URN) -> str:
+        if validate:
+            self.validate_urls()
+
+    def url(self, request_urn: NamedTuple) -> str:
         try:
             logger.debug(request_urn.parts.params[0])
             if request_urn.parts.api == 'database_api' and ACCOUNT_TRANSFER_PATTERN.match(
@@ -171,42 +164,59 @@ class _Upstreams(object):
 
         if url.startswith('ws') or url.startswith('http'):
             return url
-        raise ValueError(f'Bad/missing url {url}')
+        raise InvalidUpstreamURL(url=url, reason='inalid format')
 
-    def ttl(self, request_urn: URN) -> str:
+    def ttl(self, request_urn: NamedTuple) -> str:
         _, ttl = self.__TTLS.longest_prefix(str(request_urn))
         return ttl
 
-    def timeout(self, request_urn: URN) -> int:
+    def timeout(self, request_urn: NamedTuple) -> int:
         _, timeout = self.__TIMEOUTS.longest_prefix(str(request_urn))
         if timeout is 0:
             timeout = None
         return timeout
 
-    def retries(self, request_urn: URN) -> int:
-        _, retries = self.__RETRIES.longest_prefix(str(request_urn))
-        return retries
-
     def urls(self) -> frozenset:
         return frozenset(u for u in self.__URLS.values())
 
+    @property
     def namespaces(self)-> frozenset:
         return self.__NAMESPACES
+
+    def validate_urls(self):
+        logger.info('testing upstream urls')
+        for url in self.urls():
+            try:
+                parsed_url = urlparse(url)
+                host = urlparse(url).netloc
+                logger.info('attempting to add %s', parsed_url)
+                logger.info('HTTP HEAD / %s', host)
+                if parsed_url.scheme.startswith('http'):
+                    conn = http.client.HTTPSConnection(host, port=443)
+                    conn.request("HEAD", "/")
+                    response = conn.getresponse()
+                    assert response.status < 500, f'{url} returned HTTP status {response.status}'
+                    logger.info('success:  HTTP HEAD / %s', host)
+                elif parsed_url.scheme.startswith('ws'):
+                    _ = socket.gethostbyname(host)
+                else:
+                    raise InvalidUpstreamURL(url=url, reason='bad format')
+
+            except socket.gaierror:
+                raise InvalidUpstreamHost(url=url)
+            except AssertionError as e:
+                raise InvalidUpstreamURL(url=url, reason=str(e))
+            except Exception as e:
+                raise InvalidUpstreamURL(url=url, reason=str(e))
 
 
 class Upstream(NamedTuple):
     url: str
     ttl: int
     timeout: int
-    retries: int
 
     @classmethod
-    def from_urn(cls, urn: URN, upstreams: _Upstreams=None):
-        upstreams = upstreams or Upstreams
+    def from_urn(cls, urn: NamedTuple, upstreams: _Upstreams=None):
         return cls(upstreams.url(urn),
                    upstreams.ttl(urn),
-                   upstreams.timeout(urn),
-                   upstreams.retries(urn))
-
-
-Upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG)
+                   upstreams.timeout(urn))
