@@ -4,7 +4,9 @@ import logging
 from funcy.decorators import Call
 from funcy.decorators import decorator
 
+from .errors import InvalidRequest
 from .errors import ServerError
+from .errors import UpstreamResponseError
 from .typedefs import JsonRpcRequest
 from .typedefs import JsonRpcResponse
 from .typedefs import SingleJsonRpcRequest
@@ -67,7 +69,7 @@ def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
     elif isinstance(jsonrpc_request, SingleJsonRpcRequest):
         pass  # already be validated
     else:
-        raise TypeError('Bad JSONRPC Request Type')
+        raise InvalidRequest(data=jsonrpc_request.log_extra())
 
 
 def validate_jussi_response(jsonrpc_request: JsonRpcRequest,
@@ -84,7 +86,7 @@ def validate_jussi_response(jsonrpc_request: JsonRpcRequest,
             assert is_valid_get_block_response(
                 jsonrpc_request, jsonrpc_response)
     else:
-        raise TypeError('Invalid response type')
+        raise UpstreamResponseError(data=jsonrpc_request.log_extra())
 
 
 #
@@ -174,7 +176,8 @@ def is_valid_jussi_response(
                 zip(jsonrpc_request, response))
         return False
     except Exception as e:
-        logger.error(f'{e}')
+        logger.error('is_valid_jussi_response error:%s', e,
+                     extra=jsonrpc_request.log_extra())
     return False
 
 
@@ -199,7 +202,8 @@ def is_valid_non_error_jussi_response(
                 zip(jsonrpc_request, response))
         return False
     except Exception as e:
-        logger.error(f'{e}')
+        logger.error('is_valid_non_error_jussi_response error:%s', e,
+                     extra=jsonrpc_request.log_extra())
     return False
 
 
@@ -207,7 +211,8 @@ def is_get_block_request(jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
     try:
         return jsonrpc_request.urn.method == 'get_block'
     except Exception as e:
-        logger.debug(f'is_get_block_request errored: {e}')
+        logger.debug('is_get_block_request errored: %s', e,
+                     extra=jsonrpc_request.log_extra())
         return False
 
 
@@ -216,7 +221,8 @@ def is_get_block_header_request(
     try:
         return jsonrpc_request.urn.method == 'get_block_header'
     except Exception as e:
-        logger.debug(f'is_get_block_request errored: {e}')
+        logger.debug('is_get_block_request errored: %s', e,
+                     extra=jsonrpc_request.log_extra())
         return False
 
 
@@ -225,6 +231,8 @@ def is_get_dynamic_global_properties_request(
     try:
         return jsonrpc_request.urn.namespace == 'steemd' and jsonrpc_request.urn.method == 'get_dynamic_global_properties'
     except Exception:
+        logger.debug('is_get_dynamic_global_properties_request failed',
+                     extra=jsonrpc_request.log_extra())
         return False
 
 
@@ -251,11 +259,13 @@ def is_valid_get_block_response(
         assert int(request_block_num) == response_block_num
         return True
     except KeyError as e:
-        logger.error(f'is_valid_get_block_response key error:{e}')
+        logger.error('is_valid_get_block_response key error: %s', e,
+                     extra=jsonrpc_request.log_extra())
     except AssertionError:
         logger.error(f'{request_block_num} != {response_block_num}')
     except Exception as e:
-        logger.error(f'is_valid_get_block_response error :{e}')
+        logger.error('is_valid_get_block_response error: %s', e,
+                     extra=jsonrpc_request.log_extra())
     return False
 
 
@@ -273,11 +283,14 @@ def is_valid_get_block_header_response(
         assert int(request_block_num) == response_block_num
         return True
     except KeyError as e:
-        logger.error(f'is_valid_get_block_header_response key error:{e}')
+        logger.error('is_valid_get_block_header_response key error: %s', e,
+                     extra=jsonrpc_request.log_extra())
     except AssertionError:
-        logger.error(f'{request_block_num} != {response_block_num}')
+        logger.error(f'{request_block_num} != {response_block_num}',
+                     extra=jsonrpc_request.log_extra())
     except Exception as e:
-        logger.error(f'is_valid_get_block_header_response error :{e}')
+        logger.exception('is_valid_get_block_header_response error : %s', e,
+                         extra=jsonrpc_request.log_extra())
     return False
 
 

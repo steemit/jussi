@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from .jsonrpc import validate_jsonrpc_request
-from .jussi import add_jussi_request_id
 from .jussi import finalize_jussi_response
 from .jussi import convert_to_jussi_request
 from .caching import get_response
@@ -14,7 +13,6 @@ def setup_middlewares(app):
     logger.info('before_server_start -> setup_middlewares')
 
     # request middleware
-    app.request_middleware.append(add_jussi_request_id)
     app.request_middleware.append(validate_jsonrpc_request)
     app.request_middleware.append(convert_to_jussi_request)
     app.request_middleware.append(get_response)

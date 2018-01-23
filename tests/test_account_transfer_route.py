@@ -4,6 +4,22 @@ from jussi.upstream import Upstream
 from jussi.urn import URN
 
 import pytest
+from jussi.upstream import _Upstreams
+from jussi.upstream import DEFAULT_UPSTREAM_CONFIG
+
+
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+dummy_request = AttrDict()
+dummy_request.headers = dict()
+dummy_request['jussi_request_id'] = '123456789012345'
+dummy_request.app = AttrDict()
+dummy_request.app.config = AttrDict()
+dummy_request.app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
 
 
 @pytest.mark.parametrize("jrpc_request,expected", [
@@ -149,7 +165,7 @@ import pytest
 ])
 def test_url_env_var_defined(jrpc_request, expected):
     os.environ['JUSSI_ACCOUNT_TRANSFER_STEEMD_URL'] = 'test'
-    urn = URN.from_request(jrpc_request)
-    upstream = Upstream.from_urn(urn)
+    urn = URN.from_request(jrpc_request, dummy_request.app.config.upstreams.namespaces)
+    upstream = Upstream.from_urn(urn, upstreams=dummy_request.app.config.upstreams)
     assert upstream.url == expected
     del os.environ['JUSSI_ACCOUNT_TRANSFER_STEEMD_URL']

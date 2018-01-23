@@ -10,6 +10,7 @@ from sanic import response
 
 import ujson
 
+from .errors import InvalidUpstreamURL
 from .errors import UpstreamResponseError
 from .typedefs import BatchJsonRpcRequest
 from .typedefs import BatchJsonRpcResponse
@@ -47,59 +48,45 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
         'docker_tag': sanic_http_request.app.config.args.docker_tag
     })
 
-
 # pylint: disable=no-value-for-parameter, too-many-locals
+
+
 async def fetch_ws(sanic_http_request: HTTPRequest,
-                   jsonrpc_request: SingleJsonRpcRequest,
-                   batch_index: int) -> SingleJsonRpcResponse:
+                   jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
     pools = sanic_http_request.app.config.websocket_pools
     pool = pools[jsonrpc_request.upstream.url]
-    jussi_request_id = sanic_http_request.headers.get('x-jussi-request-id')
 
-    upstream_id = sanic_http_request['request_id_int'] + batch_index
-    upstream_request_json = jsonrpc_request.to_upstream_request(upstream_id)
     conn = await pool.acquire()
     start = time.perf_counter()
 
     with async_timeout.timeout(jsonrpc_request.upstream.timeout):
         elapsed = -1
         try:
-            await conn.send(upstream_request_json)
+            await conn.send(jsonrpc_request.to_upstream_request())
             upstream_response_json = await conn.recv()
             elapsed = time.perf_counter() - start
             upstream_response = ujson.loads(upstream_response_json)
-            assert int(upstream_response.get('id')) == upstream_id, \
-                f'{upstream_response.get("id")} should be {upstream_id}'
-            del upstream_response['id']
-            if jsonrpc_request.id is not False:
-                upstream_response['id'] = jsonrpc_request.id
+            assert int(upstream_response.get('id')) == jsonrpc_request.upstream_id, \
+                f'{upstream_response.get("id")} should be {jsonrpc_request.upstream_id}'
+
+            upstream_response['id'] = jsonrpc_request.id
             return upstream_response
 
         except AssertionError as e:
-            request_info = dict(jussi_request_id=jussi_request_id,
-                                jsonrpc_request_id=jsonrpc_request.id,
-                                upstream_request_id=upstream_id,
-                                batch_index=batch_index,
-                                conn_id=id(conn),
-                                time_to_upstream=start - sanic_http_request['timing'],
-                                url=jsonrpc_request.upstream.url,
-                                namespace=jsonrpc_request.urn.namespace,
-                                api=jsonrpc_request.urn.api,
-                                method=jsonrpc_request.urn.method,
-                                params=jsonrpc_request.urn.params,
-                                timeout=jsonrpc_request.upstream.timeout,
-                                elapsed=elapsed,
-                                upstream_request=upstream_request_json,
-                                upstream_response=upstream_response)
-            request_info.update(upstream_request=upstream_request_json)
+            request_info = dict(
+                conn_id=id(conn),
+                time_to_upstream=start - sanic_http_request['timing'],
+                elapsed=elapsed,
+                upstream_request=jsonrpc_request.to_upstream_request())
             try:
                 request_info['upstream_response'] = upstream_response
             except NameError:
                 pass
-            logger.exception(request_info)
             await pool.terminate_connection(conn)
+            log_extra = jsonrpc_request.log_extra(extra=request_info)
             raise UpstreamResponseError(sanic_request=sanic_http_request,
-                                        exception=e)
+                                        exception=e,
+                                        **log_extra)
         except Exception as e:
             logger.exception(f'fetch_ws failed')
             await pool.terminate_connection(conn)
@@ -109,49 +96,32 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
 
 
 async def fetch_http(sanic_http_request: HTTPRequest,
-                     jsonrpc_request: SingleJsonRpcRequest,
-                     batch_index: int) -> SingleJsonRpcResponse:
+                     jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
 
     session = sanic_http_request.app.config.aiohttp['session']
-    headers = {}
-    headers['x-amzn-trace_id'] = sanic_http_request.headers.get('x-amzn-trace-id', 'none')
-    headers['x-jussi-request-id'] = sanic_http_request.headers.get('x-jussi-request-id', 'none')
-
-    upstream_id = sanic_http_request['request_id_int'] + batch_index
-    upstream_request = jsonrpc_request.to_upstream_request(upstream_id, as_json=False)
-
-    with async_timeout.timeout(jsonrpc_request.upstream.timeout):
-        async with session.post(jsonrpc_request.upstream.url,
-                                json=upstream_request) as resp:
-            upstream_response = await resp.json()
-
-        del upstream_response['id']
-        if 'id' in jsonrpc_request:
-            upstream_response['id'] = jsonrpc_request.id
+    async with session.post(jsonrpc_request.upstream.url,
+                            json=jsonrpc_request.to_upstream_request(as_json=False),
+                            headers=jsonrpc_request.upstream_headers,
+                            timeout=jsonrpc_request.upstream.timeout) as resp:
+        upstream_response = await resp.json()
+        upstream_response['id'] = jsonrpc_request.id
         return upstream_response
 # pylint: enable=no-value-for-parameter
 
 
 async def dispatch_single(sanic_http_request: HTTPRequest,
-                          jsonrpc_request: SingleJsonRpcRequest,
-                          batch_index: int=None) -> SingleJsonRpcResponse:
-
-    if batch_index is None:
-        batch_index = 0
-
+                          jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
     # pylint: disable=unexpected-keyword-arg
     if jsonrpc_request.upstream.url.startswith('ws'):
         json_response = await fetch_ws(
             sanic_http_request,
-            jsonrpc_request,
-            batch_index)
+            jsonrpc_request)
     elif jsonrpc_request.upstream.url.startswith('http'):
         json_response = await fetch_http(
             sanic_http_request,
-            jsonrpc_request,
-            batch_index)
+            jsonrpc_request)
     else:
-        raise ValueError(f'Bad url {jsonrpc_request.upstream.url}')
+        raise InvalidUpstreamURL(url=jsonrpc_request.upstream.url)
 
     return json_response
 
@@ -159,6 +129,6 @@ async def dispatch_single(sanic_http_request: HTTPRequest,
 async def dispatch_batch(sanic_http_request: HTTPRequest,
                          jsonrpc_requests: BatchJsonRpcRequest
                          ) -> BatchJsonRpcResponse:
-    requests = [dispatch_single(sanic_http_request, request, i)
-                for i, request in enumerate(jsonrpc_requests)]
+    requests = [dispatch_single(sanic_http_request, request)
+                for request in jsonrpc_requests]
     return await asyncio.gather(*requests)

@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 # decorators
-def async_exclude_methods(
+def async_include_methods(
         middleware_func: Optional[Callable] = None,
-        exclude_http_methods: Tuple[str] = None) -> Optional[Callable]:
-    """Exclude specified HTTP methods from middleware
+        include_http_methods: Tuple[str] = None) -> Optional[Callable]:
+    """Include specified HTTP methods from middleware
 
     Args:
         middleware_func:
@@ -28,13 +28,18 @@ def async_exclude_methods(
     """
     if middleware_func is None:
         return functools.partial(
-            async_exclude_methods, exclude_http_methods=exclude_http_methods)
+            async_include_methods, include_http_methods=include_http_methods)
 
     @functools.wraps(middleware_func)
-    async def f(request: HTTPRequest) -> Optional[HTTPResponse]:
-        if request.method in exclude_http_methods:
-            return None
-        return await middleware_func(request)
+    async def f(*args, **kwargs) -> Optional[HTTPResponse]:
+        try:
+            request = args[0]
+            if request.method not in include_http_methods:
+                return None
+            return await middleware_func(*args, **kwargs)
+        except Exception:
+            logger.exception('async_include error')
+
     return f
 
 
@@ -62,17 +67,3 @@ def is_batch_jsonrpc(
             sanic_http_request.json, list)
     except Exception:
         return False
-
-
-def chunkify(iterable, chunksize=None):
-    i = 0
-    chunk = []
-    for item in iterable:
-        chunk.append(item)
-        i += 1
-        if i == chunksize:
-            yield chunk
-            i = 0
-            chunk = []
-    if chunk:
-        yield chunk

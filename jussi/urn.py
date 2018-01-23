@@ -3,37 +3,38 @@
 import logging
 import reprlib
 from collections import namedtuple
-from typing import Dict
-from typing import List
 from typing import Tuple
-from typing import Union
+
+from .errors import InvalidNamespaceAPIError
 
 logger = logging.getLogger(__name__)
 
-
-NAMESPACES = frozenset(
-    ['hivemind', 'jussi', 'overseer', 'sbds', 'steemd', 'yo'])
+STEEMD_NUMERIC_API_MAPPING = ('database_api', 'login_api')
 
 
-def parse_namespaced_method(namespaced_method: str,
+def parse_namespaced_method(namespaced_method: str=None,
+                            namespaces: frozenset=None,
                             default_namespace: str = 'steemd'):
     parts = namespaced_method.split('.', maxsplit=1)
-    if parts[0] not in NAMESPACES:
+    if parts[0] not in namespaces:
         return default_namespace, namespaced_method
     return parts[0], parts[1]
 
 
 class URN(namedtuple('URN', 'namespace api method params')):
     @classmethod
-    def from_request(cls, single_jsonrpc_request: dict) -> namedtuple:
-        return cls(*cls.__parts(single_jsonrpc_request))
+    def from_request(cls, single_jsonrpc_request: dict,
+                     namespaces: frozenset=None) -> namedtuple:
+        return cls(*cls.__parts(single_jsonrpc_request, namespaces))
 
     # pylint: disable=no-member
     @staticmethod
-    def __parts(single_jsonrpc_request: dict) -> Tuple:
+    def __parts(single_jsonrpc_request: dict=None,
+                namespaces: frozenset=None) -> Tuple:
         api = None
         namespace, method = parse_namespaced_method(
-            single_jsonrpc_request['method'])
+            namespaced_method=single_jsonrpc_request['method'],
+            namespaces=namespaces)
         params = single_jsonrpc_request.get('params', None)
         if namespace == 'steemd':
             if method == 'call':
@@ -50,6 +51,12 @@ class URN(namedtuple('URN', 'namespace api method params')):
                 if len(method_parts) == 2:
                     api = method_parts[0]
                     method = method_parts[1]
+            if isinstance(api, int):
+                try:
+                    api = STEEMD_NUMERIC_API_MAPPING[api]
+                except IndexError:
+                    raise InvalidNamespaceAPIError(namespace=namespace, api=api)
+
         if isinstance(params, dict):
             params = dict(sorted(params.items()))
         return namespace, api, method, params
@@ -67,39 +74,10 @@ class URN(namedtuple('URN', 'namespace api method params')):
             params = f'params={self.params}'.replace(' ', '')
         else:
             params = self.params
-        return '.'.join(p for p in (self.namespace, self.api, self.method, params) if p)
+        api = self.api
+        if api is not None:
+            api = str(self.api)
+        return '.'.join(p for p in (self.namespace, api, self.method, params) if p)
 
     def __hash__(self):
         return hash(str(self))
-
-
-def x_jussi_urn_parts(request: Union[List[Dict[str, any]], Dict[str, any]]) -> Union[URN, str]:
-    try:
-        if isinstance(request, dict):
-            parts = URN.from_request(request)
-            params = stringify(limit_len(parts.params))
-
-            return URN(parts.namespace, parts.api, parts.method, params)
-        elif isinstance(request, list):
-            return 'batch'
-        return 'null'
-    except BaseException:
-        return 'null'
-
-
-def limit_len(item, maxlen=100):
-    if isinstance(item, (list, tuple)):
-        return [limit_len(i, maxlen=maxlen) for i in item]
-    elif isinstance(item, dict):
-        return {k: limit_len(v, maxlen=maxlen) for k, v in item.items()}
-    elif isinstance(item, str):
-        if len(item) > maxlen:
-            return ''.join([item[:maxlen], '...'])
-        else:
-            return item
-    else:
-        return item
-
-
-def stringify(items, maxlen=1000):
-    return f'{items}'.replace(' ', '')[:maxlen]

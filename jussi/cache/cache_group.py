@@ -52,7 +52,7 @@ class CacheGroup(object):
 
     async def set(self, key, value, **kwargs):
         await asyncio.gather(*[cache.set(key, value, **kwargs) for cache
-                               in self._caches])
+                               in self._caches], return_exceptions=True)
 
     async def get(self, key, **kwargs):
         for cache in self._caches:
@@ -84,7 +84,7 @@ class CacheGroup(object):
                     cache.multi_set(
                         pairs, ttl=ttl))
 
-        await asyncio.gather(*futures)
+        await asyncio.gather(*futures, return_exceptions=True)
 
     async def clear(self):
         return await asyncio.gather(*[cache.clear() for cache in self._caches])
@@ -112,6 +112,8 @@ class CacheGroup(object):
                                                                 last_irreversible_block_num=last_irreversible_block_num)
         except UncacheableResponse as e:
             logger.info(e)
+        except Exception as e:
+            logger.exception('error while caching response')
 
     async def get_jsonrpc_response(self,
                                    request: JsonRpcRequest) -> Optional[
