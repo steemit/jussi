@@ -19,7 +19,9 @@ import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
-from jussi.upstream.urn import urn
+from jussi.urn import URN
+from jussi.upstream import _Upstreams
+from jussi.request import JussiJSONRPCRequest
 
 
 def pytest_addoption(parser):
@@ -54,13 +56,24 @@ TEST_DIR = os.path.abspath(os.path.dirname(__file__))
 
 with open(os.path.join(TEST_DIR, 'request-schema.json')) as f:
     REQUEST_SCHEMA = ujson.load(f)
+
 with open(os.path.join(TEST_DIR, 'response-schema.json')) as f:
     RESPONSE_SCHEMA = ujson.load(f)
+
 with open(os.path.join(TEST_DIR, 'steemd-response-schema.json')) as f:
     STEEMD_RESPONSE_SCHEMA = ujson.load(f)
 
 with open(os.path.join(TEST_DIR, 'jrpc_requests_and_responses.json')) as f:
     JRPC_REQUESTS_AND_RESPONSES = ujson.load(f)
+
+with open(os.path.join(TEST_DIR, 'appbase_jrpc_requests_and_responses.json')) as f:
+    APPBASE_REQUESTS_AND_RESPONSES = ujson.load(f)
+
+with open(os.path.join(TEST_DIR, 'TEST_UPSTREAM_CONFIG.json')) as f:
+    TEST_UPSTREAM_CONFIG = ujson.load(f)
+
+
+APPBASE_REQUESTS = [p[0] for p in APPBASE_REQUESTS_AND_RESPONSES]
 
 INVALID_JRPC_REQUESTS = [
     # bad/missing jsonrpc
@@ -176,6 +189,14 @@ INVALID_JRPC_REQUESTS = [
         'method': None,
         'params': '1000'
     },
+
+    # malformed
+    [],
+    dict(),
+    '',
+    b'',
+    None,
+    False
 ]
 
 INVALID_JRPC_RESPONSES = [
@@ -721,7 +742,11 @@ STEEMD_JSON_RPC_CALLS = [{
         'method': 'lookup_witness_accounts',
         'params': ['steemit', 10]
 }
+
+
 ]
+
+COMBINED_STEEMD_APPBASE_JSONRPC_CALLS = STEEMD_JSON_RPC_CALLS + APPBASE_REQUESTS
 
 STEEMD_JSONRPC_CALL_PAIRS = []
 for c in STEEMD_JSON_RPC_CALLS:
@@ -757,15 +782,29 @@ def dummy_app_config():
 
 
 @pytest.fixture
-def dummy_request(dummy_app_config):
-    request = AttrDict()
-    request.app = dummy_app_config
-    return request
+def dummy_request():
+    dummy_request = AttrDict()
+    dummy_request.headers = dict()
+    dummy_request['jussi_request_id'] = '123456789012345'
+    dummy_request.app = AttrDict()
+    dummy_request.app.config = AttrDict()
+    dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG,
+                                                    validate=False)
+    return dummy_request
+
+
+@pytest.fixture(scope='session')
+def upstreams():
+    yield _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
 
 
 @pytest.fixture(scope='function')
 def app(loop):
     args = jussi.serve.parse_args(args=[])
+    upstream_config_path = os.path.abspath(
+        os.path.join(TEST_DIR, 'TEST_UPSTREAM_CONFIG.json'))
+    args.upstream_config_file = upstream_config_path
+    args.test_upstream_urls = False
     # run app
     app = sanic.Sanic('testApp')
     app.config.args = args
@@ -897,12 +936,19 @@ def invalid_jrpc_requests(request):
     yield request.param
 
 
+@pytest.fixture(scope='session', params=INVALID_JRPC_REQUESTS)
+def invalid_jussi_jsonrpc_requests(request, dummy_request):
+    invalid_request = request.param
+    invalid_jussijsonrpc_request = JussiJSONRPCRequest(dummy_request, 0, invalid_request)
+    yield invalid_jussijsonrpc_request
+
+
 @pytest.fixture(params=INVALID_JRPC_RESPONSES)
 def invalid_jrpc_responses(request):
     yield request.param
 
 
-@pytest.fixture(params=STEEMD_JSON_RPC_CALLS, ids=lambda c: c['method'])
+@pytest.fixture(params=COMBINED_STEEMD_APPBASE_JSONRPC_CALLS, ids=lambda c: c['method'])
 def all_steemd_jrpc_calls(request):
     yield request.param
 
@@ -913,15 +959,15 @@ def steemd_method_pairs(request):
 
 
 @pytest.fixture(
-    scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: urn(reqresp[0]))
+    scope='function', params=APPBASE_REQUESTS_AND_RESPONSES + JRPC_REQUESTS_AND_RESPONSES,
+    ids=lambda reqresp: URN(reqresp[0]))
 def steemd_requests_and_responses(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
 
 
 @pytest.fixture(
     scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: urn(reqresp[0]))
+    ids=lambda reqresp: URN(reqresp[0]))
 def steemd_requests_and_responses_without_resp_id(request):
     req, resp = copy.deepcopy(
         request.param[0]), copy.deepcopy(request.param[1])

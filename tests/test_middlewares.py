@@ -21,17 +21,6 @@ invalid_request_error = {
         'message': 'Invalid Request',
         'data': {
             'request': {
-                'method': 'POST',
-                'path': '/',
-                'body': {
-                    'body': {
-                        'id': 1,
-                        'method': 'get_block',
-                        'params': [1000]
-                    },
-                    'is_batch': False,
-                    'batch_request_count': None
-                },
                 'amzn_trace_id': None,
                 'jussi_request_id': '123'
             }

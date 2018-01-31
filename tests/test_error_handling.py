@@ -57,18 +57,10 @@ fake_sanic_request = make_fake_request(body=jrpc_req)
 
 fake_minimal_sanic_request = make_fake_request(path='/', headers={})
 
-default_error_message_body_data = {
-    'body': jrpc_req,
-    'is_batch': False,
-    'batch_request_count': None
-}
 
 default_error_message_data = {
     'error_id': '123',
     'request': {
-        'method': 'POST',
-        'path': '/path',
-        'body': default_error_message_body_data,
         'amzn_trace_id': 'amzn_trace_id',
         'jussi_request_id': 'jussi_request_id'
     }
@@ -82,19 +74,6 @@ minimal_error0 = {
         'data': {
             'error_id': '123',
             'request': {
-                'method': 'POST',
-                'path': '/',
-                'body': {
-                    'body': {
-                        'id': 1,
-                        'jsonrpc': '2.0',
-                        'method': 'yo.test_method',
-                        'params': [
-                            1,
-                            2,
-                            3]},
-                    'is_batch': False,
-                    'batch_request_count': None},
                 'amzn_trace_id': None,
 
                 'jussi_request_id': None}}},
@@ -107,12 +86,9 @@ minimal_error = {
      'data':
      {'error_id': '123',
       'request':
-      {'method': 'POST', 'path': '/',
-       'body':
-       {'body': {'jsonrpc': '2.0', 'method': 'yo.test_method'},
-        'is_batch': False, 'batch_request_count': None},
-       'amzn_trace_id': None,
-       'jussi_request_id': None}}}}
+      {
+          'amzn_trace_id': None,
+          'jussi_request_id': None}}}}
 minimal_error2 = {
     'jsonrpc': '2.0',
     'error':
@@ -120,15 +96,9 @@ minimal_error2 = {
      'data':
      {'error_id': '123',
       'request':
-      {'method': 'POST', 'path': '/path',
-       'body':
-       {
-           'body':
-           {'id': 1, 'jsonrpc': '2.0', 'method': 'yo.test_method',
-            'params': [1, 2, 3]},
-           'is_batch': False, 'batch_request_count': None},
-       'amzn_trace_id': 'amzn_trace_id',
-       'jussi_request_id': 'jussi_request_id'}}},
+      {
+          'amzn_trace_id': 'amzn_trace_id',
+          'jussi_request_id': 'jussi_request_id'}}},
     'id': 1}
 
 
@@ -156,9 +126,6 @@ jrpc_error_with_data = {
         'data': {
             'error_id': '123',
             'request': {
-                'method': 'POST',
-                'path': '/path',
-                'body': default_error_message_body_data,
                 'amzn_trace_id': 'amzn_trace_id',
                 'jussi_request_id': 'jussi_request_id'
             },

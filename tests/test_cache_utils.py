@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import pytest
-from jussi.cache.method_settings import TTL
-from jussi.cache.method_settings import ttl_from_urn
+from jussi.cache.ttl import TTL
+
 from jussi.cache.utils import block_num_from_jsonrpc_response
 from jussi.cache.utils import irreversible_ttl
-from jussi.cache.utils import ttl_from_jsonrpc_request
+
 
 SBDS_DEFAULT_CACHE = 10
 
@@ -37,18 +37,6 @@ non_ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
 ])
 def test_irreversible_ttl(response, last_block, expected):
     ttl = irreversible_ttl(response, last_block)
-    assert ttl == expected
-
-
-@pytest.mark.parametrize('urn,expected', [
-    ('steemd.database_api.get_account_count', TTL.DEFAULT_TTL),
-    ('steemd.database_api.get_block.params=[1000]',
-     TTL.NO_EXPIRE_IF_IRREVERSIBLE),
-    ('steemd.database_api.get_block_header.params=[1000]',
-     TTL.NO_EXPIRE_IF_IRREVERSIBLE),
-])
-def test_ttl_from_urn(urn, expected):
-    ttl = ttl_from_urn(urn)
     assert ttl == expected
 
 

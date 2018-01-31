@@ -13,12 +13,13 @@ from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import BatchJsonRpcResponse
 from ..typedefs import JsonRpcRequest
 from ..typedefs import JsonRpcResponse
+from ..typedefs import JsonRpcResponseDict
 from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
 from ..utils import is_batch_jsonrpc
 from ..validators import is_valid_jussi_response
 from ..validators import is_valid_non_error_single_jsonrpc_response
-from .method_settings import TTL
+from .ttl import TTL
 from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
 from .utils import merge_cached_responses
@@ -50,9 +51,8 @@ class CacheGroup(object):
         logger.info('CacheGroup configured using %s', self._caches)
 
     async def set(self, key, value, **kwargs):
-        return await asyncio.gather(
-            *[asyncio.ensure_future(cache.set(key, value, **kwargs)) for cache
-              in self._caches])
+        await asyncio.gather(*[cache.set(key, value, **kwargs) for cache
+                               in self._caches], return_exceptions=True)
 
     async def get(self, key, **kwargs):
         for cache in self._caches:
@@ -81,10 +81,10 @@ class CacheGroup(object):
             for ttl, ttl_group in grouped_by_ttl.items():
                 pairs = [t[:2] for t in ttl_group]
                 futures.append(
-                    asyncio.ensure_future(
-                        cache.multi_set(
-                            pairs, ttl=ttl)))
-        return await asyncio.gather(*futures)
+                    cache.multi_set(
+                        pairs, ttl=ttl))
+
+        await asyncio.gather(*futures, return_exceptions=True)
 
     async def clear(self):
         return await asyncio.gather(*[cache.clear() for cache in self._caches])
@@ -111,7 +111,9 @@ class CacheGroup(object):
                                                                 response,
                                                                 last_irreversible_block_num=last_irreversible_block_num)
         except UncacheableResponse as e:
-            logger.warning(e)
+            logger.info(e)
+        except Exception as e:
+            logger.exception('error while caching response')
 
     async def get_jsonrpc_response(self,
                                    request: JsonRpcRequest) -> Optional[
@@ -148,7 +150,7 @@ class CacheGroup(object):
 
         value = await self.prepare_response_for_cache(request, response)
 
-        key = key or jsonrpc_cache_key(request)
+        key = jsonrpc_cache_key(request)
         ttl = ttl or ttl_from_jsonrpc_request(
             request, last_irreversible_block_num, value)
         if ttl == TTL.NO_CACHE:
@@ -156,7 +158,7 @@ class CacheGroup(object):
             return
         if isinstance(ttl, TTL):
             ttl = ttl.value
-        return await self.set(key, value, ttl=ttl)
+        await self.set(key, value, ttl=ttl)
 
     async def cache_batch_jsonrpc_response(self,
                                            requests: BatchJsonRpcRequest,
@@ -176,12 +178,12 @@ class CacheGroup(object):
                 ttl = ttl.value
             triplets.append((key, value, ttl))
 
-        await self.multi_set(triplets)
+            await self.multi_set(triplets)
 
     async def prepare_response_for_cache(self,
                                          request: SingleJsonRpcRequest,
                                          response: SingleJsonRpcResponse) -> \
-            Optional[SingleJsonRpcRequest]:
+            Optional[JsonRpcResponseDict]:
         if not is_valid_non_error_single_jsonrpc_response(response):
             logger.debug(
                 'jsonrpc error in response from upstream %s, skipping cache',
@@ -201,7 +203,7 @@ class CacheGroup(object):
 
     @staticmethod
     def x_jussi_cache_key(request: JsonRpcRequest) -> str:
-        if isinstance(request, dict):
+        if isinstance(request, SingleJsonRpcRequest):
             return jsonrpc_cache_key(request)
         else:
             return 'batch'

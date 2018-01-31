@@ -158,8 +158,7 @@ class Pool(asyncio.AbstractServer):
                 'conn.messages': str(conn.messages),
                 'conn.messages.qsize': conn.messages.qsize(),
                 'conn.messages.maxsize': conn.messages.maxsize,
-                'conn.messages._unfinished_tasks': conn.messages._unfinished_tasks,
-                'conn._stream_reader._buffer': conn._stream_reader._buffer
+                'conn.messages._unfinished_tasks': conn.messages._unfinished_tasks
             }
         except Exception as e:
             logger.info(f'get_connection_info error: {e}')
@@ -207,7 +206,7 @@ class Pool(asyncio.AbstractServer):
     async def terminate_connection(self, conn):
         try:
             logger.debug(f'terminating connection:{id(conn)}')
-            await asyncio.shield(conn.close_connection(force=True))
+            await asyncio.shield(conn.close_connection())
             conn.worker_task.cancel()
             conn.close()
             self._terminated.add(conn)

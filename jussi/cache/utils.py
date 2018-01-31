@@ -8,32 +8,24 @@ from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import CachedBatchResponse
 from ..typedefs import CachedSingleResponse
 from ..typedefs import SingleJsonRpcRequest
-from ..upstream.urn import urn
-from .method_settings import TTL
-from .method_settings import TTLS
+from ..typedefs import SingleJsonRpcResponse
+from .ttl import TTL
 
 logger = logging.getLogger(__name__)
 
 
 def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
-    return urn(single_jsonrpc_request)
+    return str(single_jsonrpc_request.urn)
 
 
 def ttl_from_jsonrpc_request(single_jsonrpc_request: SingleJsonRpcRequest,
                              last_irreversible_block_num: int=0,
                              jsonrpc_response: dict=None) -> TTL:
-    urn = jsonrpc_cache_key(single_jsonrpc_request=single_jsonrpc_request)
-    ttl = ttl_from_urn(urn)
+    ttl = single_jsonrpc_request.upstream.ttl
     if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
         ttl = irreversible_ttl(jsonrpc_response, last_irreversible_block_num)
     if isinstance(ttl, TTL):
         ttl = ttl.value
-    return ttl
-
-
-def ttl_from_urn(urn: str) -> TTL:
-    _, ttl = TTLS.longest_prefix(urn)
-    logger.debug(f'ttl from urn:{urn} ttl:{ttl}')
     return ttl
 
 
@@ -57,7 +49,7 @@ def irreversible_ttl(jsonrpc_response: dict=None,
 
 
 def block_num_from_jsonrpc_response(
-        jsonrpc_response: SingleJsonRpcRequest=None) -> int:
+        jsonrpc_response: dict=None) -> int:
     # pylint: disable=no-member
     # for get_block
     block_id = cytoolz.get_in(['result', 'block_id'], jsonrpc_response)
@@ -77,12 +69,12 @@ def block_num_from_id(block_hash: str) -> int:
 
 def merge_cached_response(request: SingleJsonRpcRequest,
                           cached_response: CachedSingleResponse,
-                          ) -> Optional[SingleJsonRpcRequest]:
+                          ) -> Optional[SingleJsonRpcResponse]:
     if not cached_response:
         return None
     new_response = {'jsonrpc': '2.0', 'result': cached_response['result']}
-    if 'id' in request:
-        new_response['id'] = request['id']
+    if request.id is not False:
+        new_response['id'] = request.id
     return new_response
 
 

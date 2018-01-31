@@ -19,8 +19,6 @@ Method Settings
 import logging
 from enum import Enum
 
-import pygtrie
-
 logger = logging.getLogger(__name__)
 
 
@@ -60,57 +58,3 @@ class TTL(Enum):
             return self.value >= other
         else:
             return super().__eq__(other)
-
-
-METHOD_SETTINGS = (
-    # global default
-    ('', TTL.DEFAULT_TTL),
-
-    # sbds default
-    ('hivemind', TTL.DEFAULT_TTL),
-
-    # sbds default
-    ('overseer', TTL.NO_CACHE),
-
-    # sbds default
-    ('sbds', 10),
-
-    # steemd default
-    ('steemd', TTL.DEFAULT_TTL),
-
-    # steemd login_api
-    ('steemd.login_api', TTL.NO_CACHE),
-
-    # steemd network_broadcast_api
-    ('steemd.network_broadcast_api', TTL.NO_CACHE),
-
-    # steemd follow_api
-    ('steemd.follow_api', 10),
-
-    # steemd market_history_api
-    ('steemd.market_history_api', 1),
-
-    # steemd database_api
-    ('steemd.database_api', TTL.DEFAULT_TTL),
-    ('steemd.database_api.get_block', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
-    ('steemd.database_api.get_block_header', TTL.NO_EXPIRE_IF_IRREVERSIBLE),
-    ('steemd.database_api.get_content', 1),
-    ('steemd.database_api.get_state', 1),
-    ("steemd.database_api.get_state.params=['/trending']", 30),
-    ("steemd.database_api.get_state.params=['trending']", 30),
-    ("steemd.database_api.get_state.params=['/hot']", 30),
-    ("steemd.database_api.get_state.params=['/welcome']", 30),
-    ("steemd.database_api.get_state.params=['/promoted']", 30),
-    ("steemd.database_api.get_state.params=['/created']", 10),
-    ('steemd.database_api.get_dynamic_global_properties', 1),
-
-    # yo default
-    ('yo', TTL.NO_CACHE))
-
-TTLS = pygtrie.StringTrie(METHOD_SETTINGS, separator='.')
-
-
-def ttl_from_urn(urn: str) -> TTL:
-    _, ttl = TTLS.longest_prefix(urn)
-    logger.debug(f'ttl from urn:{urn} ttl:{ttl}')
-    return ttl

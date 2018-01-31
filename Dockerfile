@@ -3,7 +3,7 @@ FROM phusion/baseimage:0.9.19
 # container settings
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
-ENV ENVIRONMENT DEV
+ENV ENVIRONMENT PROD
 ARG SOURCE_COMMIT
 ENV SOURCE_COMMIT ${SOURCE_COMMIT}
 ARG DOCKER_TAG
@@ -20,16 +20,11 @@ ENV APP_ROOT /app
 ENV APP_CMD jussi.serve
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
-ENV JUSSI_HIVEMIND_HTTP_URL https://hivemind.steemitdev.com
-ENV JUSSI_OVERSEER_HTTP_URL https://overseer.steemitdev.com
-ENV JUSSI_SBDS_HTTP_URL https://sbds.steemitdev.com
-ENV JUSSI_STEEMD_WS_URL wss://steemd.steemitdev.com
-ENV JUSSI_YO_HTTP_URL https://yo.steemitdev.com
+ENV JUSSI_UPSTREAM_CONFIG_FILE ${APP_ROOT}/PROD_UPSTREAM_CONFIG.json
+ENV JUSSI_TEST_UPSTREAM_URLS True
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
 ENV NGINX_SERVER_PORT 8080
-
-
 
 RUN \
     apt-get update && \
@@ -86,11 +81,11 @@ RUN \
   mkdir -p /var/www/.cache && \
   chown www-data:www-data /var/www/.cache
 
-COPY . /app
-
 RUN \
     python3.6 -m pip install --upgrade pip && \
     python3.6 -m pip install pipenv
+
+COPY . /app
 
 RUN \
     mv /app/service/* /etc/service && \
