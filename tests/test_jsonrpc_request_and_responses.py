@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import json
-
-import ujson
-
-import asynctest
 import pytest
 
 correct_get_block_1000_response = {

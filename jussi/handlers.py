@@ -58,11 +58,14 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
 
     conn = await pool.acquire()
     start = time.perf_counter()
-
+    translate_to_appbase = sanic_http_request.app.config.upstreams.translate_to_appbase
+    upstream_request = jsonrpc_request.to_upstream_request(
+        translate_to_appbase=translate_to_appbase)
     with async_timeout.timeout(jsonrpc_request.upstream.timeout):
         elapsed = -1
         try:
-            await conn.send(jsonrpc_request.to_upstream_request())
+
+            await conn.send(upstream_request)
             upstream_response_json = await conn.recv()
             elapsed = time.perf_counter() - start
             upstream_response = ujson.loads(upstream_response_json)
@@ -73,22 +76,29 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             return upstream_response
 
         except AssertionError as e:
-            request_info = dict(
+            request_info = jsonrpc_request.log_extra(
                 conn_id=id(conn),
                 time_to_upstream=start - sanic_http_request['timing'],
                 elapsed=elapsed,
-                upstream_request=jsonrpc_request.to_upstream_request())
+                upstream_request=upstream_request,
+                translate_to_appbase=translate_to_appbase)
             try:
                 request_info['upstream_response'] = upstream_response
             except NameError:
                 pass
             await pool.terminate_connection(conn)
-            log_extra = jsonrpc_request.log_extra(extra=request_info)
+
             raise UpstreamResponseError(sanic_request=sanic_http_request,
                                         exception=e,
-                                        **log_extra)
+                                        **request_info)
         except Exception as e:
-            logger.exception(f'fetch_ws failed')
+            request_info = jsonrpc_request.log_extra(
+                conn_id=id(conn),
+                time_to_upstream=start - sanic_http_request['timing'],
+                elapsed=elapsed,
+                upstream_request=upstream_request,
+                translate_to_appbase=translate_to_appbase)
+            logger.exception(f'fetch_ws failed', extra=request_info)
             await pool.terminate_connection(conn)
             raise e
         finally:
@@ -99,11 +109,18 @@ async def fetch_http(sanic_http_request: HTTPRequest,
                      jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
 
     session = sanic_http_request.app.config.aiohttp['session']
+    translate_to_appbase = sanic_http_request.app.config.upstreams.translate_to_appbase
+    upstream_request = jsonrpc_request.to_upstream_request(
+        translate_to_appbase=translate_to_appbase,
+        as_json=False)
+
     async with session.post(jsonrpc_request.upstream.url,
-                            json=jsonrpc_request.to_upstream_request(as_json=False),
+                            json=upstream_request,
                             headers=jsonrpc_request.upstream_headers,
                             timeout=jsonrpc_request.upstream.timeout) as resp:
-        upstream_response = await resp.json()
+
+        upstream_response = await resp.json(encoding='utf-8', content_type=None)
+
         upstream_response['id'] = jsonrpc_request.id
         return upstream_response
 # pylint: enable=no-value-for-parameter

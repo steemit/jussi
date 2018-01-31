@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-
+from .conftest import TEST_UPSTREAM_CONFIG
 from jussi.request import JussiJSONRPCRequest
 from jussi.validators import is_get_block_header_request
 from jussi.validators import is_get_block_request
@@ -12,21 +12,14 @@ from jussi.validators import is_valid_non_error_jsonrpc_response
 from jussi.validators import is_valid_non_error_single_jsonrpc_response
 from jussi.validators import is_valid_single_jsonrpc_response
 from jussi.upstream import _Upstreams
-from jussi.upstream import DEFAULT_UPSTREAM_CONFIG
-
-
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
+from .conftest import AttrDict
 
 dummy_request = AttrDict()
 dummy_request.headers = dict()
 dummy_request['jussi_request_id'] = '123456789012345'
 dummy_request.app = AttrDict()
 dummy_request.app.config = AttrDict()
-dummy_request.app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
 
 
 request = JussiJSONRPCRequest.from_request(dummy_request, 0, {

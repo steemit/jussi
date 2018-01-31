@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from typing import Dict
 from typing import List
 from typing import NamedTuple
@@ -29,11 +28,11 @@ class JussiJSONRPCRequest(NamedTuple):
         assert isinstance(request, dict), 'request must be dict'
         upstreams = sanic_request.app.config.upstreams
 
-        _id = request.get('id', None)
+        _id = request.get('id', False)
         jsonrpc = request['jsonrpc']
         method = request['method']
-        params = request.get('params', None)
-        urn = URN.from_request(request, namespaces=upstreams.namespaces)
+        params = request.get('params', False)
+        urn = URN.from_request(request)
         upstream = Upstream.from_urn(urn, upstreams=upstreams)
 
         return cls(_id,
@@ -50,13 +49,16 @@ class JussiJSONRPCRequest(NamedTuple):
 
     def to_dict(self):
         return {k: getattr(self, k, False) for k in
-                {'id', 'jsonrpc', 'method', 'params'} if k is not None}
+                ('id', 'jsonrpc', 'method', 'params') if getattr(self, k, False) is not False}
 
     def json(self):
         return ujson.dumps(self.to_dict(), ensure_ascii=False)
 
-    def to_upstream_request(self, as_json=True):
-        jrpc_dict = self.to_dict()
+    def to_upstream_request(self, as_json=True, translate_to_appbase=False):
+        if translate_to_appbase:
+            jrpc_dict = self.translate_to_appbase()
+        else:
+            jrpc_dict = self.to_dict()
         jrpc_dict.update({'id': self.upstream_id})
         if as_json:
             return ujson.dumps(jrpc_dict, ensure_ascii=False)
@@ -73,20 +75,33 @@ class JussiJSONRPCRequest(NamedTuple):
     def upstream_id(self):
         return int(self.jussi_request_id) + self.batch_index
 
-    def log_extra(self, extra=None):
-        base_extra = {
-            'x-amzn-trace-id': self.amzn_trace_id,
-            'jussi_request_id': self.jussi_request_id,
-            'jsonrpc_id': self.id,
-            'batch_index': self.batch_index,
-            'urn': self.urn._asdict(),
-            'upstream': self.upstream._asdict(),
-            'upstream_request_id': self.upstream_id,
+    def translate_to_appbase(self):
+        params = self.urn.params
+        if params is False:
+            params = []
+        return {
+            'id': self.id,
+            'jsonrpc': self.jsonrpc,
+            'method': 'call',
+            'params': ['condenser_api', self.urn.method, params]
         }
 
-        if extra:
-            base_extra.update(extra)
-        return base_extra
+    def log_extra(self, **kwargs):
+        try:
+            base_extra = {
+                'x-amzn-trace-id': self.amzn_trace_id,
+                'jussi_request_id': self.jussi_request_id,
+                'jsonrpc_id': self.id,
+                'batch_index': self.batch_index,
+                'urn': self.urn._asdict(),
+                'upstream': self.upstream._asdict(),
+                'upstream_request_id': self.upstream_id,
+            }
+            base_extra.update(**kwargs)
+            return base_extra
+
+        except Exception:
+            return None
 
     def __hash__(self):
-        return hash(str(self.urn))
+        return hash(self.urn)

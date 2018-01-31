@@ -26,10 +26,6 @@
     "timeouts": [
       ["steemd",5],
       ["steemd.network_broadcast_api",0]
-    ],
-    "retries": [
-      ["steemd",3],
-      ["steemd.network_broadcast_api", 0]
     ]
   },
   {
@@ -42,9 +38,6 @@
     ],
     "timeouts": [
       ["overseer",5]
-    ],
-    "retries": [
-      ["overseer",0]
     ]
   },
   {
@@ -57,9 +50,6 @@
     ],
     "timeouts": [
       ["conveyor",5]
-    ],
-    "retries": [
-      ["conveyor",0]
     ]
   },
   {
@@ -72,9 +62,6 @@
     ],
     "timeouts": [
       ["sbds",5]
-    ],
-    "retries": [
-      ["sbds",3]
     ]
   },
   {
@@ -87,9 +74,6 @@
     ],
     "timeouts": [
       ["hivemind",5]
-    ],
-    "retries": [
-      ["hivemind",3]
     ]
   },
   {
@@ -102,9 +86,6 @@
     ],
     "timeouts": [
       ["yo",5]
-    ],
-    "retries": [
-      ["yo",3]
     ]
   }
 ]
