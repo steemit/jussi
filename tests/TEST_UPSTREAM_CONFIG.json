@@ -116,6 +116,9 @@
       ["namespace.method",4],
       ["namespace.api.method",5],
       ["namespace.api.method.params=[666]", 6]
+    ],
+    "retries": [
+      ["namespace",3]
     ]
   }
 ]
