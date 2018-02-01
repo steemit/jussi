@@ -136,4 +136,7 @@ class URN(namedtuple('URN', 'namespace api method params')):
         return self.__cached_str
 
     def __hash__(self):
-        return hash(str)
+        return hash(str(self))
+
+    def __eq__(self, urn):
+        return hash(urn) == hash(self)

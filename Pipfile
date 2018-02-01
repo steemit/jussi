@@ -38,9 +38,7 @@ isort = "*"
 pydevd = "*"
 line-profiler = "*"
 
-
 [packages]
-
 ujson = "*"
 aiohttp = "*"
 toolz = "*"

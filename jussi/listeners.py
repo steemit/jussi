@@ -54,7 +54,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger = app.config.logger
         logger.info('before_server_start -> setup_websocket_connection_pools')
         args = app.config.args
-        upstream_urls = app.config.upstreams.urls()
+        upstream_urls = app.config.upstreams.urls
         app.config.websocket_pool_kwargs = dict(
             minsize=args.websocket_pool_minsize,
             maxsize=args.websocket_pool_maxsize,

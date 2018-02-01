@@ -163,6 +163,19 @@ APPBASE_CONDENSER_API_METHODS = {
     'verify_authority'
 }
 
+
+def build_translatable_steemd_requests_and_responses():
+    for req, resp in JRPC_REQUESTS_AND_RESPONSES:
+        urn = URN.from_request(req)
+        if urn.method not in ('get_liquidity_queue', 'get_miner_queue',
+                              'get_discussions_by_payout'):
+            yield req, resp
+
+
+TRANSLATABLE_STEEMD_REQUESTS_AND_RESPONSES = list(
+    build_translatable_steemd_requests_and_responses())
+
+
 INVALID_JRPC_REQUESTS = [
     # bad/missing jsonrpc
     {
@@ -1263,7 +1276,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         'steemd.database_api.get_dynamic_global_properties',
         'wss://steemd.steemitdev.com',
-        3,
+        1,
         3
     ),
     # steemd, bare method, empty params list
@@ -1281,7 +1294,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         'steemd.database_api.get_dynamic_global_properties.params=[]',
         'wss://steemd.steemitdev.com',
-        3,
+        1,
         3
     ),
     # steemd, bare method, params list
@@ -1299,7 +1312,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         'steemd.database_api.get_block.params=[1]',
         'wss://steemd.steemitdev.com',
-        3,
+        -2,
         3
     ),
 
@@ -1318,7 +1331,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         "steemd.database_api.get_state.params=['/@justinw/transfers']",
         'account_transfer_url',
-        3,
+        1,
         3
     ),
 
@@ -1394,7 +1407,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         "steemd.database_api.get_state.params=['/@justinw/transfers']",
         'account_transfer_url',
-        3,
+        1,
         3
     ),
 
@@ -1505,8 +1518,8 @@ URN_TEST_REQUEST_DICTS = [
     },
         'namespace.method.params=[666]',
         'wss://namespace.method.params666.steemitdev.com',
-        6,
-        6
+        4,
+        4
     ),
     # namespace.method, empty params dict
     ({
@@ -1836,6 +1849,11 @@ def appbase_requests_and_responses(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
 
 
+@pytest.fixture(params=TRANSLATABLE_STEEMD_REQUESTS_AND_RESPONSES)
+def translatable_steemd_requests_and_responses(request):
+    yield request.param
+
+
 @pytest.fixture(
     scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
     ids=lambda reqresp: URN(reqresp[0]))
@@ -1893,6 +1911,21 @@ def steemd_jussi_requests(just_steemd_requests_and_responses):
     jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0,
                                                      jsonrpc_request)
     yield jussi_request
+
+
+@pytest.fixture
+def steemd_jussi_requests_and_dicts(just_steemd_requests_and_responses):
+    jsonrpc_request, _ = just_steemd_requests_and_responses
+    dummy_request = AttrDict()
+    dummy_request.headers = dict()
+    dummy_request['jussi_request_id'] = '123456789012345'
+    dummy_request.app = AttrDict()
+    dummy_request.app.config = AttrDict()
+    dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG,
+                                                    validate=False)
+    jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0,
+                                                     jsonrpc_request)
+    yield (jussi_request, jsonrpc_request)
 
 
 @pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES)

@@ -48,16 +48,12 @@ class _Upstreams(object):
     __URLS = None
     __TTLS = None
     __TIMEOUTS = None
+    __TRANSLATE_TO_APPBASE = None
 
     def __init__(self, config, validate=True):
         CONFIG_VALIDATOR.validate(config)
         self.config = config
         self.__hash = hash(ujson.dumps(config))
-        self.__translate_to_appbase = False
-
-        for upstream in config:
-            if upstream['name'] == 'steemd':
-                self.__translate_to_appbase = upstream.get('translate_to_appbase', False)
 
         self.__NAMESPACES = frozenset(c['name'] for c in self.config)
         for namespace in self.__NAMESPACES:
@@ -66,25 +62,34 @@ class _Upstreams(object):
             assert not namespace == 'jsonrpc',\
                 f'Invalid namespace {namespace} : Namespace "jsonrpc" is not allowed'
 
-        self.__URLS = pygtrie.StringTrie(
-            it.chain.from_iterable(c['urls'] for c in self.config),
-            separator='.')
+        self.__URLS = self.__build_trie('urls')
+        self.__TTLS = self.__build_trie('ttls')
+        self.__TIMEOUTS = self.__build_trie('timeouts')
 
-        self.__TTLS = pygtrie.StringTrie(
-            it.chain.from_iterable(c['ttls'] for c in self.config),
-            separator='.')
-
-        self.__TIMEOUTS = pygtrie.StringTrie(
-            it.chain.from_iterable(c['timeouts'] for c in self.config),
-            separator='.')
+        self.__TRANSLATE_TO_APPBASE = frozenset(
+            c['name'] for c in self.config if c.get('translate_to_appbase', False) is True)
 
         if validate:
             self.validate_urls()
 
+    def __build_trie(self, key):
+        trie = pygtrie.StringTrie(separator='.')
+        for item in it.chain.from_iterable(c[key] for c in self.config):
+            if isinstance(item, list):
+                prefix, value = item
+            else:
+                keys = list(item.keys())
+                prefix_key = 'prefix'
+                value_key = keys[keys.index(prefix_key) - 1]
+                prefix = item[prefix_key]
+                value = item[value_key]
+            trie[prefix] = value
+        return trie
+
     @functools.lru_cache(8192)
     def url(self, request_urn) -> str:
         try:
-            if request_urn.api == 'database_api' and ACCOUNT_TRANSFER_PATTERN.match(
+            if request_urn.api == 'database_api'and ACCOUNT_TRANSFER_PATTERN.match(
                     request_urn.params[0]):
                 logger.debug('matched')
                 url = os.environ.get('JUSSI_ACCOUNT_TRANSFER_STEEMD_URL')
@@ -113,6 +118,7 @@ class _Upstreams(object):
             timeout = None
         return timeout
 
+    @property
     def urls(self) -> frozenset:
         return frozenset(u for u in self.__URLS.values())
 
@@ -120,13 +126,12 @@ class _Upstreams(object):
     def namespaces(self)-> frozenset:
         return self.__NAMESPACES
 
-    @property
-    def translate_to_appbase(self):
-        return self.__translate_to_appbase
+    def translate_to_appbase(self, request_urn: NamedTuple) -> bool:
+        return request_urn.namespace in self.__TRANSLATE_TO_APPBASE
 
     def validate_urls(self):
         logger.info('testing upstream urls')
-        for url in self.urls():
+        for url in self.urls:
             try:
                 parsed_url = urlparse(url)
                 host = urlparse(url).netloc
@@ -149,7 +154,7 @@ class Upstream(NamedTuple):
 
     @classmethod
     @functools.lru_cache(4096)
-    def from_urn(cls, urn: NamedTuple, upstreams: _Upstreams=None):
+    def from_urn(cls, urn, upstreams: _Upstreams=None):
         return cls(upstreams.url(urn),
                    upstreams.ttl(urn),
                    upstreams.timeout(urn))

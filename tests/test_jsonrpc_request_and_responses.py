@@ -101,7 +101,10 @@ async def test_mocked_steemd_calls(mocked_app_test_cli, steemd_jrpc_response_val
     assert 'error' not in json_response
     assert json_response['id'] == jrpc_req['id']
     if jrpc_req['id'] in compare_key_only_ids:
-        assert json_response['result'].keys() == jrpc_resp['result'].keys()
+        if isinstance(json_response['result'], dict):
+            assert json_response['result'].keys() == jrpc_resp['result'].keys()
+        else:
+            assert len(json_response['result']) == len(jrpc_resp['result'])
     else:
         assert json_response == jrpc_resp
 
