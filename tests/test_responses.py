@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import pytest
 
+jrpc_request = {"id": "1", "jsonrpc": "2.0", "method": "get_block", "params": [1000]}
+
 
 @pytest.mark.live
 def test_response_results_type(
@@ -66,6 +68,11 @@ def test_appbase_translation_responses(
 
     assert response.headers['Content-Type'] == 'application/json'
     assert 'x-jussi-request-id' in response.headers
+    assert response.headers['Access-Control-Allow-Origin'] == "*"
+    assert response.headers['Access-Control-Allow-Methods'] == "GET, POST, OPTIONS"
+    assert response.headers['Access-Control-Allow-Headers'] == "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range"
+    assert response.headers['Strict-Transport-Security'] == "max-age=31557600; includeSubDomains; preload"
+    assert response.headers['Content-Security-Policy'] == 'upgrade-insecure-requests'
     response_json = response.json()
     assert response_json['id'] == request['id']
 
@@ -82,6 +89,29 @@ def test_appbase_translation_responses(
             assert expected_keys == result_keys, '%s' % response_json
     except Exception as e:
         print(f'WARNING: {e}')
+
+        
+@pytest.mark.live
+@pytest.mark.parametrize('path,method', [
+    ('/', 'GET'),
+    ('/', 'OPTIONS'),
+    ('/', 'HEAD'),
+    ('/', 'POST'),
+    ('/health', 'GET'),
+    ('/.well-known/healthcheck.json', 'GET')
+])
+def test_response_headers(path, method, requests_session, jussi_url):
+    json_data = None
+    if method == 'POST':
+        json_data = jrpc_request
+    resp = requests_session.request(method, jussi_url + path, json=json_data)
+    assert resp.headers['Access-Control-Allow-Origin'] == "*"
+    assert resp.headers['Access-Control-Allow-Methods'] == "GET, POST, OPTIONS"
+    assert resp.headers['Access-Control-Allow-Headers'] == "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range"
+    assert resp.headers['Strict-Transport-Security'] == "max-age=31557600; includeSubDomains; preload"
+    assert resp.headers['Content-Security-Policy'] == 'upgrade-insecure-requests'
+    if method == 'OPTIONS':
+        assert resp.headers['Allow'] == 'GET,HEAD,OPTIONS,POST'
 
 
 @pytest.mark.live
