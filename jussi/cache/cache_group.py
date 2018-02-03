@@ -23,7 +23,7 @@ from .ttl import TTL
 from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
 from .utils import merge_cached_responses
-from .utils import ttl_from_jsonrpc_request
+from .utils import irreversible_ttl
 
 logger = logging.getLogger(__name__)
 
@@ -97,19 +97,16 @@ class CacheGroup(object):
 
     async def cache_jsonrpc_response(self,
                                      request: JsonRpcRequest,
-                                     response: JsonRpcResponse,
-                                     last_irreversible_block_num: int = None) -> None:
+                                     response: JsonRpcResponse) -> None:
         """Don't cache error responses
         """
         try:
             if is_batch_jsonrpc(request):
                 return await self.cache_batch_jsonrpc_response(request,
-                                                               response,
-                                                               last_irreversible_block_num=last_irreversible_block_num)
+                                                               response)
             else:
                 return await self.cache_single_jsonrpc_response(request,
-                                                                response,
-                                                                last_irreversible_block_num=last_irreversible_block_num)
+                                                                response)
         except UncacheableResponse as e:
             logger.info(e)
         except Exception as e:
@@ -143,17 +140,18 @@ class CacheGroup(object):
     async def cache_single_jsonrpc_response(self,
                                             request: SingleJsonRpcRequest,
                                             response: SingleJsonRpcResponse,
-                                            key: str = None,
-                                            ttl: str = None,
-                                            last_irreversible_block_num: int = None
+                                            ttl: str = None
                                             ) -> None:
 
         value = await self.prepare_response_for_cache(request, response)
 
         key = jsonrpc_cache_key(request)
-        ttl = ttl or ttl_from_jsonrpc_request(
-            request, last_irreversible_block_num, value)
-        if ttl == TTL.NO_CACHE:
+        ttl = ttl or request.upstream.ttl
+        if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
+            last_irreversible_block_num = await self.get('last_irreversible_block_num')
+            ttl = irreversible_ttl(response,
+                                   last_irreversible_block_num)
+        elif ttl == TTL.NO_CACHE:
             logger.debug('skipping cache for ttl=%s value %s', ttl, value)
             return
         if isinstance(ttl, TTL):
@@ -162,22 +160,25 @@ class CacheGroup(object):
 
     async def cache_batch_jsonrpc_response(self,
                                            requests: BatchJsonRpcRequest,
-                                           responses: BatchJsonRpcResponse,
-                                           last_irreversible_block_num: int = None) -> None:
+                                           responses: BatchJsonRpcResponse) -> None:
         triplets = []
-
+        last_irreversible_block_num = None
         for i, response in enumerate(responses):
             value = await self.prepare_response_for_cache(requests[i],
                                                           response)
             key = jsonrpc_cache_key(requests[i])
-            ttl = ttl_from_jsonrpc_request(requests[i],
-                                           last_irreversible_block_num, value)
-            if ttl == TTL.NO_CACHE:
+            ttl = requests[i].upstream.ttl
+            if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
+                last_irreversible_block_num = last_irreversible_block_num or \
+                    await self.get('last_irreversible_block_num')
+                ttl = irreversible_ttl(response,
+                                       last_irreversible_block_num)
+
+            elif ttl == TTL.NO_CACHE:
                 continue
             if isinstance(ttl, TTL):
                 ttl = ttl.value
             triplets.append((key, value, ttl))
-
             await self.multi_set(triplets)
 
     async def prepare_response_for_cache(self,

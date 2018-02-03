@@ -1,27 +1,19 @@
 # -*- coding: utf-8 -*-
 import pytest
 from jussi.cache.ttl import TTL
-from jussi.cache.utils import ttl_from_jsonrpc_request
+from jussi.cache.utils import irreversible_ttl
+
 from jussi.request import JussiJSONRPCRequest
 from jussi.upstream import _Upstreams
-from jussi.upstream import DEFAULT_UPSTREAM_CONFIG
-
-
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
+from .conftest import TEST_UPSTREAM_CONFIG
+from .conftest import AttrDict
 
 dummy_request = AttrDict()
 dummy_request.headers = dict()
 dummy_request['jussi_request_id'] = '123456789012345'
 dummy_request.app = AttrDict()
 dummy_request.app.config = AttrDict()
-dummy_request.app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
-
-
-SBDS_DEFAULT_CACHE = 3
+dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
 
 
 ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
@@ -40,11 +32,8 @@ rpc_resp = {
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
         "transaction_ids": []}}
 
-non_ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
-                                                                      "method": "sbds.get_block", "params": [1000]})
 
-
-@pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num,expected', [
+@pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num, expected', [
     # don't cache when last_block_num < response block_num
     (ttl_rpc_req, rpc_resp, 0, TTL.NO_CACHE),
     (ttl_rpc_req, rpc_resp, 999, TTL.NO_CACHE),
@@ -56,13 +45,9 @@ non_ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1",
     # don't cache when bad/missing response block_num
     (ttl_rpc_req, {}, 2000, TTL.NO_CACHE),
 
-    # don't adjust ttl for non EXPIRE_IF_IRREVERSIBLE methods
-    (non_ttl_rpc_req, rpc_resp, 2000, SBDS_DEFAULT_CACHE),
-
-
 ])
 def test_ttls(rpc_req, rpc_resp, last_block_num, expected):
-    ttl = ttl_from_jsonrpc_request(rpc_req, last_block_num, rpc_resp)
+    ttl = irreversible_ttl(rpc_resp, last_block_num)
     if isinstance(expected, TTL):
         expected = expected.value
     assert ttl == expected
