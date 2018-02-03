@@ -272,7 +272,8 @@ async def test_cache_group_cache_jsonrpc_response(
     key = jsonrpc_cache_key(req)
 
     assert await cache_group.get(key) is None
-    await cache_group.cache_jsonrpc_response(req, resp, 15_000_000)
+    await cache_group.set('last_irreversible_block_num', 15_000_000)
+    await cache_group.cache_jsonrpc_response(req, resp)
 
     for cache in caches:
         assert await cache.get(key) == resp, f'key:{key} urn:{req.urn}'
@@ -294,7 +295,8 @@ async def test_cache_group_get_jsonrpc_response(steemd_requests_and_responses):
     resp['jsonrpc'] = '2.0'
     key = jsonrpc_cache_key(req)
     assert await cache_group.get(key) is None
-    await cache_group.cache_jsonrpc_response(req, resp, 15_000_000)
+    await cache_group.set('last_irreversible_block_num', 15_000_000)
+    await cache_group.cache_jsonrpc_response(req, resp)
 
     assert await cache_group.get(key) == resp
     assert await cache_group.get_jsonrpc_response(req) == resp
@@ -318,7 +320,8 @@ async def test_cache_group_get_single_jsonrpc_response(
     resp['jsonrpc'] = '2.0'
     key = jsonrpc_cache_key(req)
     assert await cache_group.get(key) is None
-    await cache_group.cache_jsonrpc_response(req, resp, 15_000_000)
+    await cache_group.set('last_irreversible_block_num', 15_000_000)
+    await cache_group.cache_jsonrpc_response(req, resp)
     assert await cache_group.get(key) == resp
     assert await cache_group.get_single_jsonrpc_response(req) == resp
     for cache in caches:
@@ -344,7 +347,8 @@ async def test_cache_group_get_batch_jsonrpc_responses(
     batch_resp = [resp, resp, resp]
     key = jsonrpc_cache_key(req)
     assert await cache_group.get(key) is None
-    await cache_group.cache_jsonrpc_response(batch_req, batch_resp, 15_000_000)
+    await cache_group.set('last_irreversible_block_num', 15_000_000)
+    await cache_group.cache_jsonrpc_response(batch_req, batch_resp)
     assert await cache_group.get(key) == resp
     assert await cache_group.get_batch_jsonrpc_responses(
         batch_req) == batch_resp
