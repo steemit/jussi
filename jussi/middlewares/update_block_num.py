@@ -17,7 +17,6 @@ async def update_last_irreversible_block_num(request: HTTPRequest, response: HTT
     if request.method != 'POST':
         return
     try:
-        app = request.app
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)
         if is_get_dynamic_global_properties_request(jsonrpc_request):

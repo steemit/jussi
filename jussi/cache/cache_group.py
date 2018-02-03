@@ -20,10 +20,10 @@ from ..utils import is_batch_jsonrpc
 from ..validators import is_valid_jussi_response
 from ..validators import is_valid_non_error_single_jsonrpc_response
 from .ttl import TTL
+from .utils import irreversible_ttl
 from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
 from .utils import merge_cached_responses
-from .utils import irreversible_ttl
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,6 @@ class CacheGroup(object):
                     await self.get('last_irreversible_block_num')
                 ttl = irreversible_ttl(response,
                                        last_irreversible_block_num)
-
             elif ttl == TTL.NO_CACHE:
                 continue
             if isinstance(ttl, TTL):

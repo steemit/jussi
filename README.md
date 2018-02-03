@@ -33,7 +33,7 @@ Content-Type: application/json
 
 ## What jussi does
 ### At Startup
-1. parse the upstream config and build the routing, caching, timeout data structures 
+1. parse the upstream config and build the routing, caching, timeout data structures
 1. open websocket and/or http connections to upstreams
 1. initialize memory cache and open connections to redis cache
 1. register route and error handlers
@@ -65,4 +65,3 @@ Content-Type: application/json
 1. return single jsonrpc response or assembled jsonrpc responses for batch requests
 1. cache response in redis cache
 1. cache response in memory
-
