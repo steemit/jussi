@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import asyncio
 import logging
 
 import ujson
@@ -22,8 +22,8 @@ async def update_last_irreversible_block_num(request: HTTPRequest, response: HTT
         if is_get_dynamic_global_properties_request(jsonrpc_request):
             last_irreversible_block_num = jsonrpc_response['result']['last_irreversible_block_num']
             cache_group = request.app.config.cache_group
-            await cache_group.set('last_irreversible_block_num',
-                                  last_irreversible_block_num)
+            await asyncio.shield(cache_group.set('last_irreversible_block_num',
+                                                 last_irreversible_block_num))
             logger.debug(
                 f'updated last_irreversible_block_num: {last_irreversible_block_num}')
     except Exception:
