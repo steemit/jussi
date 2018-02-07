@@ -15,12 +15,6 @@ STEEMIT_MAX_BLOCK_SIZE = 393216000
 REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
 
 
-def setup_routes(app: WebApp) -> WebApp:
-    app.add_route(jussi.handlers.healthcheck, '/health', methods=['GET'])
-    app.add_route(jussi.handlers.handle_jsonrpc, '/', methods=['POST'])
-    return app
-
-
 def strtobool(val):
     """Convert a string representation of truth to true (1) or false (0).
 
@@ -35,6 +29,12 @@ def strtobool(val):
         return 0
     else:
         raise ValueError("invalid truth value %r" % (val,))
+
+
+def setup_routes(app: WebApp) -> WebApp:
+    app.add_route(jussi.handlers.healthcheck, '/health', methods=['GET'])
+    app.add_route(jussi.handlers.handle_jsonrpc, '/', methods=['POST'])
+    return app
 
 
 def parse_args(args: list = None):

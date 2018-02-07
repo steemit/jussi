@@ -20,17 +20,6 @@ def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
     return str(single_jsonrpc_request.urn)
 
 
-def ttl_from_jsonrpc_request(single_jsonrpc_request: SingleJsonRpcRequest,
-                             last_irreversible_block_num: int=0,
-                             jsonrpc_response: dict=None) -> TTL:
-    ttl = single_jsonrpc_request.upstream.ttl
-    if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
-        ttl = irreversible_ttl(jsonrpc_response, last_irreversible_block_num)
-    if isinstance(ttl, TTL):
-        ttl = ttl.value
-    return ttl
-
-
 def irreversible_ttl(jsonrpc_response: dict=None,
                      last_irreversible_block_num: int=0) -> TTL:
     if not jsonrpc_response:

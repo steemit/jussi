@@ -90,7 +90,7 @@ def test_appbase_translation_responses(
     except Exception as e:
         print(f'WARNING: {e}')
 
-        
+
 @pytest.mark.live
 @pytest.mark.parametrize('path,method', [
     ('/', 'GET'),

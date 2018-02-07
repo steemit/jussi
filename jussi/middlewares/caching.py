@@ -40,9 +40,7 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
         cache_group = request.app.config.cache_group
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)
-        last_irreversible_block_num = request.app.config.last_irreversible_block_num or 15_000_000
-        asyncio.shield(cache_group.cache_jsonrpc_response(jsonrpc_request,
-                                                          jsonrpc_response,
-                                                          last_irreversible_block_num))
+        await asyncio.shield(cache_group.cache_jsonrpc_response(jsonrpc_request,
+                                                                jsonrpc_response))
     except Exception as e:
         logger.error('error caching response: %s', e)

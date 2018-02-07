@@ -1721,6 +1721,7 @@ def test_cli(app, loop, test_client):
 @pytest.fixture
 def mocked_app_test_cli(app, loop, test_client):
     with asynctest.patch('jussi.ws.pool.connect') as mocked_connect:
+
         mocked_ws_conn = asynctest.CoroutineMock()
         mocked_ws_conn.send = asynctest.CoroutineMock()
         mocked_ws_conn.send.return_value = None
