@@ -75,6 +75,107 @@ with open(os.path.join(TEST_DIR, 'TEST_UPSTREAM_CONFIG.json')) as f:
 
 APPBASE_REQUESTS = [p[0] for p in APPBASE_REQUESTS_AND_RESPONSES]
 
+APPBASE_CONDENSER_API_METHODS = {
+    'broadcast_block',
+    'broadcast_transaction',
+    'broadcast_transaction_synchronous',
+    'get_account_bandwidth',
+    'get_account_count',
+    'get_account_history',
+    'get_account_references',
+    'get_account_reputations',
+    'get_account_votes',
+    'get_accounts',
+    'get_active_votes',
+    'get_active_witnesses',
+    'get_block',
+    'get_block_header',
+    'get_blog',
+    'get_blog_authors',
+    'get_blog_entries',
+    'get_chain_properties',
+    'get_comment_discussions_by_payout',
+    'get_config',
+    'get_content',
+    'get_content_replies',
+    'get_conversion_requests',
+    'get_current_median_history_price',
+    'get_discussions_by_active',
+    'get_discussions_by_author_before_date',
+    'get_discussions_by_blog',
+    'get_discussions_by_cashout',
+    'get_discussions_by_children',
+    'get_discussions_by_comments',
+    'get_discussions_by_created',
+    'get_discussions_by_feed',
+    'get_discussions_by_hot',
+    'get_discussions_by_promoted',
+    'get_discussions_by_trending',
+    'get_discussions_by_votes',
+    'get_dynamic_global_properties',
+    'get_escrow',
+    'get_expiring_vesting_delegations',
+    'get_feed',
+    'get_feed_entries',
+    'get_feed_history',
+    'get_follow_count',
+    'get_followers',
+    'get_following',
+    'get_hardfork_version',
+    'get_key_references',
+    'get_market_history',
+    'get_market_history_buckets',
+    'get_next_scheduled_hardfork',
+    'get_open_orders',
+    'get_ops_in_block',
+    'get_order_book',
+    'get_owner_history',
+    'get_post_discussions_by_payout',
+    'get_potential_signatures',
+    'get_reblogged_by',
+    'get_recent_trades',
+    'get_recovery_request',
+    'get_replies_by_last_update',
+    'get_required_signatures',
+    'get_reward_fund',
+    'get_savings_withdraw_from',
+    'get_savings_withdraw_to',
+    'get_state',
+    'get_tags_used_by_author',
+    'get_ticker',
+    'get_trade_history',
+    'get_transaction',
+    'get_transaction_hex',
+    'get_trending_tags',
+    'get_version',
+    'get_vesting_delegations',
+    'get_volume',
+    'get_withdraw_routes',
+    'get_witness_by_account',
+    'get_witness_count',
+    'get_witness_schedule',
+    'get_witnesses',
+    'get_witnesses_by_vote',
+    'lookup_account_names',
+    'lookup_accounts',
+    'lookup_witness_accounts',
+    'verify_account_authority',
+    'verify_authority'
+}
+
+
+def build_translatable_steemd_requests_and_responses():
+    for req, resp in JRPC_REQUESTS_AND_RESPONSES:
+        urn = URN.from_request(req)
+        if urn.method not in ('get_liquidity_queue', 'get_miner_queue',
+                              'get_discussions_by_payout'):
+            yield req, resp
+
+
+TRANSLATABLE_STEEMD_REQUESTS_AND_RESPONSES = list(
+    build_translatable_steemd_requests_and_responses())
+
+
 INVALID_JRPC_REQUESTS = [
     # bad/missing jsonrpc
     {
@@ -765,7 +866,776 @@ LONG_REQUESTS = [
     }
 ]
 
+
 # pylint:  disable=unused-variable,unused-argument,attribute-defined-outside-init
+
+URN_TEST_REQUEST_DICTS = [
+    # --------APPBASE METHOD=CALL, CONDENSER----------------------
+    # appbase, method=call, condenser api, params empty list
+    ({
+        'id': 1001,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_dynamic_global_properties', []]
+    }, {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_dynamic_global_properties',
+        'params': []
+    },
+        'appbase.condenser_api.get_dynamic_global_properties.params=[]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, method=call, condenser api, params list of empty list
+    ({
+        'id': 1002,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_accounts', [[]]]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_accounts',
+        'params': [[]]
+    },
+        'appbase.condenser_api.get_accounts.params=[[]]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    # appbase, method=call, condenser api, params list
+    ({
+        'id': 1003,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_accounts', [['init_miner']]]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_accounts',
+        'params': [['init_miner']]
+    },
+        "appbase.condenser_api.get_accounts.params=[['init_miner']]",
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, method=call, condenser api, params list
+    ({
+        "id": "1004",
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": ["condenser_api", "get_block", [1000]]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_block',
+        'params': [1000]
+    },
+        'appbase.condenser_api.get_block.params=[1000]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # ----------APPBASE METHOD=CALL, NON-CONDENSER-------------------
+    # appbase, method=call, non-condenser api,  no params
+    ({
+        'id': 2005,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['appbase_api', 'appbase_method']
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': False
+    },
+        'appbase.appbase_api.appbase_method',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    # appbase, method=call, non-condenser api, empty params dict
+    ({
+        'id': 2007,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['appbase_api', 'appbase_method', {}]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': {}
+    },
+        'appbase.appbase_api.appbase_method.params={}',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, method=call, non-condenser api, no params
+    ({
+        'id': 2008,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['appbase_api', 'appbase_method']
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': False
+    },
+        'appbase.appbase_api.appbase_method',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, method=call, non-condenser api, params dict
+    ({
+        'id': 2009,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['block_api', 'get_block', {'block_num': 23}]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'block_api',
+        'method': 'get_block',
+        'params': {'block_num': 23}
+    },
+        "appbase.block_api.get_block.params={'block_num':23}",
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, method=call, jsonrpc api, no params
+    ({
+        'id': 2010,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['jsonrpc', 'get_methods']
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'jsonrpc',
+        'method': 'get_methods',
+        'params': False
+
+    },
+        'appbase.jsonrpc.get_methods',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, method=call, jsonrpc api, empty params dict
+    ({
+        'id': 2011,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['jsonrpc', 'get_methods', {}]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'jsonrpc',
+        'method': 'get_methods',
+        'params': {}
+
+    },
+        'appbase.jsonrpc.get_methods.params={}',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    #----------APPBASE DOTTED CONDENSER---------------------
+    # appbase, dotted.method, condenser api, params list
+    ({
+        "id": "3010",
+        "jsonrpc": "2.0",
+        "method": "condenser_api.get_block",
+        "params": [1000]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_block',
+        'params': [1000]
+    },
+        'appbase.condenser_api.get_block.params=[1000]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, dotted method, condenser api, params list
+    ({
+        'id': 3011,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_accounts',
+        'params': [['init_miner']]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_accounts',
+        'params': [['init_miner']]
+    },
+        "appbase.condenser_api.get_accounts.params=[['init_miner']]",
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    # appbase, dotted method, condenser api, params list of empty list
+    ({
+        'id': 3012,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_accounts',
+        'params': [[]]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_accounts',
+        'params': [[]]
+    },
+        'appbase.condenser_api.get_accounts.params=[[]]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    ({
+        'id': 3014,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_dynamic_global_properties',
+        'params': []
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'condenser_api',
+        'method': 'get_dynamic_global_properties',
+        'params': []
+    },
+        'appbase.condenser_api.get_dynamic_global_properties.params=[]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    # ----------APPBASE DOTTED NON-CONDENSER---------------------
+    # appbase, dotted method, non-condenser api, no params
+    ({
+        'id': 4015,
+        'jsonrpc': '2.0',
+        'method': 'appbase_api.appbase_method'
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': False
+    },
+        'appbase.appbase_api.appbase_method',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    # appbase, dotted method, non-condenser api, empty params list
+    ({
+        'id': 4016,
+        'jsonrpc': '2.0',
+        'method': 'appbase_api.appbase_method',
+        'params': []
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': []
+    },
+        'appbase.appbase_api.appbase_method.params=[]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, dotted method, non-condenser api, empty params dict
+    ({
+        'id': 4017,
+        'jsonrpc': '2.0',
+        'method': 'appbase_api.appbase_method',
+        'params': {}
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': {}
+    },
+        'appbase.appbase_api.appbase_method.params={}',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    # appbase, dotted method, non-condenser api, params dict
+    ({
+        'id': 4018,
+        'jsonrpc': '2.0',
+        'method': 'appbase_api.appbase_method',
+        'params': {'accounts': ['init_miner']}
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': {'accounts': ['init_miner']}
+    },
+        "appbase.appbase_api.appbase_method.params={'accounts':['init_miner']}",
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, dotted method, non-condenser api, params list
+    ({
+        'id': 4019,
+        'jsonrpc': '2.0',
+        'method': 'appbase_api.appbase_method',
+        'params': [1]
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'appbase_api',
+        'method': 'appbase_method',
+        'params': [1]
+    },
+        'appbase.appbase_api.appbase_method.params=[1]',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, dotted method, jsonrpc api, no params
+    ({
+        'id': 4019,
+        'jsonrpc': '2.0',
+        'method': 'jsonrpc.get_methods'
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'jsonrpc',
+        'method': 'get_methods',
+        'params': False
+
+    },
+        'appbase.jsonrpc.get_methods',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+    # appbase, dotted method, jsonrpc api, empty params dict
+    ({
+        'id': 4020,
+        'jsonrpc': '2.0',
+        'method': 'jsonrpc.get_methods',
+        'params': {}
+    },
+        {
+        'namespace': 'appbase',
+        'api': 'jsonrpc',
+        'method': 'get_methods',
+        'params': {}
+
+    },
+        'appbase.jsonrpc.get_methods.params={}',
+        'wss://appbase.steemitdev.com',
+        3,
+        3
+    ),
+
+    # -------- STEEMD BARE METHOD ----------------
+    # steemd, bare method, no params
+    ({
+        'id': 5020,
+        'jsonrpc': '2.0',
+        'method': 'get_dynamic_global_properties'
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'database_api',
+        'method': 'get_dynamic_global_properties',
+        'params': False
+    },
+        'steemd.database_api.get_dynamic_global_properties',
+        'wss://steemd.steemitdev.com',
+        1,
+        3
+    ),
+    # steemd, bare method, empty params list
+    ({
+        'id': 5021,
+        'jsonrpc': '2.0',
+        'method': 'get_dynamic_global_properties',
+        'params': []
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'database_api',
+        'method': 'get_dynamic_global_properties',
+        'params': []
+    },
+        'steemd.database_api.get_dynamic_global_properties.params=[]',
+        'wss://steemd.steemitdev.com',
+        1,
+        3
+    ),
+    # steemd, bare method, params list
+    ({
+        'id': 5022,
+        'jsonrpc': '2.0',
+        'method': 'get_block',
+        'params': [1]
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'database_api',
+        'method': 'get_block',
+        'params': [1]
+    },
+        'steemd.database_api.get_block.params=[1]',
+        'wss://steemd.steemitdev.com',
+        -2,
+        3
+    ),
+
+    # steemd, bare_method, account transfer url
+    ({
+        "id": 5023,
+        "jsonrpc": "2.0",
+        "method": "get_state",
+        "params": ["/@justinw/transfers"]
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'database_api',
+        'method': 'get_state',
+        'params': ["/@justinw/transfers"]
+    },
+        "steemd.database_api.get_state.params=['/@justinw/transfers']",
+        'account_transfer_url',
+        1,
+        3
+    ),
+
+
+    # -------- STEEMD METHOD=CALL ----------------
+
+
+    # steemd, method=call, empty params list
+    ({
+        'id': 5024,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'get_account_count', []]
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'database_api',
+        'method': 'get_account_count',
+        'params': []
+    },
+        'steemd.database_api.get_account_count.params=[]',
+        'wss://steemd.steemitdev.com',
+        3,
+        3
+    ),
+    # steemd numeric apis
+    ({
+        'id': 5025,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [1, "login", ["", ""]]
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'login_api',
+        'method': 'login',
+        'params': ["", ""]
+    },
+        "steemd.login_api.login.params=['','']",
+        'wss://steemd.steemitdev.com',
+        -1,
+        3
+    ),
+    ({
+        'id': 5026,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [0, "find_accounts", []]
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'database_api',
+        'method': 'find_accounts',
+        'params': []
+    },
+        'steemd.database_api.find_accounts.params=[]',
+        'wss://steemd.steemitdev.com',
+        3,
+        3
+    ),
+    # steemd, method=call, account transfer url
+    ({
+        "id": 5027,
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": ["database_api", "get_state", [r"/@justinw/transfers"]]
+    },
+        {
+        'namespace': 'steemd',
+        'api': 'database_api',
+        'method': 'get_state',
+        'params': ["/@justinw/transfers"]
+    },
+        "steemd.database_api.get_state.params=['/@justinw/transfers']",
+        'account_transfer_url',
+        1,
+        3
+    ),
+
+
+    # -------NAMESPACE.METHOD-------------
+
+    # namespace.method, params triple
+    ({
+        'id': 6026,
+        'jsonrpc': '2.0',
+        'method': 'namespace.method',
+        'params': ['database_api', 'get_account_count', []]
+    },
+        {
+        'namespace': 'namespace',
+        'api': False,
+        'method': 'method',
+        'params': ['database_api', 'get_account_count', []]
+    },
+        "namespace.method.params=['database_api','get_account_count',[]]",
+        'wss://namespace.method.steemitdev.com',
+        4,
+        4
+    ),
+    # namespace.method, params dict
+    ({
+        'id': 6027,
+        'jsonrpc': '2.0',
+        'method': 'namespace.method',
+        'params': {'z': 'val1', 'a': [], 'f': 1}
+    },
+        {
+        'namespace': 'namespace',
+        'api': False,
+        'method': 'method',
+        'params': {'z': 'val1', 'a': [], 'f': 1}
+    },
+        "namespace.method.params={'a':[],'f':1,'z':'val1'}",
+        'wss://namespace.method.steemitdev.com',
+        4,
+        4
+    ),
+    # namespace.method, no params
+    ({
+        'id': 6028,
+        'jsonrpc': '2.0',
+        'method': 'namespace.method',
+    },
+        {
+        'namespace': 'namespace',
+        'api': False,
+        'method': 'method',
+        'params': False
+    },
+        'namespace.method',
+        'wss://namespace.method.steemitdev.com',
+        4,
+        4
+    ),
+    # namespace.method, empty params list
+    ({
+        'id': 6029,
+        'jsonrpc': '2.0',
+        'method': 'namespace.method',
+        'params': []
+    },
+        {
+        'namespace': 'namespace',
+        'api': False,
+        'method': 'method',
+        'params': []
+    },
+        'namespace.method.params=[]',
+        'wss://namespace.method.steemitdev.com',
+        4,
+        4
+    ),
+    # namespace.method, empty params dict
+    ({
+        'id': 6030,
+        'jsonrpc': '2.0',
+        'method': 'namespace.method',
+        'params': {}
+    },
+        {
+        'namespace': 'namespace',
+        'api': False,
+        'method': 'method',
+        'params': {}
+    },
+        'namespace.method.params={}',
+        'wss://namespace.method.steemitdev.com',
+        4,
+        4
+    ),
+    # namespace.method, params list
+    ({
+        'id': 6031,
+        'jsonrpc': '2.0',
+        'method': 'namespace.method',
+        'params': [666]
+    },
+        {
+        'namespace': 'namespace',
+        'api': False,
+        'method': 'method',
+        'params': [666]
+    },
+        'namespace.method.params=[666]',
+        'wss://namespace.method.params666.steemitdev.com',
+        4,
+        4
+    ),
+    # namespace.method, empty params dict
+    ({
+        'id': 6032,
+        'jsonrpc': '2.0',
+        'method': 'namespace.method',
+        'params': {'key': 'value'}
+    },
+        {
+        'namespace': 'namespace',
+        'api': False,
+        'method': 'method',
+        'params': {'key': 'value'}
+    },
+        "namespace.method.params={'key':'value'}",
+        'wss://namespace.method.steemitdev.com',
+        4,
+        4
+    ),
+
+    # -------NAMESPACE.API.METHOD-------------
+    # namespace.api.method, no params
+    ({
+        'id': 7033,
+        'jsonrpc': '2.0',
+        'method': 'namespace.api.method',
+    },
+        {
+        'namespace': 'namespace',
+        'api': 'api',
+        'method': 'method',
+        'params': False
+    },
+        'namespace.api.method',
+        'wss://namespace.api.method.steemitdev.com',
+        5,
+        5
+    ),
+
+    # namespace.api.method, empty params list
+    ({
+        'id': 7034,
+        'jsonrpc': '2.0',
+        'method': 'namespace.api.method',
+        'params': []
+    },
+        {
+        'namespace': 'namespace',
+        'api': 'api',
+        'method': 'method',
+        'params': []
+    },
+        'namespace.api.method.params=[]',
+        'wss://namespace.api.method.steemitdev.com',
+        5,
+        5
+    ),
+
+    # namespace.api.method, empty params dict
+    ({
+        'id': 7035,
+        'jsonrpc': '2.0',
+        'method': 'namespace.api.method',
+        'params': {}
+    },
+        {
+        'namespace': 'namespace',
+        'api': 'api',
+        'method': 'method',
+        'params': {}
+    },
+        'namespace.api.method.params={}',
+        'wss://namespace.api.method.steemitdev.com',
+        5,
+        5
+    ),
+
+    # namespace.api.method, params list
+    ({
+        'id': 7036,
+        'jsonrpc': '2.0',
+        'method': 'namespace.api.method',
+        'params': [666]
+    },
+        {
+        'namespace': 'namespace',
+        'api': 'api',
+        'method': 'method',
+        'params': [666]
+    },
+        'namespace.api.method.params=[666]',
+        'wss://namespace.api.method.params666.steemitdev.com',
+        6,
+        6
+    ),
+
+    # namespace.api.method, params dict
+    ({
+        'id': 7037,
+        'jsonrpc': '2.0',
+        'method': 'namespace.api.method',
+        'params': {'key': '又遲到了分'}
+    },
+        {
+        'namespace': 'namespace',
+        'api': 'api',
+        'method': 'method',
+        'params': {'key': '又遲到了分'}
+    },
+        "namespace.api.method.params={'key':'又遲到了分'}",
+        'wss://namespace.api.method.steemitdev.com',
+        5,
+        5
+    )
+
+]
 
 
 class AttrDict(dict):
@@ -969,6 +1839,25 @@ def steemd_requests_and_responses(request):
 @pytest.fixture(
     scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
     ids=lambda reqresp: URN(reqresp[0]))
+def just_steemd_requests_and_responses(request):
+    yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
+
+
+@pytest.fixture(
+    scope='function', params=APPBASE_REQUESTS_AND_RESPONSES,
+    ids=lambda reqresp: URN(reqresp[0]))
+def appbase_requests_and_responses(request):
+    yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
+
+
+@pytest.fixture(params=TRANSLATABLE_STEEMD_REQUESTS_AND_RESPONSES)
+def translatable_steemd_requests_and_responses(request):
+    yield request.param
+
+
+@pytest.fixture(
+    scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
+    ids=lambda reqresp: URN(reqresp[0]))
 def steemd_requests_and_responses_without_resp_id(request):
     req, resp = copy.deepcopy(
         request.param[0]), copy.deepcopy(request.param[1])
@@ -977,9 +1866,74 @@ def steemd_requests_and_responses_without_resp_id(request):
     yield req, resp
 
 
+@pytest.fixture(params=URN_TEST_REQUEST_DICTS)
+def full_urn_test_request_dicts(request):
+    #jsonrpc_request, urn_parsed, urn, url, ttl, timeout = request.param
+    yield request.param
+
+
+@pytest.fixture(params=URN_TEST_REQUEST_DICTS)
+def urn_test_request_dicts(request):
+    jsonrpc_request, urn_parsed, urn, url, ttl, timeout = request.param
+    yield jsonrpc_request, urn, url, ttl, timeout
+
+
+@pytest.fixture()
+def urn_test_requests(urn_test_request_dicts):
+    jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dicts
+
+    dummy_request = AttrDict()
+    dummy_request.headers = dict()
+    dummy_request['jussi_request_id'] = '123456789012345'
+    dummy_request.app = AttrDict()
+    dummy_request.app.config = AttrDict()
+    dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG,
+                                                    validate=False)
+    jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0, jsonrpc_request)
+    yield (jsonrpc_request,
+           urn,
+           url,
+           ttl,
+           timeout,
+           jussi_request
+           )
+
+
+@pytest.fixture
+def steemd_jussi_requests(just_steemd_requests_and_responses):
+    jsonrpc_request, _ = just_steemd_requests_and_responses
+    dummy_request = AttrDict()
+    dummy_request.headers = dict()
+    dummy_request['jussi_request_id'] = '123456789012345'
+    dummy_request.app = AttrDict()
+    dummy_request.app.config = AttrDict()
+    dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG,
+                                                    validate=False)
+    jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0,
+                                                     jsonrpc_request)
+    yield jussi_request
+
+
+@pytest.fixture
+def steemd_jussi_requests_and_dicts(just_steemd_requests_and_responses):
+    jsonrpc_request, _ = just_steemd_requests_and_responses
+    dummy_request = AttrDict()
+    dummy_request.headers = dict()
+    dummy_request['jussi_request_id'] = '123456789012345'
+    dummy_request.app = AttrDict()
+    dummy_request.app.config = AttrDict()
+    dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG,
+                                                    validate=False)
+    jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0,
+                                                     jsonrpc_request)
+    yield (jussi_request, jsonrpc_request)
+
+
 @pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES)
 def jrpc_response(request):
     yield request.param[1]
+
+# ---------------- DOCKER ------------------
 
 
 def is_responsive(url):

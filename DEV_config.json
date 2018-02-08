@@ -1,0 +1,102 @@
+[
+    {
+        "name": "steemd",
+        "translate_to_appbase": true,
+        "urls": [
+            ["steemd", "wss://steemd.steemitdev.com"]
+        ],
+        "ttls": [
+            ["steemd", 3]
+        ],
+        "timeouts": [
+            ["steemd", 3]
+        ]
+    },
+    {
+        "name": "appbase",
+        "urls": [
+            ["appbase", "wss://steemd.steemitdev.com"]
+        ],
+        "ttls": [
+            ["appbase.account_history_api", -1],
+            ["appbase.block_api", -1],
+            ["appbase.chain_api", -1],
+            ["appbase.condenser_api", -1],
+            ["appbase.database_api", -1],
+            ["appbase.follow_api", -1],
+            ["appbase.market_history_api", -1],
+            ["appbase.network_broadcast_api", -1],
+            ["appbase.tags_api", -1],
+            ["appbase.witness_api", -1]
+        ],
+        "timeouts": [
+            ["appbase", 3],
+            ["appbase.chain_api.push_block", 0],
+            ["appbase.chain_api.push_transaction", 0],
+            ["appbase.network_broadcast_api", 0],
+            ["appbase.condenser_api.broadcast_block", 0],
+            ["appbase.condenser_api.broadcast_transaction", 0],
+            ["appbase.condenser_api.broadcast_transaction_synchronous", 0]
+        ]
+    },
+    {
+        "name": "overseer",
+        "urls": [
+            ["overseer", "https://overseer.steemitdev.com"]
+        ],
+        "ttls": [
+            ["overseer", -1]
+        ],
+        "timeouts": [
+            ["overseer", 5]
+        ]
+    },
+    {
+        "name": "conveyor",
+        "urls": [
+            ["conveyor", "https://conveyor.steemitdev.com"]
+        ],
+        "ttls": [
+            ["conveyor", -1]
+        ],
+        "timeouts": [
+            ["conveyor", 5]
+        ]
+    },
+    {
+        "name": "sbds",
+        "urls": [
+            ["sbds", "https://sbds.steemitdev.com"]
+        ],
+        "ttls": [
+            ["sbds", 3]
+        ],
+        "timeouts": [
+            ["sbds", 3]
+        ]
+    },
+    {
+        "name": "hivemind",
+        "urls": [
+            ["hivemind", "https://hive.steemitdev.com"]
+        ],
+        "ttls": [
+            ["hivemind", 3]
+        ],
+        "timeouts": [
+            ["hivemind", 3]
+        ]
+    },
+    {
+        "name": "yo",
+        "urls": [
+            ["yo", "https://yo.steemitdev.com"]
+        ],
+        "ttls": [
+            ["yo", 3]
+        ],
+        "timeouts": [
+            ["yo", 3]
+        ]
+    }
+]

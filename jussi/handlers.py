@@ -3,7 +3,6 @@
 import asyncio
 import datetime
 import logging
-import time
 
 import async_timeout
 from sanic import response
@@ -21,11 +20,10 @@ from .typedefs import SingleJsonRpcResponse
 from .utils import is_batch_jsonrpc
 
 logger = logging.getLogger(__name__)
-debug_logger = logging.getLogger('jussi_debug')
-request_logger = logging.getLogger('jussi_request')
-
 
 # path /
+
+
 async def handle_jsonrpc(sanic_http_request: HTTPRequest) -> HTTPResponse:
     # retreive parsed jsonrpc_requests after request middleware processing
     jsonrpc_requests = sanic_http_request.json  # type: JsonRpcRequest
@@ -56,15 +54,12 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
     pools = sanic_http_request.app.config.websocket_pools
     pool = pools[jsonrpc_request.upstream.url]
 
+    upstream_request = jsonrpc_request.to_upstream_request()
     conn = await pool.acquire()
-    start = time.perf_counter()
-
     with async_timeout.timeout(jsonrpc_request.upstream.timeout):
-        elapsed = -1
         try:
-            await conn.send(jsonrpc_request.to_upstream_request())
+            await conn.send(upstream_request)
             upstream_response_json = await conn.recv()
-            elapsed = time.perf_counter() - start
             upstream_response = ujson.loads(upstream_response_json)
             assert int(upstream_response.get('id')) == jsonrpc_request.upstream_id, \
                 f'{upstream_response.get("id")} should be {jsonrpc_request.upstream_id}'
@@ -73,22 +68,20 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
             return upstream_response
 
         except AssertionError as e:
-            request_info = dict(
-                conn_id=id(conn),
-                time_to_upstream=start - sanic_http_request['timing'],
-                elapsed=elapsed,
-                upstream_request=jsonrpc_request.to_upstream_request())
+            request_info = jsonrpc_request.log_extra(
+                upstream_request=upstream_request)
             try:
                 request_info['upstream_response'] = upstream_response
             except NameError:
                 pass
             await pool.terminate_connection(conn)
-            log_extra = jsonrpc_request.log_extra(extra=request_info)
             raise UpstreamResponseError(sanic_request=sanic_http_request,
                                         exception=e,
-                                        **log_extra)
+                                        **request_info)
         except Exception as e:
-            logger.exception(f'fetch_ws failed')
+            request_info = jsonrpc_request.log_extra(
+                upstream_request=upstream_request)
+            logger.exception(f'fetch_ws failed', extra=request_info)
             await pool.terminate_connection(conn)
             raise e
         finally:
@@ -99,11 +92,13 @@ async def fetch_http(sanic_http_request: HTTPRequest,
                      jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
 
     session = sanic_http_request.app.config.aiohttp['session']
+    upstream_request = jsonrpc_request.to_upstream_request(as_json=False)
     async with session.post(jsonrpc_request.upstream.url,
-                            json=jsonrpc_request.to_upstream_request(as_json=False),
+                            json=upstream_request,
                             headers=jsonrpc_request.upstream_headers,
                             timeout=jsonrpc_request.upstream.timeout) as resp:
-        upstream_response = await resp.json()
+
+        upstream_response = await resp.json(encoding='utf-8', content_type=None)
         upstream_response['id'] = jsonrpc_request.id
         return upstream_response
 # pylint: enable=no-value-for-parameter

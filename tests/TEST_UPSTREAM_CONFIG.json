@@ -26,70 +26,99 @@
     "timeouts": [
       ["steemd",3],
       ["steemd.network_broadcast_api",0]
-    ],
-    "retries": [
-      ["steemd",3],
-      ["steemd.network_broadcast_api", 0]
     ]
   },
   {
     "name":"overseer",
     "urls": [
-      ["overseer","https://overseer.steemitdev.com"]
+      ["overseer","wss://overseer.steemitdev.com"]
     ],
     "ttls": [
       ["overseer",3]
     ],
     "timeouts": [
       ["overseer",3]
+    ]
+  },
+  {
+    "name":"appbase",
+    "urls": [
+      ["appbase","wss://appbase.steemitdev.com"]
     ],
-    "retries": [
-      ["overseer",3]
+    "ttls": [
+      ["appbase",3]
+    ],
+    "timeouts": [
+      ["appbase",3]
     ]
   },
   {
     "name":"sbds",
     "urls": [
-      ["sbds","https://sbds.steemitdev.com"]
+      ["sbds","wss://sbds.steemitdev.com"]
     ],
     "ttls": [
       ["sbds",3]
     ],
     "timeouts": [
-      ["sbds",3]
-    ],
-    "retries": [
       ["sbds",3]
     ]
   },
   {
     "name":"hivemind",
     "urls": [
-      ["hivemind", "https://hivemind.steemitdev.com"]
+      ["hivemind", "wss://hivemind.steemitdev.com"]
     ],
     "ttls": [
       ["hivemind",3]
     ],
     "timeouts": [
       ["hivemind",3]
-    ],
-    "retries": [
-      ["hivemind",3]
     ]
+
   },
   {
     "name":"yo",
     "urls": [
-      ["yo","https://yo.steemitdev.com"]
+      { "prefix":"yo",
+        "upstream_url":"wss://yo.steemitdev.com"
+      }
     ],
     "ttls": [
-      ["yo",3]
+      { "prefix":"yo",
+        "upstream_ttl":3
+      }
     ],
     "timeouts": [
-      ["yo",3]
+      { "prefix":"yo",
+        "upstream_timeout":3
+      }
+    ]
+
+  },
+  {
+    "name":"namespace",
+    "urls": [
+      ["namespace","wss://namespace.steemitdev.com"],
+      ["namespace.method","wss://namespace.method.steemitdev.com"],
+      ["namespace.method.params=[666]", "wss://namespace.method.params666.steemitdev.com"],
+      ["namespace.api.method","wss://namespace.api.method.steemitdev.com"],
+      ["namespace.api.method.params=[666]", "wss://namespace.api.method.params666.steemitdev.com"]
+    ],
+    "ttls": [
+      ["namespace",3],
+      ["namespace.method",4],
+      ["namespace.api.method",5],
+      ["namespace.api.method.params=[666]", 6]
+    ],
+    "timeouts": [
+     ["namespace",3],
+      ["namespace.method",4],
+      ["namespace.api.method",5],
+      ["namespace.api.method.params=[666]", 6]
     ],
     "retries": [
-      ["yo",3]
+      ["namespace",3]
     ]
   }
 ]

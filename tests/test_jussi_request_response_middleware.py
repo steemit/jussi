@@ -7,7 +7,7 @@ import pytest
 from jussi.middlewares.jussi import convert_to_jussi_request
 from jussi.middlewares.jussi import finalize_jussi_response
 from jussi.upstream import _Upstreams
-from jussi.upstream import DEFAULT_UPSTREAM_CONFIG
+from .conftest import TEST_UPSTREAM_CONFIG
 
 
 req = {"id": "1", "jsonrpc": "2.0",
@@ -46,7 +46,7 @@ def test_request_id_in_response_headers():
     def handler(r):
         return sanic.response.text('options')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
@@ -82,7 +82,7 @@ def test_jussi_request_ids_equal():
     def handler(r):
         return sanic.response.text('options')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
@@ -130,7 +130,7 @@ def test_response_time_in_response_headers():
     def handler(r):
         return sanic.response.text('options')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
     _, response = app.test_client.post('/post')
@@ -158,7 +158,7 @@ def test_urn_parts_in_post_response_headers():
     def handler(r):
         return sanic.response.text('post')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
@@ -178,7 +178,7 @@ def test_urn_parts_not_in_batch_response_headers():
     def handler(r):
         return sanic.response.text('post')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
@@ -196,7 +196,7 @@ def test_urn_parts_not_in_get_response_headers():
     def handler(r):
         return sanic.response.text('get')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
@@ -214,7 +214,7 @@ def test_urn_parts_not_in_head_response_headers():
     def handler(r):
         return sanic.response.text('head')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
@@ -232,7 +232,7 @@ def test_urn_parts_not_in_options_response_headers():
     def handler(r):
         return sanic.response.text('options')
 
-    app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+    app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
     app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 

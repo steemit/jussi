@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from typing import Dict
 from typing import List
 from typing import NamedTuple
@@ -19,22 +18,31 @@ class JussiJSONRPCRequest(NamedTuple):
     amzn_trace_id: str
     jussi_request_id: str
     batch_index: int
+    original_request: Optional[Dict]
 
     # pylint: disable=no-member
     @classmethod
-    def from_request(cls, sanic_request, batch_index: int, request: Dict[str, any]) -> NamedTuple:
+    def from_request(cls, sanic_request, batch_index: int,
+                     request: Dict[str, any]) -> NamedTuple:
         from .urn import URN
         from .upstream import Upstream
 
         assert isinstance(request, dict), 'request must be dict'
         upstreams = sanic_request.app.config.upstreams
+        urn = URN.from_request(request)
+        upstream = Upstream.from_urn(urn, upstreams=upstreams)
+        original_request = None
 
-        _id = request.get('id', None)
+        if upstreams.translate_to_appbase(urn):
+            original_request = request
+            request = JussiJSONRPCRequest.translate_to_appbase(request, urn)
+            urn = URN.from_request(request)
+            upstream = Upstream.from_urn(urn, upstreams=upstreams)
+
+        _id = request.get('id', False)
         jsonrpc = request['jsonrpc']
         method = request['method']
-        params = request.get('params', None)
-        urn = URN.from_request(request, namespaces=upstreams.namespaces)
-        upstream = Upstream.from_urn(urn, upstreams=upstreams)
+        params = request.get('params', False)
 
         return cls(_id,
                    jsonrpc,
@@ -44,13 +52,14 @@ class JussiJSONRPCRequest(NamedTuple):
                    upstream,
                    sanic_request.headers.get('x-amzn-trace-id'),
                    sanic_request['jussi_request_id'],
-                   batch_index)
+                   batch_index,
+                   original_request)
 
     # pylint: enable=no-member
 
     def to_dict(self):
         return {k: getattr(self, k, False) for k in
-                {'id', 'jsonrpc', 'method', 'params'} if k is not None}
+                ('id', 'jsonrpc', 'method', 'params') if getattr(self, k, False) is not False}
 
     def json(self):
         return ujson.dumps(self.to_dict(), ensure_ascii=False)
@@ -73,20 +82,39 @@ class JussiJSONRPCRequest(NamedTuple):
     def upstream_id(self):
         return int(self.jussi_request_id) + self.batch_index
 
-    def log_extra(self, extra=None):
-        base_extra = {
-            'x-amzn-trace-id': self.amzn_trace_id,
-            'jussi_request_id': self.jussi_request_id,
-            'jsonrpc_id': self.id,
-            'batch_index': self.batch_index,
-            'urn': self.urn._asdict(),
-            'upstream': self.upstream._asdict(),
-            'upstream_request_id': self.upstream_id,
-        }
+    @property
+    def translated(self):
+        return self.original_request is not None
 
-        if extra:
-            base_extra.update(extra)
-        return base_extra
+    def log_extra(self, **kwargs):
+        try:
+            base_extra = {
+                'x-amzn-trace-id': self.amzn_trace_id,
+                'jussi_request_id': self.jussi_request_id,
+                'jsonrpc_id': self.id,
+                'batch_index': self.batch_index,
+                'urn': self.urn._asdict(),
+                'upstream': self.upstream._asdict(),
+                'upstream_request_id': self.upstream_id,
+                'translated': self.translated
+            }
+            base_extra.update(**kwargs)
+            return base_extra
+
+        except Exception:
+            return None
 
     def __hash__(self):
-        return hash(str(self.urn))
+        return hash(self.urn)
+
+    @staticmethod
+    def translate_to_appbase(request, urn):
+        params = urn.params
+        if params is False:
+            params = []
+        return {
+            'id': request.get('id', False),
+            'jsonrpc': request['jsonrpc'],
+            'method': 'call',
+            'params': ['condenser_api', urn.method, params]
+        }

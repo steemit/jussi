@@ -120,3 +120,5 @@ service/*/supervise/
 upstream_traffic.json
 env
 ALT_config.json
+api_initial_schema.json
+api_signatures.json

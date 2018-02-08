@@ -3,7 +3,7 @@ ROOT_DIR := $(shell pwd)
 
 PROJECT_NAME := $(notdir $(ROOT_DIR))
 PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
-PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env
+PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env -v $(shell pwd)/ALT_config.json:/app/ALT_config.json
 
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
@@ -71,7 +71,7 @@ lint: ## lint python files
 fmt: ## format python files
     # yapf is disabled until the update 3.6 fstring compat
 	#pipenv run yapf --in-place --style pep8 --recursive $(PROJECT_NAME)
-	pipenv run autopep8 --verbose --verbose --max-line-length=100 --aggressive --jobs -1 --in-place  --recursive $(PROJECT_NAME)
+	pipenv run autopep8 --verbose --verbose --max-line-length=100 --aggressive --jobs -1 --in-place  --recursive $(PROJECT_NAME) $(PROJECT_NAME)/tests
 
 .PHONY: fix-imports
 fix-imports: remove-unused-imports sort-imports ## remove unused and then sort imports
@@ -96,11 +96,15 @@ pre-commit: ## run pre-commit against modified files
 pre-commit-all: ## run pre-commit against all files
 	pipenv run pre-commit run --all-files
 
+.PHONY: unmac
+unmac:
+	find $(ROOT_DIR) -type f -name '.DS_Store' -delete
+
 .PHONY: prepare
-prepare: test fmt fix-imports lint pre-commit-all ## test fmt fix-imports lint and pre-commit
+prepare: fix-imports lint fmt pre-commit-all pipenv-check test unmac  ## fix-imports lint fmt pre-commit-all pipenv-check test
 
 .PHONY: prepare-and-build
-prepare-and-build: prepare Pipfile.lock test-with-docker ## run all tests, formatting and pre-commit checks, then build docker image
+prepare-and-build: prepare Pipfile.lock build  ## run all tests, formatting and pre-commit checks, then build docker image
 
 .PHONY: mypy
 mypy: ## run mypy type checking on python files
@@ -112,7 +116,6 @@ mypy: ## run mypy type checking on python files
 	http :8080/health
 	http :8080/.well-known/healthcheck.json
 	http --json :8080/ id=1 jsonrpc="2.0" method=get_block params:='[1000]'
-
 
 .PHONY: 9000
 9000:
@@ -126,6 +129,9 @@ mypy: ## run mypy type checking on python files
 test-local-steemd-calls:
 	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl http://localhost:9000
 
+.PHONY: test-local-appbase-translation-calls
+test-local-appbase-translation-calls:
+	pipenv run pytest -vv tests/test_responses.py::test_appbase_translation_responses --jussiurl http://localhost:9000
 
 .PHONY: test-live-dev-steemd-calls
 test-live-dev-steemd-calls:

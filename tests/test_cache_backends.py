@@ -2,7 +2,7 @@
 import pytest
 from jussi.cache.backends import SimpleMaxTTLMemoryCache
 from jussi.upstream import _Upstreams
-from jussi.upstream import DEFAULT_UPSTREAM_CONFIG
+from .conftest import TEST_UPSTREAM_CONFIG
 
 
 class AttrDict(dict):
@@ -16,7 +16,7 @@ dummy_request.headers = dict()
 dummy_request['jussi_request_id'] = '123456789012345'
 dummy_request.app = AttrDict()
 dummy_request.app.config = AttrDict()
-dummy_request.app.config.upstreams = _Upstreams(DEFAULT_UPSTREAM_CONFIG, validate=False)
+dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
 
 
 @pytest.mark.parametrize('cache_cls', [SimpleMaxTTLMemoryCache])

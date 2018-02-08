@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import functools
 import logging
 from typing import Optional
 
@@ -14,6 +15,7 @@ from .ttl import TTL
 logger = logging.getLogger(__name__)
 
 
+@functools.lru_cache(8192)
 def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
     return str(single_jsonrpc_request.urn)
 
@@ -61,10 +63,7 @@ def merge_cached_response(request: SingleJsonRpcRequest,
                           ) -> Optional[SingleJsonRpcResponse]:
     if not cached_response:
         return None
-    new_response = {'jsonrpc': '2.0', 'result': cached_response['result']}
-    if request.id is not False:
-        new_response['id'] = request.id
-    return new_response
+    return {'id': request.id, 'jsonrpc': '2.0', 'result': cached_response['result']}
 
 
 def merge_cached_responses(request: BatchJsonRpcRequest,

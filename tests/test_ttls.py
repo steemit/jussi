@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import pytest
+from .conftest import TEST_UPSTREAM_CONFIG
+from .conftest import AttrDict
+
 from jussi.cache.ttl import TTL
 from jussi.cache.utils import irreversible_ttl
 
 from jussi.request import JussiJSONRPCRequest
 from jussi.upstream import _Upstreams
-from .conftest import TEST_UPSTREAM_CONFIG
-from .conftest import AttrDict
+
 
 dummy_request = AttrDict()
 dummy_request.headers = dict()
@@ -31,6 +33,9 @@ rpc_resp = {
         "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
         "transaction_ids": []}}
+
+non_ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
+                                                                      "method": "sbds.method", "params": [1000]})
 
 
 @pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num, expected', [
