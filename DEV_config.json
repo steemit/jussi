@@ -15,7 +15,9 @@
     {
         "name": "appbase",
         "urls": [
-            ["appbase", "wss://steemd.steemitdev.com"]
+            ["appbase", "wss://steemd.steemitdev.com"],
+            ["appbase.condenser_api.get_account_history", "wss://ahnode.steemitdev.com"],
+            ["appbase.condenser_api.get_ops_in_block", "wss://ahnode.steemitdev.com"]
         ],
         "ttls": [
             ["appbase.account_history_api", -1],
