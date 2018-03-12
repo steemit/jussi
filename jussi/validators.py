@@ -211,7 +211,7 @@ def is_get_block_request(jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
     try:
         return jsonrpc_request.urn.method == 'get_block'
     except Exception as e:
-        logger.debug('is_get_block_request errored: %s', e,
+        logger.warning('is_get_block_request errored: %s', e,
                      extra=jsonrpc_request.log_extra())
         return False
 
@@ -221,7 +221,7 @@ def is_get_block_header_request(
     try:
         return jsonrpc_request.urn.method == 'get_block_header'
     except Exception as e:
-        logger.debug('is_get_block_request errored: %s', e,
+        logger.warning('is_get_block_request errored: %s', e,
                      extra=jsonrpc_request.log_extra())
         return False
 
@@ -229,9 +229,12 @@ def is_get_block_header_request(
 def is_get_dynamic_global_properties_request(
         jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
     try:
+        if not hasattr(jsonrpc_request, 'urn'):
+            raise Exception(f'no `urn` in {jsonrpc_request}')
         return jsonrpc_request.urn.namespace == 'steemd' and jsonrpc_request.urn.method == 'get_dynamic_global_properties'
     except Exception:
-        logger.debug('is_get_dynamic_global_properties_request failed',
+        # TODO: error spotted -- 'list' object has no attribute 'log_extra'
+        logger.warning('is_get_dynamic_global_properties_request failed',
                      extra=jsonrpc_request.log_extra())
         return False
 
@@ -251,6 +254,16 @@ def is_valid_get_block_response(
             request_block_num = params['block_num']
         else:
             raise ValueError(f'bad urn params from {jsonrpc_request}: {params} ')
+
+        if not isinstance(response, dict):
+            raise Exception(f'response was not a dict: {response}')
+        elif 'error' in response:
+            raise Exception(f'error response: {response["error"]}')
+        elif 'result' not in response:
+            raise Exception('response did not contain result')
+        elif response['result'] is None:
+            return False # block does not exist yet
+
         if 'block_id' in response['result']:
             block_id = response['result']['block_id']
         else:

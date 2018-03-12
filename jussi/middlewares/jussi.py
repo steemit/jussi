@@ -52,6 +52,8 @@ async def finalize_jussi_response(request: HTTPRequest,
         response.headers['x-jussi-response-time'] = str(now - request.get('timing', now))
 
         if request.method == 'POST':
+            if not hasattr(request.json, 'urn'):
+                raise Exception(f"no urn in {request.json}")
             response.headers['x-jussi-namespace'] = request.json.urn.namespace
             response.headers['x-jussi-api'] = request.json.urn.api
             response.headers['x-jussi-method'] = request.json.urn.method
