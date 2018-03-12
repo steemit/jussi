@@ -2,6 +2,7 @@
 import asyncio
 import logging
 
+import async_timeout
 from sanic import response
 
 import ujson
@@ -18,15 +19,19 @@ logger = logging.getLogger(__name__)
 async def get_response(request: HTTPRequest) -> None:
     # return cached response from cache if all requests were in cache
     cache_group = request.app.config.cache_group
+    cache_read_timeout = request.app.config.cache_read_timeout
     jsonrpc_request = request.json
     try:
-        cached_response = await cache_group.get_jsonrpc_response(jsonrpc_request)
-        if cache_group.is_complete_response(jsonrpc_request, cached_response):
-            jussi_cache_key = cache_group.x_jussi_cache_key(jsonrpc_request)
-            return response.json(
-                cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
+        with async_timeout.timeout(cache_read_timeout):
+            cached_response = await cache_group.get_jsonrpc_response(jsonrpc_request)
+            if cache_group.is_complete_response(jsonrpc_request, cached_response):
+                jussi_cache_key = cache_group.x_jussi_cache_key(jsonrpc_request)
+                return response.json(
+                    cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
     except ConnectionRefusedError:
         logger.error('error connecting to redis cache')
+    except asyncio.TimeoutError:
+        logger.error(f'request exceeded cache read timeout ({cache_read_timeout})')
     except Exception:
         logger.exception('error while querying cache for response')
 
