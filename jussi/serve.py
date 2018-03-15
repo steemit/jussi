@@ -75,6 +75,10 @@ def parse_args(args: list = None):
     parser.add_argument('--redis_port', type=int, default=6379)
     parser.add_argument('--redis_namespace', type=str, default='jussi')
 
+    # cache config
+    parser.add_argument('--cache_read_timeout', type=float, default=1.0)
+    parser.add_argument('--cache_write_timeout', type=float, default=5.0)
+
     return parser.parse_args(args=args)
 
 
