@@ -123,6 +123,8 @@ class CacheGroup(object):
     async def get_single_jsonrpc_response(self,
                                           request: JsonRpcRequest) -> Optional[
             SingleJsonRpcResponse]:
+        if request.upstream.ttl == TTL.NO_CACHE:
+            return None
         key = jsonrpc_cache_key(request)
         cached_response = await self.get(key)
         if cached_response is None:

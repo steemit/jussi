@@ -1,0 +1,21 @@
+version: "3.3"
+services:
+  jussi:
+    image: steemit/jussi
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - type: bind
+        source: ./ALT_config.json
+        target: /app/ALT_config.json
+    environment:
+      JUSSI_MEMCACHED_HOST: memcached
+      JUSSI_MEMCACHED_PORT: 11211
+    links:
+      - memcached
+  memcached:
+    image: "memcached:1.5-alpine"
+    ports:
+      - "11211:11211"

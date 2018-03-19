@@ -73,11 +73,13 @@ def parse_args(args: list = None):
     # redis config
     parser.add_argument('--redis_host', type=str, default=None)
     parser.add_argument('--redis_port', type=int, default=6379)
-    parser.add_argument('--redis_namespace', type=str, default='jussi')
+
+    # memcached config
+    parser.add_argument('--memcached_host', type=str, default=None)
+    parser.add_argument('--memcached_port', type=int, default=11211)
 
     # cache config
     parser.add_argument('--cache_read_timeout', type=float, default=1.0)
-    parser.add_argument('--cache_write_timeout', type=float, default=5.0)
 
     return parser.parse_args(args=args)
 
