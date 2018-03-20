@@ -21,13 +21,26 @@ def setup_caches(app: WebApp, loop) -> Any:
     caches = [SimpleMaxTTLMemoryCache()]
     if args.redis_host:
         try:
-            redis_cache = aiocache.RedisCache(endpoint=args.redis_host,
-                                              port=args.redis_port,
-                                              timeout=10,
-                                              serializer=CompressionSerializer())
-            if redis_cache:
-                caches.append(redis_cache)
+            cache = aiocache.RedisCache(endpoint=args.redis_host,
+                                        port=args.redis_port,
+                                        timeout=args.cache_read_timeout,
+                                        serializer=CompressionSerializer())
+
+            if cache:
+                caches.append(cache)
         except Exception:
             logger.exception('failed to add redis cache to caches')
+
+    if args.memcached_host:
+        try:
+            cache = aiocache.MemcachedCache(endpoint=args.memcached_host,
+                                            port=args.memcached_port,
+                                            timeout=args.cache_read_timeout,
+                                            serializer=CompressionSerializer())
+
+            if cache:
+                caches.append(cache)
+        except Exception:
+            logger.exception('failed to add memcached cache to caches')
     configured_cache_group = CacheGroup(caches=caches)
     return configured_cache_group

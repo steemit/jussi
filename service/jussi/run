@@ -25,5 +25,6 @@ exec 2>&1 \
       --test_upstream_urls "${JUSSI_TEST_UPSTREAM_URLS:- True}" \
       --redis_host "${JUSSI_REDIS_HOST}" \
       --redis_port "${JUSSI_REDIS_PORT:-6379}" \
-      --redis_namespace "${JUSSI_REDIS_NAMESPACE:-jussi}" \
+      --memcached_host "${JUSSI_MEMCACHED_HOST}" \
+      --memcached_port "${JUSSI_MEMCACHED_PORT:-11211}" \
       --cache_read_timeout "${JUSSI_CACHE_READ_TIMEOUT:-1.0}"
