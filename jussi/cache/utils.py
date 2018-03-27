@@ -42,14 +42,28 @@ def irreversible_ttl(jsonrpc_response: dict=None,
 def block_num_from_jsonrpc_response(
         jsonrpc_response: dict=None) -> int:
     # pylint: disable=no-member
+
+    # for appbase get_block
+    previous = cytoolz.get_in(['result', 'block', 'previous'], jsonrpc_response)
+    if previous:
+        return block_num_from_id(previous) + 1
+
+    # for appbase get_block_header
+    previous = cytoolz.get_in(['result', 'header', 'previous'],
+                              jsonrpc_response)
+    if previous:
+        return block_num_from_id(previous) + 1
+
     # for get_block
     block_id = cytoolz.get_in(['result', 'block_id'], jsonrpc_response)
     if block_id:
         return block_num_from_id(block_id)
 
-    # for get_block_header
-    previous = cytoolz.get_in(['result', 'previous'], jsonrpc_response)
-    return block_num_from_id(previous) + 1
+    # for steemd get_block
+    previous = cytoolz.get_in(['result', 'previous'],
+                              jsonrpc_response)
+    if previous:
+        return block_num_from_id(previous) + 1
 
 
 def block_num_from_id(block_hash: str) -> int:
