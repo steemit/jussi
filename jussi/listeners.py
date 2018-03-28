@@ -81,7 +81,6 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.cache_group = cache_group
         app.config.last_irreversible_block_num = 15_000_000
         app.config.cache_read_timeout = args.cache_read_timeout
-        app.config.cache_write_timeout = args.cache_write_timeout
 
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:

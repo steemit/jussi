@@ -209,7 +209,8 @@ def is_valid_non_error_jussi_response(
 
 def is_get_block_request(jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
     try:
-        return jsonrpc_request.urn.method == 'get_block'
+        return jsonrpc_request.urn.namespace in (
+            'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_block'
     except Exception as e:
         logger.debug('is_get_block_request errored: %s', e,
                      extra=jsonrpc_request.log_extra())
@@ -219,7 +220,8 @@ def is_get_block_request(jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
 def is_get_block_header_request(
         jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
     try:
-        return jsonrpc_request.urn.method == 'get_block_header'
+        return jsonrpc_request.urn.namespace in (
+            'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_block_header'
     except Exception as e:
         logger.debug('is_get_block_request errored: %s', e,
                      extra=jsonrpc_request.log_extra())
@@ -229,7 +231,8 @@ def is_get_block_header_request(
 def is_get_dynamic_global_properties_request(
         jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
     try:
-        return jsonrpc_request.urn.namespace == 'steemd' and jsonrpc_request.urn.method == 'get_dynamic_global_properties'
+        return jsonrpc_request.urn.namespace in (
+            'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_dynamic_global_properties'
     except Exception:
         logger.debug('is_get_dynamic_global_properties_request failed',
                      extra=jsonrpc_request.log_extra())
@@ -278,8 +281,12 @@ def is_valid_get_block_header_response(
         return False
     try:
         request_block_num = jsonrpc_request.urn.params[0]
-        response_block_num = block_num_from_id(
-            response['result']['previous']) + 1
+        if 'header' in response['result']:
+            response_block_num = block_num_from_id(
+                response['result']['header']['previous']) + 1
+        else:
+            response_block_num = block_num_from_id(
+                response['result']['previous']) + 1
         assert int(request_block_num) == response_block_num
         return True
     except KeyError as e:

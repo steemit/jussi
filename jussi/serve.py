@@ -70,14 +70,16 @@ def parse_args(args: list = None):
     parser.add_argument('--test_upstream_urls',
                         type=lambda x: bool(strtobool(x)),
                         default=True)
+
+    # cache config (applies to all caches
+    parser.add_argument('--cache_read_timeout', type=float, default=1.0)
+
     # redis config
     parser.add_argument('--redis_host', type=str, default=None)
     parser.add_argument('--redis_port', type=int, default=6379)
-    parser.add_argument('--redis_namespace', type=str, default='jussi')
-
-    # cache config
-    parser.add_argument('--cache_read_timeout', type=float, default=1.0)
-    parser.add_argument('--cache_write_timeout', type=float, default=5.0)
+    parser.add_argument('--redis_pool_minsize', type=int, default=1)
+    parser.add_argument('--redis_pool_maxsize', type=int, default=10)
+    parser.add_argument('--redis_read_replica_hosts', type=str, default=None, nargs='*')
 
     return parser.parse_args(args=args)
 
