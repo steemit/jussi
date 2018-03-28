@@ -58,11 +58,10 @@ cchardet = "*"
 async-timeout = "*"
 progress = "*"
 pytest = "*"
-aiocache = {extras = ["redis"]}
+aiocache = {extras = ["memcached", "redis"]}
 websockets = "*"
 sanic = "==0.6.0"
 msgpack = "*"
-
 
 [requires]
 
