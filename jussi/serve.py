@@ -73,6 +73,7 @@ def parse_args(args: list = None):
 
     # cache config (applies to all caches
     parser.add_argument('--cache_read_timeout', type=float, default=1.0)
+    parser.add_argument('--cache_test_before_add', type=lambda x: bool(strtobool(x)), default=False)
 
     # redis config
     parser.add_argument('--redis_host', type=str, default=None)
