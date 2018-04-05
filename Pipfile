@@ -1,11 +1,8 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 
-
 [dev-packages]
-
 sanic = "==0.6.0"
 asynctest = "*"
 autoflake = "*"
@@ -39,9 +36,7 @@ isort = "*"
 pydevd = "*"
 line-profiler = "*"
 
-
 [packages]
-
 ujson = "*"
 aiohttp = "*"
 toolz = "*"
@@ -62,7 +57,7 @@ aiocache = {extras = ["memcached", "redis"]}
 websockets = "*"
 sanic = "==0.6.0"
 msgpack = "*"
+configargparse = "*"
 
 [requires]
-
 python_version = "3.6"
