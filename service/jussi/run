@@ -23,6 +23,9 @@ exec 2>&1 \
       --docker_tag "${DOCKER_TAG}" \
       --upstream_config_file "${JUSSI_UPSTREAM_CONFIG_FILE:- PROD_UPSTREAM_CONFIG.json}" \
       --test_upstream_urls "${JUSSI_TEST_UPSTREAM_URLS:- True}" \
+      --cache_read_timeout "${JUSSI_CACHE_READ_TIMEOUT:-0.5}" \
       --redis_host "${JUSSI_REDIS_HOST}" \
       --redis_port "${JUSSI_REDIS_PORT:-6379}" \
-      --redis_namespace "${JUSSI_REDIS_NAMESPACE:-jussi}"
+      --redis_pool_minsize "${JUSSI_REDIS_POOL_MINSIZE:-1}" \
+      --redis_pool_maxsize "${JUSSI_REDIS_POOL_MAXSIZE:-30}" \
+      --redis_read_replica_hosts "${JUSSI_REDIS_READ_REPLICA_HOSTS}"

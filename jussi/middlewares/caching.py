@@ -4,6 +4,7 @@ import logging
 
 from sanic import response
 
+from async_timeout import timeout
 import ujson
 
 from ..typedefs import HTTPRequest
@@ -18,15 +19,19 @@ logger = logging.getLogger(__name__)
 async def get_response(request: HTTPRequest) -> None:
     # return cached response from cache if all requests were in cache
     cache_group = request.app.config.cache_group
+    cache_read_timeout = request.app.config.cache_read_timeout
     jsonrpc_request = request.json
     try:
-        cached_response = await cache_group.get_jsonrpc_response(jsonrpc_request)
-        if cache_group.is_complete_response(jsonrpc_request, cached_response):
-            jussi_cache_key = cache_group.x_jussi_cache_key(jsonrpc_request)
-            return response.json(
-                cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
+        async with timeout(cache_read_timeout):
+            cached_response = await cache_group.get_jsonrpc_response(jsonrpc_request)
+            if cache_group.is_complete_response(jsonrpc_request, cached_response):
+                jussi_cache_key = cache_group.x_jussi_cache_key(jsonrpc_request)
+                return response.json(
+                    cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
     except ConnectionRefusedError:
         logger.error('error connecting to redis cache')
+    except asyncio.TimeoutError:
+        logger.error(f'request exceeded cache read timeout ({cache_read_timeout})')
     except Exception:
         logger.exception('error while querying cache for response')
 
@@ -40,7 +45,9 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
         cache_group = request.app.config.cache_group
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)
+        last_irreversible_block_num = request.app.config.last_irreversible_block_num
         await asyncio.shield(cache_group.cache_jsonrpc_response(jsonrpc_request,
-                                                                jsonrpc_response))
+                                                                jsonrpc_response,
+                                                                last_irreversible_block_num))
     except Exception as e:
         logger.error('error caching response: %s', e)

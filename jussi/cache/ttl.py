@@ -58,3 +58,6 @@ class TTL(Enum):
             return self.value >= other
         else:
             return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.value)
