@@ -218,6 +218,7 @@ class CacheGroup(object):
                 'jsonrpc error in response from upstream %s, skipping cache',
                 response)
             raise UncacheableResponse('jsonrpc error response')
+
         if is_get_block_request(jsonrpc_request=request):
             if not is_valid_get_block_response(jsonrpc_request=request,
                                                response=response):

@@ -8,13 +8,14 @@ from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 from ..utils import async_nowait_middleware
 from ..validators import is_get_dynamic_global_properties_request
+from ..request import JussiJSONRPCRequest
 
 logger = logging.getLogger(__name__)
 
 
 @async_nowait_middleware
 async def update_last_irreversible_block_num(request: HTTPRequest, response: HTTPResponse) -> None:
-    if request.method != 'POST':
+    if request.method != 'POST' or not isinstance(request.json, JussiJSONRPCRequest):
         return
     try:
         jsonrpc_request = request.json

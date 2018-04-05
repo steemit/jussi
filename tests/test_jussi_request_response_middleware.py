@@ -164,11 +164,11 @@ def test_urn_parts_in_post_response_headers():
 
     _, response = app.test_client.post('/post', json=req)
     assert 'x-jussi-request-id' in response.headers
-
-    assert response.headers['x-jussi-namespace'] == 'steemd'
-    assert response.headers['x-jussi-api'] == 'database_api'
-    assert response.headers['x-jussi-method'] == 'get_block'
-    assert response.headers['x-jussi-params'] == '[1000]'
+    print(f'{response.headers}')
+    assert response.headers['x-jussi-namespace'] == 'steemd', f'{response.headers}'
+    assert response.headers['x-jussi-api'] == 'database_api', f'{response.headers}'
+    assert response.headers['x-jussi-method'] == 'get_block', f'{response.headers}'
+    assert response.headers['x-jussi-params'] == '[1000]', f'{response.headers}'
 
 
 def test_urn_parts_not_in_batch_response_headers():
