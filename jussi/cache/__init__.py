@@ -36,7 +36,6 @@ def setup_caches(app: WebApp, loop) -> Any:
         try:
             redis_cache = aiocache.RedisCache(endpoint=args.redis_host,
                                               port=args.redis_port,
-                                              timeout=args.cache_read_timeout,
                                               pool_min_size=args.redis_pool_minsize,
                                               pool_max_size=args.redis_pool_maxsize,
                                               serializer=CompressionSerializer())
@@ -50,7 +49,6 @@ def setup_caches(app: WebApp, loop) -> Any:
         for host in args.redis_read_replica_hosts:
             cache = aiocache.RedisCache(endpoint=host,
                                         port=6379,
-                                        timeout=args.cache_read_timeout,
                                         pool_min_size=args.redis_pool_minsize,
                                         pool_max_size=args.redis_pool_maxsize,
                                         serializer=CompressionSerializer())
