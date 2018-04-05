@@ -78,5 +78,6 @@ def setup_caches(app: WebApp, loop) -> Any:
                     else:
                         caches.append(
                             CacheGroupItem(cache, True, False, SpeedTier.FAST))
+
     configured_cache_group = CacheGroup(caches=caches)
     return configured_cache_group
