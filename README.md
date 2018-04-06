@@ -65,3 +65,4 @@ Content-Type: application/json
 1. return single jsonrpc response or assembled jsonrpc responses for batch requests
 1. cache response in redis cache
 1. cache response in memory
+
