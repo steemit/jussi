@@ -49,7 +49,7 @@ def parse_args(args: list = None):
                         default=False)
     parser.add_argument('--server_host', type=str, env_var='JUSSI_SERVER_HOST',
                         default='0.0.0.0')
-    parser.add_argument('--server_port', type=int, env_var='JUSSI_SERVER_PORT',
+    parser.add_argument('--server_port', type=str, env_var='JUSSI_SERVER_PORT',
                         default=9000)
     parser.add_argument('--server_workers', type=int,
                         env_var='JUSSI_SERVER_WORKERS', default=os.cpu_count())
