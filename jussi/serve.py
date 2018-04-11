@@ -96,6 +96,7 @@ def parse_args(args: list = None):
                         env_var='JUSSI_CACHE_TEST_BEFORE_ADD', default=False)
 
     # redis config
+
     parser.add_argument('--redis_host', type=str, env_var='JUSSI_REDIS_HOST',
                         default=None)
     parser.add_argument('--redis_port', type=int, env_var='JUSSI_REDIS_PORT',
@@ -103,7 +104,7 @@ def parse_args(args: list = None):
     parser.add_argument('--redis_pool_minsize', type=int,
                         env_var='JUSSI_REDIS_POOL_MINSIZE', default=1)
     parser.add_argument('--redis_pool_maxsize', type=int,
-                        env_var='JUSSI_REDIS_POOL_MAXSIZE', default=10)
+                        env_var='JUSSI_REDIS_POOL_MAXSIZE', default=40)
     parser.add_argument('--redis_read_replica_hosts', type=str,
                         env_var='JUSSI_REDIS_READ_REPLICA_HOSTS', default=None,
                         nargs='*')
