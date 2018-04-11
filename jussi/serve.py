@@ -78,7 +78,7 @@ def parse_args(args: list = None):
     parser.add_argument('--redis_host', type=str, default=None)
     parser.add_argument('--redis_port', type=int, default=6379)
     parser.add_argument('--redis_pool_minsize', type=int, default=1)
-    parser.add_argument('--redis_pool_maxsize', type=int, default=10)
+    parser.add_argument('--redis_pool_maxsize', type=int, default=40)
     parser.add_argument('--redis_read_replica_hosts', type=str, default=None, nargs='*')
 
     return parser.parse_args(args=args)
