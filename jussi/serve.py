@@ -104,7 +104,7 @@ def parse_args(args: list = None):
     parser.add_argument('--redis_pool_minsize', type=int,
                         env_var='JUSSI_REDIS_POOL_MINSIZE', default=1)
     parser.add_argument('--redis_pool_maxsize', type=int,
-                        env_var='JUSSI_REDIS_POOL_MAXSIZE', default=40)
+                        env_var='JUSSI_REDIS_POOL_MAXSIZE', default=30)
     parser.add_argument('--redis_read_replica_hosts', type=str,
                         env_var='JUSSI_REDIS_READ_REPLICA_HOSTS', default=None,
                         nargs='*')
