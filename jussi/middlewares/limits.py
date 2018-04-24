@@ -27,5 +27,5 @@ async def check_limits(request: HTTPRequest) -> None:
 
         elif isinstance(jsonrpc_request, list):
             for single_jsonrpc_request in jsonrpc_request:
-                assert is_valid_broadcast_transaction_request(jsonrpc_request,
+                assert is_valid_broadcast_transaction_request(single_jsonrpc_request,
                                                               limits=request.app.config.limits)
