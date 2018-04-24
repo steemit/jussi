@@ -32,6 +32,11 @@ JSONRPC_REQUEST_KEYS = {'id', 'jsonrpc', 'method', 'params'}
 CUSTOM_JSON_SIZE_LIMIT = 1000
 CUSTOM_JSON_FOLLOW_RATE = 2
 
+BROADCAST_TRANSACTION_METHODS = {
+    'broadcast_transaction',
+    'broadcast_transaction_synchronous'
+}
+
 
 @decorator
 async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
@@ -315,12 +320,22 @@ def is_valid_get_block_header_response(
     return False
 
 
+def is_broadcast_transaction_request(jsonrpc_request: SingleJsonRpcRequest) -> bool:
+    return jsonrpc_request.urn.method in BROADCAST_TRANSACTION_METHODS
+
+
 def is_valid_broadcast_transaction_request(
         jsonrpc_request: SingleJsonRpcRequest, limits=None) -> bool:
     #
     try:
-        if jsonrpc_request.urn.method == 'broadcast_transaction_synchronous':
-            request_params = jsonrpc_request.urn.params[0]
+        if is_broadcast_transaction_request(jsonrpc_request):
+            if isinstance(jsonrpc_request.urn.params, list):
+                request_params = jsonrpc_request.urn.params[0]
+            elif isinstance(jsonrpc_request.urn.params, dict):
+                request_params = jsonrpc_request.urn.params['trx']
+            else:
+                raise ValueError(
+                    f'Unknown request params type: {type(jsonrpc_request.urn.params)} urn:{jsonrpc_request.urn}')
             ops = [op for op in request_params['operations'] if op[0] == 'custom_json']
             if not ops:
                 return True
@@ -333,7 +348,8 @@ def is_valid_broadcast_transaction_request(
                         is_valid_custom_json_account(ops, blacklist_accounts=blacklist_accounts)])
         return True
     except Exception as e:
-        logger.exception('is_valid_broadcast_transaction_request: %s', e)
+        logger.exception('is_valid_broadcast_transaction_request: %s', e,
+                         extra=jsonrpc_request.log_extra())
         return False
 
 

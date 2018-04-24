@@ -14,6 +14,7 @@ from jussi.validators import is_valid_single_jsonrpc_response
 from jussi.validators import is_valid_broadcast_transaction_request
 from jussi.validators import is_valid_custom_json_op_length
 from jussi.validators import is_valid_custom_json_account
+from jussi.validators import is_broadcast_transaction_request
 
 from jussi.upstream import _Upstreams
 from .conftest import AttrDict
@@ -359,6 +360,25 @@ def test_is_valid_custom_json_op_length(ops, expected):
 ])
 def test_is_valid_custom_json_account(ops, expected):
     assert is_valid_custom_json_account(ops, blacklist_accounts={'not_steemit'}) is expected
+
+
+def test_is_broadcast_transaction_false(steemd_requests_and_responses):
+    req, resp = steemd_requests_and_responses
+    req = JussiJSONRPCRequest.from_request(dummy_request, 0,
+                                           req)
+    assert is_broadcast_transaction_request(req) is False
+
+
+def test_is_broadcast_transaction_true(valid_broadcast_transactions):
+    req = JussiJSONRPCRequest.from_request(dummy_request, 0,
+                                           valid_broadcast_transactions)
+    assert is_broadcast_transaction_request(req) is True
+
+
+def test_is_broadcast_transaction_true_invalid(invalid_broadcast_transactions):
+    req = JussiJSONRPCRequest.from_request(dummy_request, 0,
+                                           invalid_broadcast_transactions)
+    assert is_broadcast_transaction_request(req) is True
 
 
 def test_is_valid_broadcast_transaction_request(steemd_requests_and_responses):
