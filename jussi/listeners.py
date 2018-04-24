@@ -82,6 +82,16 @@ def setup_listeners(app: WebApp) -> WebApp:
         app.config.last_irreversible_block_num = 15_000_000
         app.config.cache_read_timeout = args.cache_read_timeout
 
+    @app.listener('before_server_start')
+    async def setup_limits(app: WebApp, loop) -> None:
+        logger = app.config.logger
+        logger.info('before_server_start -> setup_limits')
+        args = app.config.args
+        config_file = args.upstream_config_file
+        with open(config_file) as f:
+            config = json.load(f)
+        app.config.limits = config.get('limits', {'accounts_blacklist': set()})
+
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger

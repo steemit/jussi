@@ -3,6 +3,7 @@
 from .jsonrpc import validate_jsonrpc_request
 from .jussi import finalize_jussi_response
 from .jussi import convert_to_jussi_request
+from .limits import check_limits
 from .caching import get_response
 from .caching import cache_response
 from .update_block_num import update_last_irreversible_block_num
@@ -15,6 +16,7 @@ def setup_middlewares(app):
     # request middleware
     app.request_middleware.append(validate_jsonrpc_request)
     app.request_middleware.append(convert_to_jussi_request)
+    app.request_middleware.append(check_limits)
     app.request_middleware.append(get_response)
 
     # response middlware

@@ -40,7 +40,7 @@ UPSTREAM_SCHEMA_FILE = 'upstreams_schema.json'
 with open(UPSTREAM_SCHEMA_FILE) as f:
     UPSTREAM_SCHEMA = json.load(f)
 jsonschema.Draft4Validator.check_schema(UPSTREAM_SCHEMA)
-CONFIG_VALIDATOR = jsonschema.Draft4Validator(UPSTREAM_SCHEMA)
+#CONFIG_VALIDATOR = jsonschema.Draft4Validator(UPSTREAM_SCHEMA)
 
 
 class _Upstreams(object):
@@ -51,9 +51,10 @@ class _Upstreams(object):
     __TRANSLATE_TO_APPBASE = None
 
     def __init__(self, config, validate=True):
-        CONFIG_VALIDATOR.validate(config)
-        self.config = config
-        self.__hash = hash(ujson.dumps(config))
+        upstream_config = config['upstreams']
+        # CONFIG_VALIDATOR.validate(upstream_config)
+        self.config = upstream_config
+        self.__hash = hash(ujson.dumps(self.config))
 
         self.__NAMESPACES = frozenset(c['name'] for c in self.config)
         for namespace in self.__NAMESPACES:

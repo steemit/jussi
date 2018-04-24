@@ -1638,6 +1638,113 @@ URN_TEST_REQUEST_DICTS = [
 ]
 
 
+VALID_BROADCAST_TRANSACTIONS = [
+    {
+        'id': "24001",
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [
+            'condenser_api',
+            'broadcast_transaction_synchronous',
+            [
+                {'expiration': '2018-04-23T22:40:21',
+                 'extensions': [],
+                 'operations': [
+                     [
+                         'custom_json',
+                         {
+                             "required_auths": [],
+                             "id": "follow",
+                             "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+                             "required_posting_auths": ["steemit"]
+                         }
+                     ]
+                 ]
+                 }
+            ]
+        ]
+    },
+    {
+        'id': "24001",
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [
+            'condenser_api',
+            'broadcast_transaction_synchronous',
+            [
+                {'expiration': '2018-04-23T22:40:21',
+                 'extensions': [],
+                 'operations': [
+                     [
+                         'custom_json',
+                         {
+                             "required_auths": [],
+                             "id": "follow",
+                             "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+                             "required_posting_auths": ["steemit"]
+                         }
+                     ]
+                 ]
+                 }
+            ]
+        ]
+    },
+]
+
+INVALID_BROADCAST_TRANSACTIONS = [
+    {
+        'id': "24001",
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [
+            'condenser_api',
+            'broadcast_transaction_synchronous',
+            [
+                {'expiration': '2018-04-23T22:40:21',
+                 'extensions': [],
+                 'operations': [
+                     [
+                         'custom_json',
+                         {
+                             "required_auths": [],
+                             "id": "follow",
+                             "json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                             "required_posting_auths": ["steemit"]
+                         }
+                     ]
+                 ]
+                 }
+            ]
+        ]
+    },
+    {
+        'id': "24001",
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [
+            'condenser_api',
+            'broadcast_transaction_synchronous',
+            [
+                {'expiration': '2018-04-23T22:40:21',
+                 'extensions': [],
+                 'operations': [
+                     [
+                         'custom_json',
+                         {
+                             "required_auths": [],
+                             "id": "follow",
+                             "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+                             "required_posting_auths": ["non-steemit"]
+                         }
+                     ]
+                 ]
+                 }
+            ]
+        ]
+    },
+]
+
+
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
@@ -1932,6 +2039,16 @@ def steemd_jussi_requests_and_dicts(just_steemd_requests_and_responses):
 @pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES)
 def jrpc_response(request):
     yield request.param[1]
+
+
+@pytest.fixture(params=VALID_BROADCAST_TRANSACTIONS)
+def valid_broadcast_transactions(request):
+    yield request.param
+
+
+@pytest.fixture(params=INVALID_BROADCAST_TRANSACTIONS)
+def invalid_broadcast_transactions(request):
+    yield request.param
 
 # ---------------- DOCKER ------------------
 

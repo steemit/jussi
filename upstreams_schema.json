@@ -2,9 +2,22 @@
   "id": "https://schema.steemit.com/jussi/upstreams/schema.json",
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "Jussi upstream configuration file schema",
-  "type": "array",
-  "items": {
-    "$ref": "#/definitions/upstream_definition"
+  "type": "object",
+  "properties": {
+    "upstreams": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/upstream_definition"
+      },
+      "limits": {
+        "type": "object",
+        "properties": {
+          "accounts_blacklist": {
+            "type": "array"
+          }
+        }
+      }
+    }
   },
   "definitions": {
     "upstream_definition": {
