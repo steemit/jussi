@@ -7,89 +7,100 @@ from jussi.errors import InvalidUpstreamHost
 from jussi.errors import InvalidUpstreamURL
 from jussi.upstream import _Upstreams
 
-SIMPLE_CONFIG = [
-    {
-        "name": "test",
-        "translate_to_appbase": True,
-        "urls": [
-            ["test", 'http://test.com']
-        ],
-        "ttls": [
-            ["test", 1]
-        ],
-        "timeouts": [
-            ["test", 1]
-        ]
-    },
-    {
-        "name": "test2",
-        "translate_to_appbase": False,
-        "urls": [
-            {
-                "prefix": "test2",
-                "upstream_url": "http://test2.com"
-            }
-        ],
-        "ttls": [
-            {
-                "prefix": "test2",
-                "upstream_ttl": 2
-            }
-        ],
-        "timeouts": [
-            {
-                "prefix": "test2",
-                "upstream_timeout": 2
-            }
-        ]
-    }
-]
+SIMPLE_CONFIG = {
+    "limits": {},
+    "upstreams":
+    [
+        {
+            "name": "test",
+            "translate_to_appbase": True,
+            "urls": [
+                ["test", 'http://test.com']
+            ],
+            "ttls": [
+                ["test", 1]
+            ],
+            "timeouts": [
+                ["test", 1]
+            ]
+        },
+        {
+            "name": "test2",
+            "translate_to_appbase": False,
+            "urls": [
+                {
+                    "prefix": "test2",
+                    "upstream_url": "http://test2.com"
+                }
+            ],
+            "ttls": [
+                {
+                    "prefix": "test2",
+                    "upstream_ttl": 2
+                }
+            ],
+            "timeouts": [
+                {
+                    "prefix": "test2",
+                    "upstream_timeout": 2
+                }
+            ]
+        }
+    ]
+}
 
-VALID_HOSTNAME_CONFIG = [
-    {
-        "name": "test",
-        "translate_to_appbase": True,
-        "urls": [
-            ["test", 'http://google.com']
-        ],
-        "ttls": [
-            ["test", 1]
-        ],
-        "timeouts": [
-            ["test", 1]
-        ]
-    }
-]
+VALID_HOSTNAME_CONFIG = {
+    "limits": {},
+    "upstreams": [
+        {
+            "name": "test",
+            "translate_to_appbase": True,
+            "urls": [
+                ["test", 'http://google.com']
+            ],
+            "ttls": [
+                ["test", 1]
+            ],
+            "timeouts": [
+                ["test", 1]
+            ]
+        }
+    ]}
 
-INVALID_NAMESPACE1_CONFIG = [
-    {
-        "name": "test_api",
-        "urls": [
-            ["test", 'http://google.com']
-        ],
-        "ttls": [
-            ["test", 1]
-        ],
-        "timeouts": [
-            ["test", 1]
-        ]
-    }
-]
+INVALID_NAMESPACE1_CONFIG = {
+    "limits": {},
+    "upstreams": [
+        {
+            "name": "test_api",
+            "urls": [
+                ["test", 'http://google.com']
+            ],
+            "ttls": [
+                ["test", 1]
+            ],
+            "timeouts": [
+                ["test", 1]
+            ]
+        }
+    ]}
 
-INVALID_NAMESPACE2_CONFIG = [
-    {
-        "name": "jsonrpc",
-        "urls": [
-            ["test", 'http://google.com']
-        ],
-        "ttls": [
-            ["test", 1]
-        ],
-        "timeouts": [
-            ["test", 1]
-        ]
-    }
-]
+INVALID_NAMESPACE2_CONFIG = {
+    "limits": {},
+    "upstreams": [
+        {
+            "name": "jsonrpc",
+            "urls": [
+                ["test", 'http://google.com']
+            ],
+            "ttls": [
+                ["test", 1]
+            ],
+            "timeouts": [
+                ["test", 1]
+            ]
+        }
+    ]
+}
 
 
 def test_invalid_config():
@@ -184,12 +195,11 @@ def test_validate_urls():
 
 def test_hash():
     upstreams = _Upstreams(SIMPLE_CONFIG, validate=False)
-    upstreams_hash = hash(ujson.dumps(SIMPLE_CONFIG))
+    upstreams_hash = hash(ujson.dumps(SIMPLE_CONFIG['upstreams']))
     assert hash(upstreams) == upstreams_hash
 
 
 def test_hash_ineq():
     upstreams1 = _Upstreams(SIMPLE_CONFIG, validate=False)
     upstreams2 = _Upstreams(VALID_HOSTNAME_CONFIG, validate=False)
-
     assert hash(upstreams1) != hash(upstreams2)

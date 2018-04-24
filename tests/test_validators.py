@@ -11,6 +11,10 @@ from jussi.validators import is_valid_jussi_response
 from jussi.validators import is_valid_non_error_jsonrpc_response
 from jussi.validators import is_valid_non_error_single_jsonrpc_response
 from jussi.validators import is_valid_single_jsonrpc_response
+from jussi.validators import is_valid_broadcast_transaction_request
+from jussi.validators import is_valid_custom_json_op_length
+from jussi.validators import is_valid_custom_json_account
+
 from jussi.upstream import _Upstreams
 from .conftest import AttrDict
 
@@ -307,3 +311,69 @@ def test_is_valid_jussi_response_using_steemd(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
     req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
     assert is_valid_jussi_response(req, resp) is True
+
+
+@pytest.mark.parametrize('ops, expected', [
+    ([[
+        'custom_json',
+        {
+            "required_auths": [],
+            "id": "follow",
+            "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+            "required_posting_auths": ["steemit"]
+        }
+    ]], True),
+    ([[
+        'custom_json',
+        {
+            "required_auths": [],
+            "id": "follow",
+            "json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "required_posting_auths": ["steemit"]
+        }
+    ]], False),
+])
+def test_is_valid_custom_json_op_length(ops, expected):
+    assert is_valid_custom_json_op_length(ops, size_limit=1000) is expected
+
+
+@pytest.mark.parametrize('ops, expected', [
+    ([[
+        'custom_json',
+        {
+            "required_auths": [],
+            "id": "follow",
+            "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+            "required_posting_auths": ["steemit"]
+        }
+    ]], True),
+    ([[
+        'custom_json',
+        {
+            "required_auths": [],
+            "id": "follow",
+            "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+            "required_posting_auths": ["not_steemit"]
+        }
+    ]], False),
+])
+def test_is_valid_custom_json_account(ops, expected):
+    assert is_valid_custom_json_account(ops, blacklist_accounts={'not_steemit'}) is expected
+
+
+def test_is_valid_broadcast_transaction_request(steemd_requests_and_responses):
+    req, resp = steemd_requests_and_responses
+    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    assert is_valid_broadcast_transaction_request(req) is True
+
+
+def test_valid_is_valid_broadcast_transaction_request(valid_broadcast_transactions):
+    req = JussiJSONRPCRequest.from_request(dummy_request, 0, valid_broadcast_transactions)
+    assert is_valid_broadcast_transaction_request(
+        req, limits=TEST_UPSTREAM_CONFIG['limits']) is True
+
+
+def test_invalid_is_valid_broadcast_transaction_request(invalid_broadcast_transactions):
+    req = JussiJSONRPCRequest.from_request(dummy_request, 0, invalid_broadcast_transactions)
+    assert is_valid_broadcast_transaction_request(
+        req, limits=TEST_UPSTREAM_CONFIG['limits']) is False

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+import itertools as it
 import logging
+import os
 
 from funcy.decorators import Call
 from funcy.decorators import decorator
@@ -27,6 +29,9 @@ GET_BLOCK_RESULT_KEYS = {"previous",
 
 JSONRPC_REQUEST_KEYS = {'id', 'jsonrpc', 'method', 'params'}
 
+CUSTOM_JSON_SIZE_LIMIT = 1000
+CUSTOM_JSON_FOLLOW_RATE = 2
+
 
 @decorator
 async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
@@ -52,7 +57,7 @@ async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
 #
 
 
-def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
+def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest, sanic_request=None) -> None:
     if isinstance(jsonrpc_request, list):
         # pylint: disable=expression-not-assigned
         [validate_jsonrpc_request(r) for r in jsonrpc_request]
@@ -66,6 +71,7 @@ def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
                           (int, str, float, type(None))), 'bad jsonrpc id'
         assert isinstance(jsonrpc_request.get('params'),
                           (list, dict, type(None))), 'bad jsonrpc params'
+
     elif isinstance(jsonrpc_request, SingleJsonRpcRequest):
         pass  # already be validated
     else:
@@ -307,6 +313,38 @@ def is_valid_get_block_header_response(
         logger.exception('is_valid_get_block_header_response error : %s', e,
                          extra=jsonrpc_request.log_extra())
     return False
+
+
+def is_valid_broadcast_transaction_request(
+        jsonrpc_request: SingleJsonRpcRequest, limits=None) -> bool:
+    #
+    try:
+        if jsonrpc_request.urn.namespace == 'appbase' and jsonrpc_request.urn.method == 'broadcast_transaction_synchronous':
+            request_params = jsonrpc_request.urn.params[0]
+            ops = [op for op in request_params['operations'] if op[0] == 'custom_json']
+            if not ops:
+                return True
+            blacklist_accounts = set()
+            try:
+                blacklist_accounts = limits['accounts_blacklist']
+            except Exception as e:
+                logger.exception('using empty accounts_blacklist: %s', e)
+            return all([is_valid_custom_json_op_length(ops, size_limit=CUSTOM_JSON_SIZE_LIMIT),
+                        is_valid_custom_json_account(ops, blacklist_accounts=blacklist_accounts)])
+        return True
+    except Exception as e:
+        logger.exception('is_valid_broadcast_transaction_request: %s', e)
+        return False
+
+
+def is_valid_custom_json_op_length(ops: list, size_limit=None) -> bool:
+    return all(len(op[1]['json']) < size_limit for op in ops)
+
+
+def is_valid_custom_json_account(ops: list, blacklist_accounts=None) -> bool:
+    accts = set(
+        it.chain.from_iterable(op[1]["required_posting_auths"] for op in ops))
+    return accts.isdisjoint(blacklist_accounts)
 
 
 def block_num_from_id(block_hash: str) -> int:

@@ -1,91 +1,198 @@
-[
+{"limits":[],
+"upstreams":[
   {
-    "name":"steemd",
+    "name": "steemd",
     "urls": [
-      ["steemd","wss://steemd.steemit.com"]
+      [
+        "steemd",
+        "wss://steemd.steemit.com"
+      ]
     ],
     "ttls": [
-      ["steemd",3],
-      ["steemd.login_api", -1],
-      ["steemd.network_broadcast_api",-1],
-      ["steemd.follow_api", 10],
-      ["steemd.market_history_api", 1],
-      ["steemd.database_api", 3],
-      ["steemd.database_api.get_block", -2],
-      ["steemd.database_api.get_block_header", -2],
-      ["steemd.database_api.get_content", 1],
-      ["steemd.database_api.get_state", 1],
-      ["steemd.database_api.get_state.params=['/trending']", 30],
-      ["steemd.database_api.get_state.params=['trending']", 30],
-      ["steemd.database_api.get_state.params=['/hot']", 30],
-      ["steemd.database_api.get_state.params=['/welcome']", 30],
-      ["steemd.database_api.get_state.params=['/promoted']", 30],
-      ["steemd.database_api.get_state.params=['/created']", 10],
-      ["steemd.database_api.get_dynamic_global_properties", 1]
+      [
+        "steemd",
+        3
+      ],
+      [
+        "steemd.login_api",
+        -1
+      ],
+      [
+        "steemd.network_broadcast_api",
+        -1
+      ],
+      [
+        "steemd.follow_api",
+        10
+      ],
+      [
+        "steemd.market_history_api",
+        1
+      ],
+      [
+        "steemd.database_api",
+        3
+      ],
+      [
+        "steemd.database_api.get_block",
+        -2
+      ],
+      [
+        "steemd.database_api.get_block_header",
+        -2
+      ],
+      [
+        "steemd.database_api.get_content",
+        1
+      ],
+      [
+        "steemd.database_api.get_state",
+        1
+      ],
+      [
+        "steemd.database_api.get_state.params=['/trending']",
+        30
+      ],
+      [
+        "steemd.database_api.get_state.params=['trending']",
+        30
+      ],
+      [
+        "steemd.database_api.get_state.params=['/hot']",
+        30
+      ],
+      [
+        "steemd.database_api.get_state.params=['/welcome']",
+        30
+      ],
+      [
+        "steemd.database_api.get_state.params=['/promoted']",
+        30
+      ],
+      [
+        "steemd.database_api.get_state.params=['/created']",
+        10
+      ],
+      [
+        "steemd.database_api.get_dynamic_global_properties",
+        1
+      ]
     ],
     "timeouts": [
-      ["steemd",5],
-      ["steemd.network_broadcast_api",0]
+      [
+        "steemd",
+        5
+      ],
+      [
+        "steemd.network_broadcast_api",
+        0
+      ]
     ]
   },
   {
-    "name":"overseer",
+    "name": "overseer",
     "urls": [
-      ["overseer","https://overseer.steemit.com"]
+      [
+        "overseer",
+        "https://overseer.steemit.com"
+      ]
     ],
     "ttls": [
-      ["overseer",-1]
+      [
+        "overseer",
+        -1
+      ]
     ],
     "timeouts": [
-      ["overseer",5]
+      [
+        "overseer",
+        5
+      ]
     ]
   },
   {
-    "name":"conveyor",
+    "name": "conveyor",
     "urls": [
-      ["conveyor","https://conveyor.steemit.com"]
+      [
+        "conveyor",
+        "https://conveyor.steemit.com"
+      ]
     ],
     "ttls": [
-      ["conveyor",-1]
+      [
+        "conveyor",
+        -1
+      ]
     ],
     "timeouts": [
-      ["conveyor",5]
+      [
+        "conveyor",
+        5
+      ]
     ]
   },
   {
-    "name":"sbds",
+    "name": "sbds",
     "urls": [
-      ["sbds","https://sbds.steemit.com"]
+      [
+        "sbds",
+        "https://sbds.steemit.com"
+      ]
     ],
     "ttls": [
-      ["sbds",3]
+      [
+        "sbds",
+        3
+      ]
     ],
     "timeouts": [
-      ["sbds",5]
+      [
+        "sbds",
+        5
+      ]
     ]
   },
   {
-    "name":"hivemind",
+    "name": "hivemind",
     "urls": [
-      ["hivemind", "https://hivemind.steemit.com"]
+      [
+        "hivemind",
+        "https://hivemind.steemit.com"
+      ]
     ],
     "ttls": [
-      ["hivemind",3]
+      [
+        "hivemind",
+        3
+      ]
     ],
     "timeouts": [
-      ["hivemind",5]
+      [
+        "hivemind",
+        5
+      ]
     ]
   },
   {
-    "name":"yo",
+    "name": "yo",
     "urls": [
-      ["yo","https://yo.steemit.com"]
+      [
+        "yo",
+        "https://yo.steemit.com"
+      ]
     ],
     "ttls": [
-      ["yo",3]
+      [
+        "yo",
+        3
+      ]
     ],
     "timeouts": [
-      ["yo",5]
+      [
+        "yo",
+        5
+      ]
     ]
   }
 ]
+}
