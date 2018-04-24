@@ -57,7 +57,7 @@ async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
 #
 
 
-def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest, sanic_request=None) -> None:
+def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
     if isinstance(jsonrpc_request, list):
         # pylint: disable=expression-not-assigned
         [validate_jsonrpc_request(r) for r in jsonrpc_request]
@@ -319,7 +319,7 @@ def is_valid_broadcast_transaction_request(
         jsonrpc_request: SingleJsonRpcRequest, limits=None) -> bool:
     #
     try:
-        if jsonrpc_request.urn.namespace == 'appbase' and jsonrpc_request.urn.method == 'broadcast_transaction_synchronous':
+        if jsonrpc_request.urn.method == 'broadcast_transaction_synchronous':
             request_params = jsonrpc_request.urn.params[0]
             ops = [op for op in request_params['operations'] if op[0] == 'custom_json']
             if not ops:
