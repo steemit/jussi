@@ -19,9 +19,8 @@ async def check_limits(request: HTTPRequest) -> None:
     # pylint: disable=no-member
 
     if request.method == 'POST':
-
         jsonrpc_request = request.json
-        if isinstance(jsonrpc_request, dict):
+        if isinstance(jsonrpc_request, JussiJSONRPCRequest):
             assert is_valid_broadcast_transaction_request(
                 jsonrpc_request, limits=request.app.config.limits)
 
