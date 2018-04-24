@@ -1689,6 +1689,31 @@ VALID_BROADCAST_TRANSACTIONS = [
             ]
         ]
     },
+    {
+        'id': "24001",
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [
+            'network_broadcast_api',
+            'broadcast_transaction_synchronous',
+            [
+                {'expiration': '2018-04-23T22:40:21',
+                 'extensions': [],
+                 'operations': [
+                     [
+                         'custom_json',
+                         {
+                             "required_auths": [],
+                             "id": "follow",
+                             "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+                             "required_posting_auths": ["steemit"]
+                         }
+                     ]
+                 ]
+                 }
+            ]
+        ]
+    },
 ]
 
 INVALID_BROADCAST_TRANSACTIONS = [
@@ -1723,6 +1748,31 @@ INVALID_BROADCAST_TRANSACTIONS = [
         'method': 'call',
         'params': [
             'condenser_api',
+            'broadcast_transaction_synchronous',
+            [
+                {'expiration': '2018-04-23T22:40:21',
+                 'extensions': [],
+                 'operations': [
+                     [
+                         'custom_json',
+                         {
+                             "required_auths": [],
+                             "id": "follow",
+                             "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+                             "required_posting_auths": ["non-steemit"]
+                         }
+                     ]
+                 ]
+                 }
+            ]
+        ]
+    },
+    {
+        'id': "24001",
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': [
+            'network_broadcast_api',
             'broadcast_transaction_synchronous',
             [
                 {'expiration': '2018-04-23T22:40:21',

@@ -28,7 +28,7 @@ async def validate_jsonrpc_request(
         return response.json(
             ParseError(sanic_request=request, exception=e).to_dict())
     try:
-        validate_request(jsonrpc_request=request.json, sanic_request=request)
+        validate_request(jsonrpc_request=request.json)
     except (AssertionError, TypeError) as e:
         # invalid jsonrpc
         return response.json(
