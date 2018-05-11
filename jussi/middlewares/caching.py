@@ -2,9 +2,9 @@
 import asyncio
 import logging
 
+from async_timeout import timeout
 from sanic import response
 
-from async_timeout import timeout
 import ujson
 
 from ..typedefs import HTTPRequest

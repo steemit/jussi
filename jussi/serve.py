@@ -56,10 +56,12 @@ def parse_args(args: list = None):
     parser.add_argument('--REQUEST_MAX_SIZE', env_var='JUSSI_REQUEST_MAX_SIZE',
                         type=int,
                         default=6_000_000)
-    parser.add_argument('--REQUEST_TIMEOUT', type=int,
-                        env_var='JUSSI_REQUEST_TIMEOU?T', default=5)
-    parser.add_argument('--KEEP_ALIVE', type=lambda x: bool(strtobool(x)),
+    parser.add_argument('--request_timeout', type=int,
+                        env_var='JUSSI_REQUEST_TIMEOUT', default=5)
+    parser.add_argument('--keep_alive', type=lambda x: bool(strtobool(x)),
                         env_var='JUSSI_KEEP_ALIVE', default=True)
+    parser.add_argument('--jsonrpc_batch_size_limit', type=int,
+                        env_var='JUSSI_JSONRPC_BATCH_SIZE_LIMIT', default=50)
 
     # server websocket pool config
     parser.add_argument('--websocket_pool_minsize', type=int,

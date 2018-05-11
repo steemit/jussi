@@ -240,15 +240,20 @@ class InvalidNamespaceError(JsonRpcError):
 
 
 class InvalidNamespaceAPIError(JsonRpcError):
-    code = 1200
+    code = 1300
     message = 'Invalid JSONRPC method namespace, unable to resolve {namespace}.{api}'
 
 
 class InvalidUpstreamHost(JsonRpcError):
-    code = 1300
+    code = 1400
     message = 'Invalid/unresolvable upstream hostname {url}'
 
 
 class InvalidUpstreamURL(JsonRpcError):
-    code = 1300
+    code = 1500
     message = 'Invalid/unhealthy upstream {url} : {reason}'
+
+
+class JsonRpcBatchSizeError(JsonRpcError):
+    code = 1600
+    message = 'JSONRPC batch size of {jrpc_batch_size} exceeds {jrpc_batch_size_limit}'
