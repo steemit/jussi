@@ -92,6 +92,8 @@ def setup_listeners(app: WebApp) -> WebApp:
             config = json.load(f)
         app.config.limits = config.get('limits', {'accounts_blacklist': set()})
 
+        app.config.jsonrpc_batch_size_limit = args.jsonrpc_batch_size_limit
+
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger

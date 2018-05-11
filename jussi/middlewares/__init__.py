@@ -21,8 +21,8 @@ def setup_middlewares(app):
 
     # response middlware
     app.response_middleware.append(finalize_jussi_response)
-    app.response_middleware.append(cache_response)
     app.response_middleware.append(update_last_irreversible_block_num)
+    app.response_middleware.append(cache_response)
 
     logger.info(f'configured request middlewares:{app.request_middleware}')
     logger.info(f'configured response middlewares:{app.response_middleware}')

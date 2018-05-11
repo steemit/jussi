@@ -4,11 +4,11 @@ import logging
 
 import ujson
 
+from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 from ..utils import async_nowait_middleware
 from ..validators import is_get_dynamic_global_properties_request
-from ..request import JussiJSONRPCRequest
 
 logger = logging.getLogger(__name__)
 

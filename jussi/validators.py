@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import itertools as it
 import logging
-import os
 
 from funcy.decorators import Call
 from funcy.decorators import decorator

@@ -28,7 +28,7 @@ class SpeedTier(IntEnum):
 CacheGroupItem = namedtuple('CacheGroupItem', ('cache', 'read', 'write', 'speed_tier'))
 
 
-# pylint: disable=unused-argument
+# pylint: disable=unused-argument,too-many-branches,too-many-nested-blocks
 def setup_caches(app: WebApp, loop) -> Any:
     logger.info('before_server_start -> cache.setup_caches')
     args = app.config.args
