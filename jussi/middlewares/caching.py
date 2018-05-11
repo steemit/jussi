@@ -31,7 +31,7 @@ async def get_response(request: HTTPRequest) -> None:
     except ConnectionRefusedError:
         logger.error('error connecting to redis cache')
     except asyncio.TimeoutError:
-        logger.error(f'request exceeded cache read timeout ({cache_read_timeout})')
+        logger.warning(f'request exceeded cache read timeout ({cache_read_timeout})')
     except Exception:
         logger.exception('error while querying cache for response')
 
@@ -46,8 +46,10 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)
         last_irreversible_block_num = request.app.config.last_irreversible_block_num
-        await asyncio.shield(cache_group.cache_jsonrpc_response(jsonrpc_request,
-                                                                jsonrpc_response,
-                                                                last_irreversible_block_num))
+        await cache_group.cache_jsonrpc_response(jsonrpc_request,
+                                                 jsonrpc_response,
+                                                 last_irreversible_block_num)
+
     except Exception as e:
-        logger.error('error caching response: %s', e)
+        logger.error(f'error caching response: {e}',
+                     extra=request.json.log_extra())

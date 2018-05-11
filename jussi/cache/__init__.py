@@ -44,7 +44,6 @@ def setup_caches(app: WebApp, loop) -> Any:
             if redis_cache:
                 if args.cache_test_before_add:
                     value = datetime.datetime.utcnow().isoformat()
-                    loop = asyncio.get_event_loop()
                     try:
                         _ = asyncio.gather(redis_cache.set('key', value, ttl=60))
                         value2 = asyncio.gather(redis_cache.get('key'))
@@ -63,7 +62,7 @@ def setup_caches(app: WebApp, loop) -> Any:
             logger.info('Adding redis read replicas: %s', args.redis_read_replica_hosts)
             for host in args.redis_read_replica_hosts:
                 cache = aiocache.RedisCache(endpoint=host,
-                                            port=args.redis_port,
+                                            port=6379,
                                             pool_min_size=args.redis_pool_minsize,
                                             pool_max_size=args.redis_pool_maxsize,
                                             serializer=CompressionSerializer())

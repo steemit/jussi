@@ -43,7 +43,8 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat(),
         'source_commit': sanic_http_request.app.config.args.source_commit,
-        'docker_tag': sanic_http_request.app.config.args.docker_tag
+        'docker_tag': sanic_http_request.app.config.args.docker_tag,
+        'jussi_num': sanic_http_request.app.config.last_irreversible_block_num
     })
 
 # pylint: disable=no-value-for-parameter, too-many-locals

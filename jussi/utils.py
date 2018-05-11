@@ -55,7 +55,7 @@ def async_nowait_middleware(middleware_func: Callable) -> Callable:
     """
     @functools.wraps(middleware_func)
     async def f(request: HTTPRequest, response: Optional[HTTPResponse]=None) -> None:
-        asyncio.ensure_future(middleware_func(request, response))
+        asyncio.ensure_future(asyncio.shield(middleware_func(request, response)))
     return f
 
 

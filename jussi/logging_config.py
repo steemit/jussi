@@ -28,13 +28,14 @@ SUPPORTED_LOG_MESSAGE_KEYS = (
     'message',
     'name',
     'timestamp',
-    'severity'
+    'severity',
     # 'pathname',
     # 'process',
     # 'processName',
     # 'relativeCreated',
     # 'thread',
-    # 'threadName'
+    # 'threadName',
+    'extra'
 )
 
 JSON_LOG_FORMAT = ' '.join(
@@ -83,18 +84,6 @@ LOGGING = {
             'datefmt': LOG_DATETIME_FORMAT,
             'json_indent': None
         },
-        'json_access': {
-            '()': CustomJsonFormatter,
-            'format':
-            '%(asctime)  %(name) %(levelname) %(host) ' +
-            '%(request) %(message) %(status) %(byte)',
-            'datefmt': LOG_DATETIME_FORMAT,
-            'json_indent': None
-        },
-        'json_request': {
-            '()': CustomJsonFormatter,
-            'format': '%(asctime)s',
-        },
         'json': {
             '()': CustomJsonFormatter,
             'format': JSON_LOG_FORMAT,
@@ -109,12 +98,6 @@ LOGGING = {
             'formatter': 'simple',
             'stream': sys.stderr
         },
-        'accessStream': {
-            'class': 'logging.StreamHandler',
-            'filters': ['accessFilter'],
-            'formatter': 'json_access',
-            'stream': sys.stderr
-        },
         'errorStream': {
             'class': 'logging.StreamHandler',
             'filters': ['errorFilter'],
@@ -124,10 +107,6 @@ LOGGING = {
         'jussiStdOut': {
             'class': 'logging.StreamHandler',
             'formatter': 'json'
-        },
-        'jussiRequest': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'json_request'
         }
     },
     'loggers': {
@@ -142,15 +121,7 @@ LOGGING = {
         'jussi': {
             'level': logging.INFO,
             'handlers': ['jussiStdOut']
-        },
-        'jussi_debug': {
-            'level': logging.INFO,
-            'handlers': ['jussiStdOut']
-        },
-        'jussi_request': {
-            'level': logging.INFO,
-            'handlers': ['jussiRequest']
-        },
+        }
     }
 }
 
@@ -160,9 +131,6 @@ def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
     LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
-    LOGGING['loggers']['jussi_debug']['level'] = os.environ.get(
-        'REQUEST_LOG_LEVEL', logging.INFO)
-    LOGGING['loggers']['jussi_request']['level'] = LOG_LEVEL
 
     logger = logging.getLogger('jussi')
     logger.info('configuring jussi logger')

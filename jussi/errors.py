@@ -86,8 +86,121 @@ async def ignore_errors_async(call: Call) -> Optional[dict]:
         return None
 
 
+class JussiInteralError(Exception):
+    """Base class for errors that Jussi logs, but don't
+     result in JSONRPC error responses
+
+    """
+    message = 'Jussi internal error'
+
+    def __init__(self,
+                 message=None,
+                 sanic_request: SanicRequest = None,
+                 jussi_jsonrpc_request=None,
+                 exception: Exception = None,
+                 log_traceback: bool = False,
+                 error_id: str = None,
+                 log_error: bool = True,
+                 error_logger: logging.Logger = None,
+                 **kwargs) -> None:
+        if message:
+            self.message = message
+
+        self.kwargs = kwargs
+        self.logger = error_logger or logger
+        self.sanic_request = sanic_request
+        self.jussi_jsonrpc_request = jussi_jsonrpc_request
+        self.exception = exception
+        self.error_id = error_id or str(uuid.uuid4())
+        self.log_traceback = log_traceback
+        self.log_error = log_error
+
+        if self.log_error:
+
+            self.log()
+
+    def format_message(self):
+        try:
+            return self.message.format(**self.kwargs)
+        except Exception as e:
+            logger.error(e)
+            return self.message
+
+    @property
+    def request_data(self):
+        if not isinstance(self.sanic_request, SanicRequest):
+            return dict()
+
+        request = self.sanic_request
+
+        request_data = {}
+
+        if request.headers:
+            request_data['amzn_trace_id'] = request.headers.get(
+                'X-Amzn-Trace-Id')
+            request_data['jussi_request_id'] = request.headers.get(
+                'x-jussi-request-id')
+        return request_data
+
+    @property
+    def jrpc_request_id(self) -> Optional[Union[str, int]]:
+        if self.jussi_jsonrpc_request:
+            try:
+                return self.jussi_jsonrpc_request.log_extra()['jsonrpc_id']
+            except BaseException:
+                pass
+        if self.sanic_request:
+            try:
+                return self.sanic_request.json['id']
+            except BaseException:
+                pass
+
+    @property
+    def jussi_request_id(self) -> Optional[Union[str, int]]:
+        if self.jussi_jsonrpc_request:
+            try:
+                return self.jussi_jsonrpc_request.log_extra()['jussi_request_id']
+            except BaseException:
+                pass
+        if self.sanic_request:
+            try:
+                return self.request_data['jussi_request_id']
+            except BaseException:
+                pass
+
+    def to_dict(self) -> dict:
+        base_error = {
+            'message': self.format_message(),
+            'error_id': self.error_id,
+            'exception': self.exception,
+            'jrpc_request_id': self.jrpc_request_id,
+            'jussi_request_id': self.jussi_request_id
+        }
+
+        if self.jussi_jsonrpc_request:
+            try:
+                base_error.update(self.jussi_jsonrpc_request.log_extra())
+            except Exception as e:
+                logger.warning(f'JussiInteralError jussi_jsonrpc_request serialization error: {e}')
+
+        if self.kwargs:
+            try:
+                base_error.update(**self.kwargs)
+            except Exception as e:
+                logger.warning(f'JussiInteralError kwargs serialization error: {e}')
+
+        return base_error
+
+    def log(self) -> None:
+        if self.log_traceback and self.exception:
+            self.logger.error(str(self.to_dict()),
+                              exc_info=self.exception)
+        else:
+            self.logger.error(str(self.to_dict()))
+
+
 class JsonRpcError(Exception):
-    """Base class for the other exceptions.
+    """Base class for the JsonRpc other exceptions.
 
     :param data: Extra info (optional).
     """
@@ -257,3 +370,13 @@ class InvalidUpstreamURL(JsonRpcError):
 class JsonRpcBatchSizeError(JsonRpcError):
     code = 1600
     message = 'JSONRPC batch size of {jrpc_batch_size} exceeds {jrpc_batch_size_limit}'
+
+
+class JussiLimitsError(JsonRpcError):
+    code = 1700
+    message = 'Request exceeded limit'
+
+
+class JussiCustomJsonOpLengthError(JsonRpcError):
+    code = 1800
+    message = 'Custom JSON operation size limit of {size_limit} exceeded'

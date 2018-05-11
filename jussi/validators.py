@@ -8,6 +8,8 @@ from funcy.decorators import decorator
 from .errors import InvalidRequest
 from .errors import ServerError
 from .errors import UpstreamResponseError
+from .errors import JussiLimitsError
+from .errors import JussiCustomJsonOpLengthError
 from .typedefs import JsonRpcRequest
 from .typedefs import JsonRpcResponse
 from .typedefs import SingleJsonRpcRequest
@@ -244,9 +246,8 @@ def is_get_dynamic_global_properties_request(
     try:
         return jsonrpc_request.urn.namespace in (
             'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_dynamic_global_properties'
-    except Exception:
-        # TODO: error spotted -- 'list' object has no attribute 'log_extra'
-        logger.warning('is_get_dynamic_global_properties_request failed',
+    except Exception as e:
+        logger.warning('is_get_dynamic_global_properties_request failed %s', e,
                        extra=jsonrpc_request.log_extra())
         return False
 
@@ -323,43 +324,40 @@ def is_broadcast_transaction_request(jsonrpc_request: SingleJsonRpcRequest) -> b
     return jsonrpc_request.urn.method in BROADCAST_TRANSACTION_METHODS
 
 
-def is_valid_broadcast_transaction_request(
-        jsonrpc_request: SingleJsonRpcRequest, limits=None) -> bool:
-    #
-    try:
-        if is_broadcast_transaction_request(jsonrpc_request):
-            if isinstance(jsonrpc_request.urn.params, list):
-                request_params = jsonrpc_request.urn.params[0]
-            elif isinstance(jsonrpc_request.urn.params, dict):
-                request_params = jsonrpc_request.urn.params['trx']
-            else:
-                raise ValueError(
-                    f'Unknown request params type: {type(jsonrpc_request.urn.params)} urn:{jsonrpc_request.urn}')
-            ops = [op for op in request_params['operations'] if op[0] == 'custom_json']
-            if not ops:
-                return True
-            blacklist_accounts = set()
-            try:
-                blacklist_accounts = limits['accounts_blacklist']
-            except Exception as e:
-                logger.exception('using empty accounts_blacklist: %s', e)
-            return all([is_valid_custom_json_op_length(ops, size_limit=CUSTOM_JSON_SIZE_LIMIT),
-                        is_valid_custom_json_account(ops, blacklist_accounts=blacklist_accounts)])
-        return True
-    except Exception as e:
-        logger.exception('is_valid_broadcast_transaction_request: %s', e,
-                         extra=jsonrpc_request.log_extra())
-        return False
+def limit_broadcast_transaction_request(
+        jsonrpc_request: SingleJsonRpcRequest, limits=None):
+
+    if is_broadcast_transaction_request(jsonrpc_request):
+        if isinstance(jsonrpc_request.urn.params, list):
+            request_params = jsonrpc_request.urn.params[0]
+        elif isinstance(jsonrpc_request.urn.params, dict):
+            request_params = jsonrpc_request.urn.params['trx']
+        else:
+            raise ValueError(
+                f'Unknown request params type: {type(jsonrpc_request.urn.params)} urn:{jsonrpc_request.urn}')
+        ops = [op for op in request_params['operations'] if op[0] == 'custom_json']
+        if not ops:
+            return
+        blacklist_accounts = set()
+        try:
+            blacklist_accounts = limits['accounts_blacklist']
+        except Exception as e:
+            logger.warning('using empty accounts_blacklist: %s', e)
+
+        limit_custom_json_op_length(ops, size_limit=CUSTOM_JSON_SIZE_LIMIT)
+        limit_custom_json_account(ops, blacklist_accounts=blacklist_accounts)
 
 
-def is_valid_custom_json_op_length(ops: list, size_limit=None) -> bool:
-    return all(len(op[1]['json']) < size_limit for op in ops)
+def limit_custom_json_op_length(ops: list, size_limit=None):
+    if any(len(op[1]['json']) > size_limit for op in ops):
+        raise JussiCustomJsonOpLengthError(size_limit=size_limit)
 
 
-def is_valid_custom_json_account(ops: list, blacklist_accounts=None) -> bool:
+def limit_custom_json_account(ops: list, blacklist_accounts=None):
     accts = set(
         it.chain.from_iterable(op[1]["required_posting_auths"] for op in ops))
-    return accts.isdisjoint(blacklist_accounts)
+    if not accts.isdisjoint(blacklist_accounts):
+        raise JussiLimitsError()
 
 
 def block_num_from_id(block_hash: str) -> int:

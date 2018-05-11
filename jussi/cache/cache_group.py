@@ -5,8 +5,10 @@ from typing import Optional
 
 import cytoolz
 
+from jussi.errors import JussiInteralError
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
+
 
 from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import BatchJsonRpcResponse
@@ -27,8 +29,8 @@ from .utils import merge_cached_responses
 logger = logging.getLogger(__name__)
 
 
-class UncacheableResponse(Exception):
-    pass
+class UncacheableResponse(JussiInteralError):
+    message = 'Uncacheable response'
 
 
 SLOW_TIER = 1
@@ -103,7 +105,7 @@ class CacheGroup(object):
                     cache.multi_set(
                         pairs, ttl=ttl))
 
-        await asyncio.gather(*futures, return_exceptions=True)
+        await asyncio.gather(*futures)
 
     async def clear(self):
         return await asyncio.gather(*[cache.clear() for cache in self._write_caches])
@@ -115,24 +117,24 @@ class CacheGroup(object):
     #
 
     async def cache_jsonrpc_response(self,
-                                     request: JsonRpcRequest,
-                                     response: JsonRpcResponse,
+                                     request: JsonRpcRequest = None,
+                                     response: JsonRpcResponse = None,
                                      last_irreversible_block_num: int = None) -> None:
         """Don't cache error responses
         """
         try:
             if is_batch_jsonrpc(request):
-                return await self.cache_batch_jsonrpc_response(request,
-                                                               response,
+                return await self.cache_batch_jsonrpc_response(request=request,
+                                                               response=response,
                                                                last_irreversible_block_num=last_irreversible_block_num)
             else:
-                return await self.cache_single_jsonrpc_response(request,
-                                                                response,
+                return await self.cache_single_jsonrpc_response(request=request,
+                                                                response=response,
                                                                 last_irreversible_block_num=last_irreversible_block_num)
-        except UncacheableResponse as e:
-            logger.info(e)
+        except UncacheableResponse:
+            pass
         except Exception as e:
-            logger.exception('error while caching response')
+            logger.exception(f'error while caching response:{e}')
 
     async def get_jsonrpc_response(self,
                                    request: JsonRpcRequest) -> Optional[
@@ -162,8 +164,8 @@ class CacheGroup(object):
         return merge_cached_responses(requests, cached_responses)
 
     async def cache_single_jsonrpc_response(self,
-                                            request: SingleJsonRpcRequest,
-                                            response: SingleJsonRpcResponse,
+                                            request: SingleJsonRpcRequest = None,
+                                            response: SingleJsonRpcResponse = None,
                                             ttl: str = None,
                                             last_irreversible_block_num: int = None
                                             ) -> None:
@@ -175,8 +177,8 @@ class CacheGroup(object):
         if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
             last_irreversible_block_num = last_irreversible_block_num or \
                 await self.get('last_irreversible_block_num')
-            ttl = irreversible_ttl(response,
-                                   last_irreversible_block_num)
+            ttl = irreversible_ttl(jsonrpc_response=response,
+                                   last_irreversible_block_num=last_irreversible_block_num)
         elif ttl == TTL.NO_CACHE:
             logger.debug('skipping cache for ttl=%s value %s', ttl, value)
             return
@@ -214,16 +216,16 @@ class CacheGroup(object):
                                          response: SingleJsonRpcResponse) -> \
             Optional[JsonRpcResponseDict]:
         if not is_valid_non_error_single_jsonrpc_response(response):
-            logger.debug(
-                'jsonrpc error in response from upstream %s, skipping cache',
-                response)
-            raise UncacheableResponse('jsonrpc error response')
+            raise UncacheableResponse(message='is_valid_non_error_single_jsonrpc_response',
+                                      request=request,
+                                      response=response)
 
         if is_get_block_request(jsonrpc_request=request):
             if not is_valid_get_block_response(jsonrpc_request=request,
                                                response=response):
-                logger.error('invalid get_block response, skipping cache')
-                raise UncacheableResponse('invalid get_block response')
+                raise UncacheableResponse(message='invalid get_block response',
+                                          request=request,
+                                          response=response)
         return response
 
     @staticmethod

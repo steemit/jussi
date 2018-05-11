@@ -5,7 +5,7 @@ from ..errors import JsonRpcBatchSizeError
 from ..errors import handle_middleware_exceptions
 from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
-from ..validators import is_valid_broadcast_transaction_request
+from ..validators import limit_broadcast_transaction_request
 
 logger = logging.getLogger(__name__)
 request_logger = logging.getLogger('jussi_request')
@@ -18,15 +18,14 @@ async def check_limits(request: HTTPRequest) -> None:
     if request.method == 'POST':
         jsonrpc_request = request.json
         if isinstance(jsonrpc_request, JussiJSONRPCRequest):
-            assert is_valid_broadcast_transaction_request(
-                jsonrpc_request, limits=request.app.config.limits)
+            limit_broadcast_transaction_request(jsonrpc_request,
+                                                limits=request.app.config.limits)
 
         elif isinstance(jsonrpc_request, list):
-
             if len(jsonrpc_request) > request.app.config.jsonrpc_batch_size_limit:
                 raise JsonRpcBatchSizeError(jrpc_batch_size=len(jsonrpc_request),
                                             jrpc_batch_size_limit=request.app.config.jsonrpc_batch_size_limit)
 
             for single_jsonrpc_request in jsonrpc_request:
-                assert is_valid_broadcast_transaction_request(single_jsonrpc_request,
-                                                              limits=request.app.config.limits)
+                limit_broadcast_transaction_request(single_jsonrpc_request,
+                                                    limits=request.app.config.limits)
