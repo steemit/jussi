@@ -4,7 +4,8 @@ import logging
 from aiocache import SimpleMemoryCache
 from aiocache.serializers import NullSerializer
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 MEMORY_CACHE_MAX_TTL = 180
 

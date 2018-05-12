@@ -10,13 +10,14 @@ from enum import IntEnum
 
 import aiocache
 import aiocache.backends
+import structlog
 
 from .backends import SimpleMaxTTLMemoryCache
 from .serializers import CompressionSerializer
 from .cache_group import CacheGroup
 from ..typedefs import WebApp
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class SpeedTier(IntEnum):

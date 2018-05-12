@@ -7,7 +7,8 @@ from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..validators import limit_broadcast_transaction_request
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 request_logger = logging.getLogger('jussi_request')
 
 

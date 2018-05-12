@@ -11,7 +11,8 @@ from .utils import _PoolConnectionContextManager
 from .utils import create_future
 from .utils import ensure_future
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 '''
 websocket connection memory usage = 4 bytes * MAX_WEBSOCKET_RECV_SIZE * MAX_WEBSOCKET_RECV_QUEUE [ * connections in pool]

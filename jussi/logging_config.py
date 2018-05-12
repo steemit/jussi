@@ -4,11 +4,33 @@ import os
 import sys
 import time
 
+import structlog
+import ujson
+
 from pythonjsonlogger.jsonlogger import JsonFormatter
 from sanic.log import DefaultFilter
 
-import ujson
 from jussi.typedefs import WebApp
+
+
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        # structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer()
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
+
 
 LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 os.environ['TZ'] = 'UTC'
@@ -89,6 +111,9 @@ LOGGING = {
             'format': JSON_LOG_FORMAT,
             'datefmt': LOG_DATETIME_FORMAT,
             'json_indent': None
+        },
+        'struct': {
+            'format': '%(message)s'
         }
     },
     'handlers': {
@@ -107,6 +132,11 @@ LOGGING = {
         'jussiStdOut': {
             'class': 'logging.StreamHandler',
             'formatter': 'json'
+        },
+        'struct': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'struct',
+            'stream': sys.stdout
         }
     },
     'loggers': {
@@ -119,8 +149,14 @@ LOGGING = {
             'handlers': []
         },
         'jussi': {
-            'level': logging.INFO,
-            'handlers': ['jussiStdOut']
+            'level': logging.DEBUG,
+            'handlers': ['struct'],
+            'propagate': True
+        },
+        'root': {
+            'level': logging.DEBUG,
+            'handlers': ['struct'],
+            'propagate': True
         }
     }
 }
@@ -132,7 +168,7 @@ def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
 
-    logger = logging.getLogger('jussi')
+    logger = structlog.get_logger('jussi')
     logger.info('configuring jussi logger')
     app.config.logger = logger
     return app

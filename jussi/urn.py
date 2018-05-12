@@ -8,7 +8,8 @@ from collections import namedtuple
 from .errors import InvalidNamespaceAPIError
 from .errors import InvalidNamespaceError
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 JRPC_METHOD_PATTERN = r'(^(?P<appbase_api>[^\.]+_api)\.(?P<appbase_method>[^\.]+)$)|^(?P<bare_method>^[^\.]+)$|^(?P<namespace>[^\.]+){1}\.(?:(?P<api>[^\.]+)\.){0,1}(?P<method>[^\.]+){1}$'
 JRPC_METHOD_REGEX = re.compile(JRPC_METHOD_PATTERN)

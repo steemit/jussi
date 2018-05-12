@@ -19,7 +19,8 @@ from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
 from .utils import is_batch_jsonrpc
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 # path /
 
@@ -82,7 +83,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
         except Exception as e:
             request_info = jsonrpc_request.log_extra(
                 upstream_request=upstream_request)
-            logger.exception(f'fetch_ws failed', extra=request_info)
+            logger.exception(f'fetch_ws failed', **request_info)
             await pool.terminate_connection(conn)
             raise e
         finally:

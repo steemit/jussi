@@ -15,7 +15,8 @@ from ..errors import handle_middleware_exceptions
 from ..utils import async_include_methods
 from ..validators import validate_jsonrpc_request as validate_request
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 
 @async_include_methods(include_http_methods=('POST',))

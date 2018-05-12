@@ -19,7 +19,8 @@ from .typedefs import HTTPResponse
 from .typedefs import JsonRpcErrorResponse
 from .typedefs import WebApp
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 
 # pylint: disable=bare-except

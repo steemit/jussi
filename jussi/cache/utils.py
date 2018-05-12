@@ -12,7 +12,8 @@ from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
 from .ttl import TTL
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 
 @functools.lru_cache(8192)
@@ -24,10 +25,10 @@ def irreversible_ttl(jsonrpc_response: dict=None,
                      last_irreversible_block_num: int=None) -> TTL:
     if not jsonrpc_response:
         logger.warning(
-            'bad/missing response, skipping cache')
+            'bad/missing response, skipping cache', response=jsonrpc_response)
         return TTL.NO_CACHE
     if not last_irreversible_block_num:
-        logger.warning('bad/missing last_irrersible_block_num, skipping cache')
+        logger.warning('bad/missing last_irrersible_block_num', lirb=last_irreversible_block_num)
         return TTL.NO_CACHE
     try:
         jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
@@ -35,9 +36,9 @@ def irreversible_ttl(jsonrpc_response: dict=None,
             return TTL.NO_EXPIRE
     except Exception as e:
         logger.warning(
-            'Unable to cache using last irreversible block error:%s,lirb:%s',
-            e,
-            last_irreversible_block_num)
+            'Unable to cache using last irreversible block',
+            e=e,
+            lirb=last_irreversible_block_num)
     return TTL.NO_CACHE
 
 

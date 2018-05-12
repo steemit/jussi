@@ -9,7 +9,8 @@ from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 request_logger = logging.getLogger('jussi_request')
 
 
@@ -51,7 +52,7 @@ async def finalize_jussi_response(request: HTTPRequest,
         now = time.perf_counter()
         response.headers['x-jussi-response-time'] = str(now - request.get('timing', now))
 
-        if request.method == 'POST' and isinstance(request.json, (dict, JussiJSONRPCRequest)):
+        if request.method == 'POST' and isinstance(request.json, JussiJSONRPCRequest):
             response.headers['x-jussi-namespace'] = request.json.urn.namespace
             response.headers['x-jussi-api'] = request.json.urn.api
             response.headers['x-jussi-method'] = request.json.urn.method

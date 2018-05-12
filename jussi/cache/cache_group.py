@@ -26,7 +26,8 @@ from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
 from .utils import merge_cached_responses
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.getLogger(__name__)
 
 
 class UncacheableResponse(JussiInteralError):
@@ -65,11 +66,12 @@ class CacheGroup(object):
                 reverse=True))
         self._write_caches = [item.cache for item in self._write_cache_items]
 
-        logger.info('CacheGroup configured using %s', self._cache_group_items)
-        logger.info(
-            f'CacheGroup read_cache_items: {self._read_cache_items} write_cache_items:{self._write_cache_items}')
-        logger.info(
-            f'CacheGroup read_caches: {self._read_caches} write_caches:{self._write_caches}')
+        logger.info('CacheGroup configured',
+                    items=self._cache_group_items,
+                    read_items=self._read_cache_items,
+                    write_items=self._write_cache_items,
+                    read_caches=self._read_caches,
+                    write_caches=self._write_caches)
 
     async def set(self, key, value, **kwargs):
         await asyncio.gather(*[cache.set(key, value, **kwargs) for cache
@@ -124,8 +126,8 @@ class CacheGroup(object):
         """
         try:
             if is_batch_jsonrpc(request):
-                return await self.cache_batch_jsonrpc_response(request=request,
-                                                               response=response,
+                return await self.cache_batch_jsonrpc_response(requests=request,
+                                                               responses=response,
                                                                last_irreversible_block_num=last_irreversible_block_num)
             else:
                 return await self.cache_single_jsonrpc_response(request=request,
@@ -180,15 +182,15 @@ class CacheGroup(object):
             ttl = irreversible_ttl(jsonrpc_response=response,
                                    last_irreversible_block_num=last_irreversible_block_num)
         elif ttl == TTL.NO_CACHE:
-            logger.debug('skipping cache for ttl=%s value %s', ttl, value)
+            logger.debug('skipping cache', ttl=ttl, value=value)
             return
         if isinstance(ttl, TTL):
             ttl = ttl.value
         await self.set(key, value, ttl=ttl)
 
     async def cache_batch_jsonrpc_response(self,
-                                           requests: BatchJsonRpcRequest,
-                                           responses: BatchJsonRpcResponse,
+                                           requests: BatchJsonRpcRequest = None,
+                                           responses: BatchJsonRpcResponse = None,
                                            last_irreversible_block_num: int = None) -> None:
         triplets = []
         ttls = set(r.upstream.ttl for r in requests)

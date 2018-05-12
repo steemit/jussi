@@ -12,7 +12,8 @@ from ..typedefs import HTTPResponse
 from ..utils import async_include_methods
 from ..utils import async_nowait_middleware
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 
 @async_include_methods(include_http_methods=('POST',))
@@ -31,9 +32,9 @@ async def get_response(request: HTTPRequest) -> None:
     except ConnectionRefusedError:
         logger.error('error connecting to redis cache')
     except asyncio.TimeoutError:
-        logger.warning(f'request exceeded cache read timeout ({cache_read_timeout})')
+        logger.warning('request exceeded cache read timeout', timeout=cache_read_timeout)
     except Exception:
-        logger.exception('error while querying cache for response')
+        logger.exception('error querying cache for response')
 
 
 @async_nowait_middleware
@@ -46,10 +47,10 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
         jsonrpc_request = request.json
         jsonrpc_response = ujson.loads(response.body)
         last_irreversible_block_num = request.app.config.last_irreversible_block_num
-        await cache_group.cache_jsonrpc_response(jsonrpc_request,
-                                                 jsonrpc_response,
-                                                 last_irreversible_block_num)
+        await cache_group.cache_jsonrpc_response(request=jsonrpc_request,
+                                                 response=jsonrpc_response,
+                                                 last_irreversible_block_num=last_irreversible_block_num)
 
     except Exception as e:
-        logger.error(f'error caching response: {e}',
-                     extra=request.json.log_extra())
+        logger.error('error caching response', e=e,
+                     request=request.json.log_extra())

@@ -10,7 +10,8 @@ from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import JsonRpcRequest
 
-logger = logging.getLogger(__name__)
+import structlog
+logger = structlog.get_logger(__name__)
 
 
 # decorators
