@@ -117,7 +117,7 @@ def parse_args(args: list = None):
 def main():
     args = parse_args()
     # run app
-    app = Sanic(__name__)
+    app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
     app = setup_routes(app)
@@ -128,7 +128,7 @@ def main():
     run_config = dict(
         host=app.config.args.server_host,
         port=app.config.args.server_port,
-        log_config=jussi.logging_config.LOGGING,
+        access_log=False,
         workers=app.config.args.server_workers,
         debug=app.config.args.debug)
 
@@ -139,7 +139,7 @@ def main():
 if __name__ == '__main__':
     args = parse_args()
     # run app
-    app = Sanic(__name__)
+    app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
     app = setup_routes(app)
@@ -150,8 +150,8 @@ if __name__ == '__main__':
     run_config = dict(
         host=app.config.args.server_host,
         port=app.config.args.server_port,
-        log_config=jussi.logging_config.LOGGING,
         workers=app.config.args.server_workers,
+        access_log=False,
         debug=app.config.args.debug)
 
     app.config.logger.info('app.run', config=run_config)

@@ -6,9 +6,10 @@ import time
 
 import structlog
 from pythonjsonlogger.jsonlogger import JsonFormatter
-from sanic.log import DefaultFilter
 
+import rapidjson
 import ujson
+
 from jussi.typedefs import WebApp
 
 structlog.configure(
@@ -21,7 +22,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(serializer=rapidjson.dumps)
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -63,22 +64,6 @@ JSON_LOG_FORMAT = ' '.join(
 
 
 class CustomJsonFormatter(JsonFormatter):
-    def add_fields(self, log_record, record, message_dict):
-        super(
-            CustomJsonFormatter,
-            self).add_fields(
-            log_record,
-            record,
-            message_dict)
-        if getattr(record, 'asctime', None):
-            log_record['timestamp'] = record.asctime
-            if 'asctime' in log_record:
-                del log_record['asctime']
-        if getattr(record, 'levelname', None):
-            log_record['severity'] = record.levelname
-            if 'levelname' in log_record:
-                del log_record['levelname']
-
     # pylint: disable=no-self-use
     def _jsonify_log_record(self, log_record):
         """Returns a json string of the log record."""
@@ -87,16 +72,6 @@ class CustomJsonFormatter(JsonFormatter):
 
 LOGGING = {
     'version': 1,
-    'filters': {
-        'accessFilter': {
-            '()': DefaultFilter,
-            'param': [0, 10, 20]
-        },
-        'errorFilter': {
-            '()': DefaultFilter,
-            'param': [30, 40, 50]
-        }
-    },
     'formatters': {
         'simple': {
             '()': CustomJsonFormatter,
@@ -117,19 +92,13 @@ LOGGING = {
     'handlers': {
         'internal': {
             'class': 'logging.StreamHandler',
-            'filters': ['accessFilter'],
             'formatter': 'simple',
             'stream': sys.stderr
         },
         'errorStream': {
             'class': 'logging.StreamHandler',
-            'filters': ['errorFilter'],
             'formatter': 'simple',
             'stream': sys.stderr
-        },
-        'jussiStdOut': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'json'
         },
         'struct': {
             'class': 'logging.StreamHandler',

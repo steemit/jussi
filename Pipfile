@@ -3,7 +3,7 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 
 [dev-packages]
-sanic = "==0.6.0"
+sanic = "*"
 asynctest = "*"
 autoflake = "*"
 "autopep8" = "*"
@@ -54,9 +54,9 @@ cchardet = "*"
 async-timeout = "*"
 progress = "*"
 pytest = "*"
-aiocache = {extras = ["memcached", "redis"]}
+aiocache = {extras = ["redis"]}
 websockets = "*"
-sanic = "==0.6.0"
+sanic = "*"
 msgpack = "*"
 configargparse = "*"
 structlog = "*"
