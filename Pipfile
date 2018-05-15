@@ -36,6 +36,7 @@ isort = "*"
 pydevd = "*"
 line-profiler = "*"
 structlog = "*"
+python-rapidjson = "*"
 
 [packages]
 ujson = "*"
@@ -60,6 +61,7 @@ sanic = "*"
 msgpack = "*"
 configargparse = "*"
 structlog = "*"
+python-rapidjson = "*"
 
 [requires]
 python_version = "3.6"
