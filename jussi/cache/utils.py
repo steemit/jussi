@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import functools
-import logging
 from typing import Optional
 
 import cytoolz
+import structlog
 
 from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import CachedBatchResponse
@@ -12,7 +12,7 @@ from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
 from .ttl import TTL
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @functools.lru_cache(8192)
@@ -21,21 +21,23 @@ def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
 
 
 def irreversible_ttl(jsonrpc_response: dict=None,
-                     last_irreversible_block_num: int=0) -> TTL:
+                     last_irreversible_block_num: int=None) -> TTL:
     if not jsonrpc_response:
-        logger.debug(
-            'bad.missing block num in response, skipping cache')
+        logger.warning(
+            'bad/missing response, skipping cache', response=jsonrpc_response)
         return TTL.NO_CACHE
     if not last_irreversible_block_num:
-        logger.debug('bad/missing last_irrersible_block_num, skipping cache')
+        logger.warning('bad/missing last_irrersible_block_num', lirb=last_irreversible_block_num)
         return TTL.NO_CACHE
     try:
         jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
         if jrpc_block_num <= last_irreversible_block_num:
             return TTL.NO_EXPIRE
     except Exception as e:
-        logger.info('Unable to cache using last irreversible block: %s', e)
-    logger.debug('skipping cache for block_num > last_irreversible')
+        logger.warning(
+            'Unable to cache using last irreversible block',
+            e=e,
+            lirb=last_irreversible_block_num)
     return TTL.NO_CACHE
 
 
@@ -54,7 +56,7 @@ def block_num_from_jsonrpc_response(
     if previous:
         return block_num_from_id(previous) + 1
 
-    # for get_block
+    # for steemd get_block
     block_id = cytoolz.get_in(['result', 'block_id'], jsonrpc_response)
     if block_id:
         return block_num_from_id(block_id)

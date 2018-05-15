@@ -2,7 +2,6 @@
 import functools
 import itertools as it
 import json
-import logging
 import os
 import re
 import socket
@@ -11,13 +10,14 @@ from urllib.parse import urlparse
 
 import jsonschema
 import pygtrie
+import structlog
 
 import ujson
 
 from .errors import InvalidUpstreamHost
 from .errors import InvalidUpstreamURL
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?@([^\/\s]+)/transfers$')
 

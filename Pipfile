@@ -35,6 +35,7 @@ jsonschema = "==2.6.0"
 isort = "*"
 pydevd = "*"
 line-profiler = "*"
+structlog = "*"
 
 [packages]
 ujson = "*"
@@ -58,6 +59,7 @@ websockets = "*"
 sanic = "==0.6.0"
 msgpack = "*"
 configargparse = "*"
+structlog = "*"
 
 [requires]
 python_version = "3.6"

@@ -2,7 +2,6 @@
 import asyncio
 import datetime
 
-import logging
 
 from collections import namedtuple
 from typing import Any
@@ -10,13 +9,14 @@ from enum import IntEnum
 
 import aiocache
 import aiocache.backends
+import structlog
 
-from .backends import SimpleMaxTTLMemoryCache
+from .backends.max_ttl import SimpleMaxTTLMemoryCache
 from .serializers import CompressionSerializer
 from .cache_group import CacheGroup
 from ..typedefs import WebApp
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class SpeedTier(IntEnum):
@@ -30,7 +30,7 @@ CacheGroupItem = namedtuple('CacheGroupItem', ('cache', 'read', 'write', 'speed_
 
 # pylint: disable=unused-argument,too-many-branches,too-many-nested-blocks
 def setup_caches(app: WebApp, loop) -> Any:
-    logger.info('before_server_start -> cache.setup_caches')
+    logger.info('cache.setup_caches', when='before_server_start')
     args = app.config.args
 
     caches = [CacheGroupItem(SimpleMaxTTLMemoryCache(), True, True, SpeedTier.FASTEST)]
@@ -44,26 +44,32 @@ def setup_caches(app: WebApp, loop) -> Any:
             if redis_cache:
                 if args.cache_test_before_add:
                     value = datetime.datetime.utcnow().isoformat()
-                    loop = asyncio.get_event_loop()
                     try:
                         _ = asyncio.gather(redis_cache.set('key', value, ttl=60))
                         value2 = asyncio.gather(redis_cache.get('key'))
                         assert value == value2.result()
 
                     except Exception as e:
-                        logger.exception('failed to add cache: %s', e)
+                        logger.exception('failed to add cache', exc_info=e)
                     else:
                         caches.append(CacheGroupItem(redis_cache, True, True,
                                                      SpeedTier.SLOW))
                 else:
                     caches.append(CacheGroupItem(redis_cache, True, True, SpeedTier.SLOW))
-        except Exception:
-            logger.exception('failed to add redis cache to caches')
+        except Exception as e:
+            logger.exception('failed to add redis cache to caches', exc_info=e)
         if args.redis_read_replica_hosts:
-            logger.info('Adding redis read replicas: %s', args.redis_read_replica_hosts)
             for host in args.redis_read_replica_hosts:
+                if ':' in host:
+                    host, port = host.split(':')
+                else:
+                    port = args.redis_port
+                logger.info('Adding redis read replicas',
+                            read_replica=args.redis_read_replica_hosts,
+                            host=host,
+                            port=port)
                 cache = aiocache.RedisCache(endpoint=host,
-                                            port=args.redis_port,
+                                            port=port,
                                             pool_min_size=args.redis_pool_minsize,
                                             pool_max_size=args.redis_pool_maxsize,
                                             serializer=CompressionSerializer())
@@ -72,7 +78,7 @@ def setup_caches(app: WebApp, loop) -> Any:
                         try:
                             _ = asyncio.gather(cache.get('key'))
                         except Exception as e:
-                            logger.exception('failed to add cache: %s', e)
+                            logger.exception('failed to add cache', exc_info=e)
                         else:
                             caches.append(CacheGroupItem(cache, True, False, SpeedTier.FAST))
                     else:

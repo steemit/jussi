@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 
-from jussi.cache.backends import SimpleMaxTTLMemoryCache
+from jussi.cache.backends.max_ttl import SimpleMaxTTLMemoryCache
 from jussi.cache import CacheGroupItem
 from jussi.cache import SpeedTier
 from jussi.cache.cache_group import CacheGroup

@@ -2,6 +2,9 @@
 
 import pytest
 from .conftest import TEST_UPSTREAM_CONFIG
+from jussi.errors import JsonRpcError
+from jussi.errors import JussiLimitsError
+from jussi.errors import JussiCustomJsonOpLengthError
 from jussi.request import JussiJSONRPCRequest
 from jussi.validators import is_get_block_header_request
 from jussi.validators import is_get_block_request
@@ -11,9 +14,9 @@ from jussi.validators import is_valid_jussi_response
 from jussi.validators import is_valid_non_error_jsonrpc_response
 from jussi.validators import is_valid_non_error_single_jsonrpc_response
 from jussi.validators import is_valid_single_jsonrpc_response
-from jussi.validators import is_valid_broadcast_transaction_request
-from jussi.validators import is_valid_custom_json_op_length
-from jussi.validators import is_valid_custom_json_account
+from jussi.validators import limit_broadcast_transaction_request
+from jussi.validators import limit_custom_json_op_length
+from jussi.validators import limit_custom_json_account
 from jussi.validators import is_broadcast_transaction_request
 
 from jussi.upstream import _Upstreams
@@ -335,7 +338,11 @@ def test_is_valid_jussi_response_using_steemd(steemd_requests_and_responses):
     ]], False),
 ])
 def test_is_valid_custom_json_op_length(ops, expected):
-    assert is_valid_custom_json_op_length(ops, size_limit=1000) is expected
+    if expected is False:
+        with pytest.raises(JussiCustomJsonOpLengthError):
+            limit_custom_json_op_length(ops, size_limit=1000)
+    else:
+        limit_custom_json_op_length(ops, size_limit=1000)
 
 
 @pytest.mark.parametrize('ops, expected', [
@@ -358,8 +365,12 @@ def test_is_valid_custom_json_op_length(ops, expected):
         }
     ]], False),
 ])
-def test_is_valid_custom_json_account(ops, expected):
-    assert is_valid_custom_json_account(ops, blacklist_accounts={'not_steemit'}) is expected
+def test_limit_custom_json_account(ops, expected):
+    if expected is False:
+        with pytest.raises(JussiLimitsError):
+            limit_custom_json_account(ops, blacklist_accounts={'not_steemit'})
+    else:
+        limit_custom_json_account(ops, blacklist_accounts={'not_steemit'})
 
 
 def test_is_broadcast_transaction_false(steemd_requests_and_responses):
@@ -381,19 +392,20 @@ def test_is_broadcast_transaction_true_invalid(invalid_broadcast_transactions):
     assert is_broadcast_transaction_request(req) is True
 
 
-def test_is_valid_broadcast_transaction_request(steemd_requests_and_responses):
+def test_limit_broadcast_transaction_request(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
     req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
-    assert is_valid_broadcast_transaction_request(req) is True
+    limit_broadcast_transaction_request(req)
 
 
-def test_valid_is_valid_broadcast_transaction_request(valid_broadcast_transactions):
+def test_valid_limit_broadcast_transaction_request(valid_broadcast_transactions):
     req = JussiJSONRPCRequest.from_request(dummy_request, 0, valid_broadcast_transactions)
-    assert is_valid_broadcast_transaction_request(
-        req, limits=TEST_UPSTREAM_CONFIG['limits']) is True
+    limit_broadcast_transaction_request(
+        req, limits=TEST_UPSTREAM_CONFIG['limits'])
 
 
-def test_invalid_is_valid_broadcast_transaction_request(invalid_broadcast_transactions):
+def test_invalid_limit_broadcast_transaction_request(invalid_broadcast_transactions):
     req = JussiJSONRPCRequest.from_request(dummy_request, 0, invalid_broadcast_transactions)
-    assert is_valid_broadcast_transaction_request(
-        req, limits=TEST_UPSTREAM_CONFIG['limits']) is False
+    with pytest.raises(JsonRpcError):
+        limit_broadcast_transaction_request(
+            req, limits=TEST_UPSTREAM_CONFIG['limits'])

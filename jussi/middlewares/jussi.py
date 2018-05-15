@@ -4,12 +4,14 @@ import random
 import reprlib
 import time
 
+import structlog
+
 from ..errors import handle_middleware_exceptions
 from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 request_logger = logging.getLogger('jussi_request')
 
 
@@ -51,11 +53,11 @@ async def finalize_jussi_response(request: HTTPRequest,
         now = time.perf_counter()
         response.headers['x-jussi-response-time'] = str(now - request.get('timing', now))
 
-        if request.method == 'POST' and isinstance(request.json, (dict, JussiJSONRPCRequest)):
+        if request.method == 'POST' and isinstance(request.json, JussiJSONRPCRequest):
             response.headers['x-jussi-namespace'] = request.json.urn.namespace
             response.headers['x-jussi-api'] = request.json.urn.api
             response.headers['x-jussi-method'] = request.json.urn.method
             response.headers['x-jussi-params'] = reprlib.repr(request.json.urn.params)
 
     except BaseException as e:
-        logger.warning(e)
+        logger.warning('finalize_jussi error', exc_info=e)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import pytest
-from jussi.cache.backends import SimpleMaxTTLMemoryCache
+from jussi.cache.backends.max_ttl import SimpleMaxTTLMemoryCache
 from jussi.upstream import _Upstreams
 from .conftest import TEST_UPSTREAM_CONFIG
 

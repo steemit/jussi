@@ -132,7 +132,7 @@ def main():
         workers=app.config.args.server_workers,
         debug=app.config.args.debug)
 
-    app.config.logger.info(f'app.run({run_config})')
+    app.config.logger.info('app.run', config=run_config)
     app.run(**run_config)
 
 
@@ -154,5 +154,5 @@ if __name__ == '__main__':
         workers=app.config.args.server_workers,
         debug=app.config.args.debug)
 
-    app.config.logger.info(f'app.run({run_config})')
+    app.config.logger.info('app.run', config=run_config)
     app.run(**run_config)

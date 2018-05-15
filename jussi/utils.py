@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import functools
-import logging
 from typing import Callable
 from typing import Optional
 from typing import Tuple
+
+import structlog
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import JsonRpcRequest
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 # decorators
@@ -37,8 +38,8 @@ def async_include_methods(
             if request.method not in include_http_methods:
                 return None
             return await middleware_func(*args, **kwargs)
-        except Exception:
-            logger.exception('async_include error')
+        except Exception as e:
+            logger.exception('async_include error', exc_info=e)
 
     return f
 
@@ -55,7 +56,7 @@ def async_nowait_middleware(middleware_func: Callable) -> Callable:
     """
     @functools.wraps(middleware_func)
     async def f(request: HTTPRequest, response: Optional[HTTPResponse]=None) -> None:
-        asyncio.ensure_future(middleware_func(request, response))
+        asyncio.ensure_future(asyncio.shield(middleware_func(request, response)))
     return f
 
 

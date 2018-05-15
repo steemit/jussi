@@ -18,13 +18,13 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('before_server_start')
     def setup_debug(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('before_server_start -> setup_debug')
+        logger.info('setup_debug', when='before_server_start')
         loop.set_debug(app.config.args.debug)
 
     @app.listener('before_server_start')
     def setup_upstreams(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('before_server_start -> setup_upstreams')
+        logger.info('setup_upstreams', when='before_server_start')
         args = app.config.args
         upstream_config_file = args.upstream_config_file
         with open(upstream_config_file) as f:
@@ -33,7 +33,7 @@ def setup_listeners(app: WebApp) -> WebApp:
             app.config.upstreams = _Upstreams(upstream_config,
                                               validate=args.test_upstream_urls)
         except Exception as e:
-            logger.error('Bad upstream in config: %s', str(e))
+            logger.error('Bad upstream in config', e=e)
             sys.exit(127)
 
     @app.listener('before_server_start')
@@ -41,7 +41,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         """use one session for http connection pooling
         """
         logger = app.config.logger
-        logger.info('before_server_start -> setup_aiohttp_session')
+        logger.info('setup_aiohttp_session', when='before_server_start')
         aio = dict(session=aiohttp.ClientSession(
             skip_auto_headers=['User-Agent'],
             loop=loop,
@@ -52,7 +52,7 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('before_server_start')
     async def setup_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('before_server_start -> setup_websocket_connection_pools')
+        logger.info('setup_websocket_connection_pools', when='before_server_start')
         args = app.config.args
         upstream_urls = app.config.upstreams.urls
         app.config.websocket_pool_kwargs = dict(
@@ -65,7 +65,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         pools = dict()
         for url in upstream_urls:
             if url.startswith('ws'):
-                logger.info('creating websocket pool for %s', url)
+                logger.info('creating websocket pool', url=url)
                 pools[url] = await jussi.ws.pool.create_pool(url=url,
                                                              **app.config.websocket_pool_kwargs)
 
@@ -75,17 +75,23 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('before_server_start')
     async def setup_caching(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('before_server_start -> setup_caching')
+        logger.info('setup_caching', when='before_server_start')
         args = app.config.args
         cache_group = setup_caches(app, loop)
         app.config.cache_group = cache_group
-        app.config.last_irreversible_block_num = 15_000_000
+        lirb = 20_000_000
+        try:
+            lirb = await cache_group.get('last_irreversible_block_num')
+        except Exception as e:
+            logger.exception('setup_caching error', e=e)
+        app.config.last_irreversible_block_num = lirb
+        logger.info('setup_caching', lirb=lirb)
         app.config.cache_read_timeout = args.cache_read_timeout
 
     @app.listener('before_server_start')
     async def setup_limits(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('before_server_start -> setup_limits')
+        logger.info('setup_limits', when='before_server_start')
         args = app.config.args
         config_file = args.upstream_config_file
         with open(config_file) as f:
@@ -97,7 +103,7 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('after_server_stop -> close_websocket_connection_pools')
+        logger.info('close_websocket_connection_pools', when='after_server_stop')
         pools = app.config.websocket_pools
         for url, pool in pools.items():
             logger.info('terminating websocket pool for %s', url)
@@ -107,14 +113,14 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('after_server_stop')
     async def close_aiohttp_session(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('after_server_stop -> close_aiohttp_session')
+        logger.info('close_aiohttp_session', when='after_server_stop')
         session = app.config.aiohttp['session']
         await session.close()
 
     @app.listener('after_server_stop')
     async def shutdown_caching(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('after_server_stop -> shutdown_caching')
+        logger.info('shutdown_caching', when='after_server_stop')
         cache_group = app.config.cache_group
         await cache_group.close()
 

@@ -2,9 +2,9 @@
 
 import asyncio
 import datetime
-import logging
 
 import async_timeout
+import structlog
 from sanic import response
 
 import ujson
@@ -19,7 +19,7 @@ from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
 from .utils import is_batch_jsonrpc
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # path /
 
@@ -43,7 +43,8 @@ async def healthcheck(sanic_http_request: HTTPRequest) -> HTTPResponse:
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat(),
         'source_commit': sanic_http_request.app.config.args.source_commit,
-        'docker_tag': sanic_http_request.app.config.args.docker_tag
+        'docker_tag': sanic_http_request.app.config.args.docker_tag,
+        'jussi_num': sanic_http_request.app.config.last_irreversible_block_num
     })
 
 # pylint: disable=no-value-for-parameter, too-many-locals
@@ -81,7 +82,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
         except Exception as e:
             request_info = jsonrpc_request.log_extra(
                 upstream_request=upstream_request)
-            logger.exception(f'fetch_ws failed', extra=request_info)
+            logger.exception('fetch_ws failed', **request_info)
             await pool.terminate_connection(conn)
             raise e
         finally:
