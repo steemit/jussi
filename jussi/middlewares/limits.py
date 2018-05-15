@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
-import logging
-
 from ..errors import JsonRpcBatchSizeError
 from ..errors import handle_middleware_exceptions
 from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..validators import limit_broadcast_transaction_request
-
-import structlog
-logger = structlog.get_logger(__name__)
-request_logger = logging.getLogger('jussi_request')
 
 
 @handle_middleware_exceptions

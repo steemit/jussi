@@ -4,12 +4,13 @@ import random
 import reprlib
 import time
 
+import structlog
+
 from ..errors import handle_middleware_exceptions
 from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 
-import structlog
 logger = structlog.get_logger(__name__)
 request_logger = logging.getLogger('jussi_request')
 
@@ -59,4 +60,4 @@ async def finalize_jussi_response(request: HTTPRequest,
             response.headers['x-jussi-params'] = reprlib.repr(request.json.urn.params)
 
     except BaseException as e:
-        logger.warning(e)
+        logger.warning('finalize_jussi error', exc_info=e)

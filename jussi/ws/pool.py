@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import collections
-import logging
 
+import structlog
 from websockets import connect as websockets_connect
 
 from .utils import PY_35
@@ -11,7 +11,6 @@ from .utils import _PoolConnectionContextManager
 from .utils import create_future
 from .utils import ensure_future
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 '''

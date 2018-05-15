@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import functools
-import logging
 from typing import Optional
 
 import cytoolz
+import structlog
 
 from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import CachedBatchResponse
@@ -12,7 +12,6 @@ from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
 from .ttl import TTL
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 

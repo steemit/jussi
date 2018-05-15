@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
 import itertools as it
-import logging
 
+import structlog
 from funcy.decorators import Call
 from funcy.decorators import decorator
 
 from .errors import InvalidRequest
+from .errors import JussiCustomJsonOpLengthError
+from .errors import JussiLimitsError
 from .errors import ServerError
 from .errors import UpstreamResponseError
-from .errors import JussiLimitsError
-from .errors import JussiCustomJsonOpLengthError
 from .typedefs import JsonRpcRequest
 from .typedefs import JsonRpcResponse
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 GET_BLOCK_RESULT_KEYS = {"previous",

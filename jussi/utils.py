@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import functools
-import logging
 from typing import Callable
 from typing import Optional
 from typing import Tuple
+
+import structlog
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import JsonRpcRequest
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 
@@ -38,8 +38,8 @@ def async_include_methods(
             if request.method not in include_http_methods:
                 return None
             return await middleware_func(*args, **kwargs)
-        except Exception:
-            logger.exception('async_include error')
+        except Exception as e:
+            logger.exception('async_include error', exc_info=e)
 
     return f
 

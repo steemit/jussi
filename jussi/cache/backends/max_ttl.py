@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-import logging
 
+import structlog
 from aiocache import SimpleMemoryCache
 from aiocache.serializers import NullSerializer
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 MEMORY_CACHE_MAX_TTL = 180

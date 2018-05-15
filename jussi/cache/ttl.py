@@ -16,11 +16,7 @@ Method Settings
 
 """
 
-import logging
 from enum import Enum
-
-import structlog
-logger = structlog.get_logger(__name__)
 
 
 class TTL(Enum):

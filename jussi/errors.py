@@ -5,6 +5,7 @@ from typing import Dict
 from typing import Optional
 from typing import Union
 
+import structlog
 from funcy.decorators import Call
 from funcy.decorators import decorator
 from sanic import response
@@ -19,7 +20,6 @@ from .typedefs import HTTPResponse
 from .typedefs import JsonRpcErrorResponse
 from .typedefs import WebApp
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 
@@ -86,6 +86,8 @@ async def ignore_errors_async(call: Call) -> Optional[dict]:
         logger.exception('Error ignored %s', e)
         return None
 
+# pylint: disable=too-many-instance-attributes,too-many-arguments
+
 
 class JussiInteralError(Exception):
     """Base class for errors that Jussi logs, but don't
@@ -104,6 +106,7 @@ class JussiInteralError(Exception):
                  log_error: bool = True,
                  error_logger: logging.Logger = None,
                  **kwargs) -> None:
+        super().__init__(message)
         if message:
             self.message = message
 
@@ -198,6 +201,7 @@ class JussiInteralError(Exception):
                               exc_info=self.exception)
         else:
             self.logger.error(str(self.to_dict()))
+# pylint: enable=too-many-instance-attributes,too-many-arguments
 
 
 class JsonRpcError(Exception):
@@ -218,7 +222,7 @@ class JsonRpcError(Exception):
                  error_logger: logging.Logger = None,
                  **kwargs) -> None:
         self.kwargs = kwargs
-        super(JsonRpcError, self).__init__(self.format_message())
+        super().__init__(self.format_message())
 
         self.logger = error_logger or logger
         self.sanic_request = sanic_request

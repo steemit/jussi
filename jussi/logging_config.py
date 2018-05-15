@@ -5,13 +5,11 @@ import sys
 import time
 
 import structlog
-import ujson
-
 from pythonjsonlogger.jsonlogger import JsonFormatter
 from sanic.log import DefaultFilter
 
+import ujson
 from jussi.typedefs import WebApp
-
 
 structlog.configure(
     processors=[

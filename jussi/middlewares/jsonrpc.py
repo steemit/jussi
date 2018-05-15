@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-import logging
 from typing import Optional
 
+import structlog
 from sanic import response
 from sanic.exceptions import InvalidUsage
 
@@ -15,7 +15,6 @@ from ..errors import handle_middleware_exceptions
 from ..utils import async_include_methods
 from ..validators import validate_jsonrpc_request as validate_request
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 

@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import logging
 from typing import Optional
 
 import cytoolz
+import structlog
 
 from jussi.errors import JussiInteralError
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
-
 
 from ..typedefs import BatchJsonRpcRequest
 from ..typedefs import BatchJsonRpcResponse
@@ -26,7 +25,6 @@ from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
 from .utils import merge_cached_responses
 
-import structlog
 logger = structlog.getLogger(__name__)
 
 
@@ -136,7 +134,7 @@ class CacheGroup(object):
         except UncacheableResponse:
             pass
         except Exception as e:
-            logger.exception(f'error while caching response:{e}')
+            logger.error('error while caching response', exc_info=e)
 
     async def get_jsonrpc_response(self,
                                    request: JsonRpcRequest) -> Optional[

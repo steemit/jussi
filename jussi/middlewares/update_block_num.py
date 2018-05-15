@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import logging
+
+import structlog
 
 import ujson
 
@@ -10,7 +11,6 @@ from ..typedefs import HTTPResponse
 from ..utils import async_nowait_middleware
 from ..validators import is_get_dynamic_global_properties_request
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 
@@ -35,5 +35,5 @@ async def update_last_irreversible_block_num(request: HTTPRequest, response: HTT
             logger.debug(
                 'updated last_irreversible_block_num',
                 new=last_irreversible_block_num)
-    except Exception:
+    except Exception as e:
         logger.exception('skipping update of last_irreversible_block_num')
