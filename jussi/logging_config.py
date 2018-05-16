@@ -116,12 +116,12 @@ LOGGING = {
             'handlers': []
         },
         'jussi': {
-            'level': logging.DEBUG,
+            'level': logging.INFO,
             'handlers': ['struct'],
             'propagate': True
         },
         'root': {
-            'level': logging.DEBUG,
+            'level': logging.INFO,
             'handlers': ['struct'],
             'propagate': True
         }
