@@ -4,17 +4,17 @@ from typing import AnyStr
 from typing import Optional
 from typing import Union
 
-from aiocache.serializers import StringSerializer
+from aiocache.serializers import BaseSerializer
 
 import ujson
 
 
-class CompressionSerializer(StringSerializer):
+class CompressionSerializer(BaseSerializer):
 
     # This is needed because zlib works with bytes.
     # this way the underlying backend knows how to
     # store/retrieve values
-    encoding = None
+    DEFAULT_ENCODING = None
 
     def dumps(self, value: Union[AnyStr, dict]) -> bytes:
         # FIXME handle structs with bytes vals, eg, [1, '2', b'3']
