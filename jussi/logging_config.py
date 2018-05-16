@@ -9,9 +9,9 @@ from pythonjsonlogger.jsonlogger import JsonFormatter
 
 import rapidjson
 import ujson
-
 from jussi.typedefs import WebApp
 
+# pylint: disable=no-member
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -29,7 +29,7 @@ structlog.configure(
     wrapper_class=structlog.stdlib.BoundLogger,
     cache_logger_on_first_use=True,
 )
-
+# pylint: enable=no-member
 
 LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 os.environ['TZ'] = 'UTC'

@@ -36,4 +36,5 @@ async def update_last_irreversible_block_num(request: HTTPRequest, response: HTT
                 'updated last_irreversible_block_num',
                 new=last_irreversible_block_num)
     except Exception as e:
-        logger.exception('skipping update of last_irreversible_block_num')
+        logger.exception('skipping update of last_irreversible_block_num',
+                         exc_info=e)
