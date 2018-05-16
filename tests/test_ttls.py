@@ -40,8 +40,8 @@ non_ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1",
 
 @pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num, expected', [
     # don't cache when last_block_num < response block_num
-    (ttl_rpc_req, rpc_resp, 0, TTL.NO_CACHE),
-    (ttl_rpc_req, rpc_resp, 999, TTL.NO_CACHE),
+    (ttl_rpc_req, rpc_resp, 1, TTL.DEFAULT_TTL),
+    (ttl_rpc_req, rpc_resp, 999, TTL.DEFAULT_TTL),
 
     # cache when last_block_num >= response block_num
     (ttl_rpc_req, rpc_resp, 1000, TTL.NO_EXPIRE),
@@ -49,6 +49,7 @@ non_ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1",
 
     # don't cache when bad/missing response block_num
     (ttl_rpc_req, {}, 2000, TTL.NO_CACHE),
+    (ttl_rpc_req, {}, None, TTL.NO_CACHE),
 
 ])
 def test_ttls(rpc_req, rpc_resp, last_block_num, expected):

@@ -70,6 +70,7 @@ class CustomJsonFormatter(JsonFormatter):
         return ujson.dumps(log_record)
 
 
+LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
 LOGGING = {
     'version': 1,
     'formatters': {
@@ -108,20 +109,20 @@ LOGGING = {
     },
     'loggers': {
         'sanic': {
-            'level': logging.INFO,
+            'level': LOG_LEVEL,
             'handlers': ['errorStream']
         },
         'network': {
-            'level': logging.INFO,
+            'level': LOG_LEVEL,
             'handlers': []
         },
         'jussi': {
-            'level': logging.INFO,
+            'level': LOG_LEVEL,
             'handlers': ['struct'],
             'propagate': True
         },
         'root': {
-            'level': logging.INFO,
+            'level': LOG_LEVEL,
             'handlers': ['struct'],
             'propagate': True
         }
@@ -134,6 +135,7 @@ def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
     LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
+    LOGGING['loggers']['root']['level'] = LOG_LEVEL
 
     logger = structlog.get_logger('jussi')
     logger.info('configuring jussi logger')

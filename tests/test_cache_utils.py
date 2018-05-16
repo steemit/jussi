@@ -29,17 +29,6 @@ non_ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
                    "method": "sbds.get_block", "params": [1000]}
 
 
-@pytest.mark.parametrize('response, last_block,expected', [
-    (rpc_resp, 0, TTL.NO_CACHE),
-    (rpc_resp, 999, TTL.NO_CACHE),
-    (rpc_resp, 1000, TTL.NO_EXPIRE),
-    (rpc_resp, 1001, TTL.NO_EXPIRE),
-])
-def test_irreversible_ttl(response, last_block, expected):
-    ttl = irreversible_ttl(response, last_block)
-    assert ttl == expected
-
-
 @pytest.mark.parametrize('response,expected', [
     (rpc_resp, 1000)
 ])
