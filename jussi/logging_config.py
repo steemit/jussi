@@ -9,9 +9,9 @@ from pythonjsonlogger.jsonlogger import JsonFormatter
 
 import rapidjson
 import ujson
-
 from jussi.typedefs import WebApp
 
+# pylint: disable=no-member
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -29,7 +29,7 @@ structlog.configure(
     wrapper_class=structlog.stdlib.BoundLogger,
     cache_logger_on_first_use=True,
 )
-
+# pylint: enable=no-member
 
 LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 os.environ['TZ'] = 'UTC'
@@ -70,6 +70,7 @@ class CustomJsonFormatter(JsonFormatter):
         return ujson.dumps(log_record)
 
 
+LOG_LEVEL = getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
 LOGGING = {
     'version': 1,
     'formatters': {
@@ -108,20 +109,20 @@ LOGGING = {
     },
     'loggers': {
         'sanic': {
-            'level': logging.INFO,
+            'level': LOG_LEVEL,
             'handlers': ['errorStream']
         },
         'network': {
-            'level': logging.INFO,
+            'level': LOG_LEVEL,
             'handlers': []
         },
         'jussi': {
-            'level': logging.DEBUG,
+            'level': LOG_LEVEL,
             'handlers': ['struct'],
             'propagate': True
         },
         'root': {
-            'level': logging.DEBUG,
+            'level': LOG_LEVEL,
             'handlers': ['struct'],
             'propagate': True
         }
@@ -134,6 +135,7 @@ def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
     LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
     LOGGING['loggers']['network']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
+    LOGGING['loggers']['root']['level'] = LOG_LEVEL
 
     logger = structlog.get_logger('jussi')
     logger.info('configuring jussi logger')

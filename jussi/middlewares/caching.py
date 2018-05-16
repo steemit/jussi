@@ -31,8 +31,8 @@ async def get_response(request: HTTPRequest) -> None:
     except ConnectionRefusedError as e:
         logger.error('error connecting to redis cache', e=e)
     except asyncio.TimeoutError:
-        logger.warning('request exceeded cache read timeout',
-                       timeout=cache_read_timeout)
+        logger.info('request exceeded cache read timeout',
+                    timeout=cache_read_timeout)
     except Exception as e:
         logger.exception('error querying cache for response', exc_info=e)
 

@@ -106,6 +106,10 @@ prepare: fix-imports lint fmt pre-commit-all pipenv-check test unmac  ## fix-imp
 .PHONY: prepare-and-build
 prepare-and-build: prepare Pipfile.lock build  ## run all tests, formatting and pre-commit checks, then build docker image
 
+.PHONY: commit
+commit: prepare
+	git commit -a
+
 .PHONY: mypy
 mypy: ## run mypy type checking on python files
 	pipenv run mypy --ignore-missing-imports --python-version $(PYTHON_VERSION) $(PROJECT_NAME)

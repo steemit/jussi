@@ -26,13 +26,14 @@ def irreversible_ttl(jsonrpc_response: dict=None,
         logger.warning(
             'bad/missing response, skipping cache', response=jsonrpc_response)
         return TTL.NO_CACHE
-    if not last_irreversible_block_num:
+    if not isinstance(last_irreversible_block_num, (int, TTL)):
         logger.warning('bad/missing last_irrersible_block_num', lirb=last_irreversible_block_num)
         return TTL.NO_CACHE
     try:
         jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
         if jrpc_block_num <= last_irreversible_block_num:
             return TTL.NO_EXPIRE
+        return TTL.DEFAULT_TTL
     except Exception as e:
         logger.warning(
             'Unable to cache using last irreversible block',
