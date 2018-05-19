@@ -9,6 +9,7 @@ import jussi.handlers
 import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
+import jussi.sanic_config
 from jussi.typedefs import WebApp
 
 STEEMIT_MAX_BLOCK_SIZE = 393_216_000
@@ -53,13 +54,7 @@ def parse_args(args: list = None):
                         default=9000)
     parser.add_argument('--server_workers', type=int,
                         env_var='JUSSI_SERVER_WORKERS', default=os.cpu_count())
-    parser.add_argument('--REQUEST_MAX_SIZE', env_var='JUSSI_REQUEST_MAX_SIZE',
-                        type=int,
-                        default=6_000_000)
-    parser.add_argument('--request_timeout', type=int,
-                        env_var='JUSSI_REQUEST_TIMEOUT', default=5)
-    parser.add_argument('--keep_alive', type=lambda x: bool(strtobool(x)),
-                        env_var='JUSSI_KEEP_ALIVE', default=True)
+
     parser.add_argument('--jsonrpc_batch_size_limit', type=int,
                         env_var='JUSSI_JSONRPC_BATCH_SIZE_LIMIT', default=50)
 
@@ -118,6 +113,7 @@ def main():
     args = parse_args()
     # run app
     app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
+    app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
     app = setup_routes(app)
@@ -128,10 +124,11 @@ def main():
     run_config = dict(
         host=app.config.args.server_host,
         port=app.config.args.server_port,
-        access_log=False,
         workers=app.config.args.server_workers,
+        access_log=False,
         debug=app.config.args.debug)
 
+    app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)
     app.run(**run_config)
 
@@ -140,6 +137,7 @@ if __name__ == '__main__':
     args = parse_args()
     # run app
     app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
+    app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
     app = setup_routes(app)
@@ -154,5 +152,6 @@ if __name__ == '__main__':
         access_log=False,
         debug=app.config.args.debug)
 
+    app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)
     app.run(**run_config)

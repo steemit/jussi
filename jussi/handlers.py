@@ -75,7 +75,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                 request_info['upstream_response'] = upstream_response
             except NameError:
                 pass
-            await pool.terminate_connection(conn)
+            asyncio.shield(pool.terminate_connection(conn))
             raise UpstreamResponseError(sanic_request=sanic_http_request,
                                         exception=e,
                                         **request_info)

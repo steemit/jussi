@@ -73,7 +73,7 @@ class CacheGroup(object):
 
     async def set(self, key, value, **kwargs):
         await asyncio.gather(*[cache.set(key, value, **kwargs) for cache
-                               in self._write_caches], return_exceptions=True)
+                               in self._write_caches], return_exceptions=False)
 
     async def get(self, key, **kwargs):
         for cache in self._read_caches:
@@ -104,8 +104,7 @@ class CacheGroup(object):
                 futures.append(
                     cache.multi_set(
                         pairs, ttl=ttl))
-
-        await asyncio.gather(*futures)
+        await asyncio.gather(*futures, return_exceptions=False)
 
     async def clear(self):
         return await asyncio.gather(*[cache.clear() for cache in self._write_caches])

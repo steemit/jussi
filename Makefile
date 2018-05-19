@@ -101,13 +101,16 @@ unmac:
 	find $(ROOT_DIR) -type f -name '.DS_Store' -delete
 
 .PHONY: prepare
-prepare: fix-imports lint fmt pre-commit-all pipenv-check test unmac  ## fix-imports lint fmt pre-commit-all pipenv-check test
+prepare: fix-imports lint fmt pre-commit-all pipenv-check test unmac  ## fix-imports lint fmt pre-commit-all pipenv-check unmac test
+
+.PHONY: prepare-without-test
+prepare-without-test: fix-imports lint fmt pre-commit-all pipenv-check unmac ## fix-imports lint fmt pre-commit-all pipenv-check unmac
 
 .PHONY: prepare-and-build
-prepare-and-build: prepare Pipfile.lock build  ## run all tests, formatting and pre-commit checks, then build docker image
+prepare-and-build: prepare-without-test test-with-docker  ## run all formatting and pre-commit checks, then build docker image
 
 .PHONY: commit
-commit: prepare
+commit: prepare-and-build
 	git commit -a
 
 .PHONY: mypy
