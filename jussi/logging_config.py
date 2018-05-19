@@ -91,7 +91,7 @@ LOGGING = {
         }
     },
     'handlers': {
-        'internal': {
+        'root': {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
             'stream': sys.stderr
@@ -108,11 +108,11 @@ LOGGING = {
         }
     },
     'loggers': {
-        'sanic': {
+        'sanic.error': {
             'level': LOG_LEVEL,
             'handlers': ['errorStream']
         },
-        'network': {
+        'sanic.access': {
             'level': LOG_LEVEL,
             'handlers': []
         },
@@ -123,7 +123,7 @@ LOGGING = {
         },
         'root': {
             'level': LOG_LEVEL,
-            'handlers': ['struct'],
+            'handlers': ['root'],
             'propagate': True
         }
     }
@@ -132,8 +132,8 @@ LOGGING = {
 
 def setup_logging(app: WebApp, log_level: str = None) -> WebApp:
     LOG_LEVEL = log_level or getattr(logging, os.environ.get('LOG_LEVEL', 'INFO'))
-    LOGGING['loggers']['sanic']['level'] = LOG_LEVEL
-    LOGGING['loggers']['network']['level'] = LOG_LEVEL
+    LOGGING['loggers']['sanic.access']['level'] = LOG_LEVEL
+    LOGGING['loggers']['sanic.error']['level'] = LOG_LEVEL
     LOGGING['loggers']['jussi']['level'] = LOG_LEVEL
     LOGGING['loggers']['root']['level'] = LOG_LEVEL
 
