@@ -1,7 +1,20 @@
 version: "3.3"
-
 services:
-
+  jussi:
+    restart: "no"
+    image: "steemit/jussi:latest"
+    ports:
+      - "8080:8080"
+    environment:
+      JUSSI_REDIS_HOST: redis1
+      JUSSI_REDIS_PORT: 6379
+      JUSSI_REDIS_READ_REPLICA_HOSTS: redis2:6379
+      LOG_LEVEL: DEBUG
+    links:
+      - redis1
+      - redis2
+    volumes:
+      - /Users/muyloco/Dev/steemit/jussi/DEV_config.json:/app/PROD_UPSTREAM_CONFIG.json
   redis1:
     restart: "no"
     image: "redis:3.2"

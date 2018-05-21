@@ -213,14 +213,14 @@ class CacheGroup(object):
                                          response: SingleJsonRpcResponse) -> \
             Optional[JsonRpcResponseDict]:
         if not is_valid_non_error_single_jsonrpc_response(response):
-            raise UncacheableResponse(message='is_valid_non_error_single_jsonrpc_response',
+            raise UncacheableResponse('is_valid_non_error_single_jsonrpc_response',
                                       request=request,
                                       response=response)
 
         if is_get_block_request(jsonrpc_request=request):
             if not is_valid_get_block_response(jsonrpc_request=request,
                                                response=response):
-                raise UncacheableResponse(message='invalid get_block response',
+                raise UncacheableResponse('invalid get_block response',
                                           request=request,
                                           response=response)
         return response

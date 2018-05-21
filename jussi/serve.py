@@ -33,7 +33,7 @@ def strtobool(val):
 
 
 def setup_routes(app: WebApp) -> WebApp:
-    app.add_route(jussi.handlers.healthcheck, '/health', methods=['GET'])
+    app.add_route(jussi.handlers.healthcheck, '/health', methods=['GET', 'HEAD'])
     app.add_route(jussi.handlers.handle_jsonrpc, '/', methods=['POST'])
     return app
 
@@ -79,7 +79,7 @@ def parse_args(args: list = None):
     # upstream config
     parser.add_argument('--upstream_config_file', type=str,
                         env_var='JUSSI_UPSTREAM_CONFIG_FILE',
-                        default='PROD_UPSTREAM_CONFIG.json')
+                        default='DEV_config.json')
     parser.add_argument('--test_upstream_urls',
                         env_var='JUSSI_TEST_UPSTREAM_URLS',
                         type=lambda x: bool(strtobool(x)),

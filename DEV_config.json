@@ -1,104 +1,152 @@
-[
+{
+  "limits": {
+    "blacklist_accounts": [
+      "non-steemit"
+    ]
+  },
+  "upstreams": [
     {
-        "name": "steemd",
-        "translate_to_appbase": true,
-        "urls": [
-            ["steemd", "wss://steemd.steemitdev.com"]
-        ],
-        "ttls": [
-            ["steemd", 3]
-        ],
-        "timeouts": [
-            ["steemd", 3]
+      "name": "steemd",
+      "translate_to_appbase": false,
+      "urls": [
+        [
+          "steemd",
+          "https://steemd.steemitdev.com"
         ]
+      ],
+      "ttls": [
+        [
+          "steemd",
+          3
+        ],
+        [
+          "steemd.login_api",
+          -1
+        ],
+        [
+          "steemd.network_broadcast_api",
+          -1
+        ],
+        [
+          "steemd.follow_api",
+          10
+        ],
+        [
+          "steemd.market_history_api",
+          1
+        ],
+        [
+          "steemd.database_api",
+          3
+        ],
+        [
+          "steemd.database_api.get_block",
+          -2
+        ],
+        [
+          "steemd.database_api.get_block_header",
+          -2
+        ],
+        [
+          "steemd.database_api.get_content",
+          1
+        ],
+        [
+          "steemd.database_api.get_state",
+          1
+        ],
+        [
+          "steemd.database_api.get_state.params=['/trending']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['trending']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/hot']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/welcome']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/promoted']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/created']",
+          10
+        ],
+        [
+          "steemd.database_api.get_dynamic_global_properties",
+          1
+        ]
+      ],
+      "timeouts": [
+        [
+          "steemd",
+          5
+        ],
+        [
+          "steemd.network_broadcast_api",
+          0
+        ]
+      ]
     },
     {
-        "name": "appbase",
-        "urls": [
-            ["appbase", "wss://steemd.steemitdev.com"],
-            ["appbase.condenser_api.get_account_history", "wss://ahnode.steemitdev.com"],
-            ["appbase.condenser_api.get_ops_in_block", "wss://ahnode.steemitdev.com"]
-        ],
-        "ttls": [
-            ["appbase.account_history_api", -1],
-            ["appbase.block_api", -1],
-            ["appbase.chain_api", -1],
-            ["appbase.condenser_api", -1],
-            ["appbase.database_api", -1],
-            ["appbase.follow_api", -1],
-            ["appbase.market_history_api", -1],
-            ["appbase.network_broadcast_api", -1],
-            ["appbase.tags_api", -1],
-            ["appbase.witness_api", -1]
-        ],
-        "timeouts": [
-            ["appbase", 3],
-            ["appbase.chain_api.push_block", 0],
-            ["appbase.chain_api.push_transaction", 0],
-            ["appbase.network_broadcast_api", 0],
-            ["appbase.condenser_api.broadcast_block", 0],
-            ["appbase.condenser_api.broadcast_transaction", 0],
-            ["appbase.condenser_api.broadcast_transaction_synchronous", 0]
+      "name": "appbase",
+      "urls": [
+        [
+          "appbase",
+          "https://steemd.steemitdev.com"
         ]
-    },
-    {
-        "name": "overseer",
-        "urls": [
-            ["overseer", "https://overseer.steemitdev.com"]
+      ],
+      "ttls": [
+        [
+          "appbase",
+          -2
         ],
-        "ttls": [
-            ["overseer", -1]
+        [
+          "appbase.block_api",
+          -2
         ],
-        "timeouts": [
-            ["overseer", 5]
+        [
+          "appbase.database_api",
+          1
         ]
-    },
-    {
-        "name": "conveyor",
-        "urls": [
-            ["conveyor", "https://conveyor.steemitdev.com"]
+      ],
+      "timeouts": [
+        [
+          "appbase",
+          3
         ],
-        "ttls": [
-            ["conveyor", -1]
+        [
+          "appbase.chain_api.push_block",
+          0
         ],
-        "timeouts": [
-            ["conveyor", 5]
+        [
+          "appbase.chain_api.push_transaction",
+          0
+        ],
+        [
+          "appbase.network_broadcast_api",
+          0
+        ],
+        [
+          "appbase.condenser_api.broadcast_block",
+          0
+        ],
+        [
+          "appbase.condenser_api.broadcast_transaction",
+          0
+        ],
+        [
+          "appbase.condenser_api.broadcast_transaction_synchronous",
+          0
         ]
-    },
-    {
-        "name": "sbds",
-        "urls": [
-            ["sbds", "https://sbds.steemitdev.com"]
-        ],
-        "ttls": [
-            ["sbds", 3]
-        ],
-        "timeouts": [
-            ["sbds", 3]
-        ]
-    },
-    {
-        "name": "hivemind",
-        "urls": [
-            ["hivemind", "https://hive.steemitdev.com"]
-        ],
-        "ttls": [
-            ["hivemind", 3]
-        ],
-        "timeouts": [
-            ["hivemind", 3]
-        ]
-    },
-    {
-        "name": "yo",
-        "urls": [
-            ["yo", "https://yo.steemitdev.com"]
-        ],
-        "ttls": [
-            ["yo", 3]
-        ],
-        "timeouts": [
-            ["yo", 3]
-        ]
+      ]
     }
-]
+  ]
+}
