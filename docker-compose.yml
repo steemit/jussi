@@ -14,7 +14,7 @@ services:
       - redis1
       - redis2
     volumes:
-      - /Users/muyloco/Dev/steemit/jussi/DEV_config.json:/app/PROD_UPSTREAM_CONFIG.json
+      - /Users/muyloco/Dev/steemit/jussi/DEV_config.json:/app/DEV_config.json
   redis1:
     restart: "no"
     image: "redis:3.2"
