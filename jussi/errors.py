@@ -105,8 +105,8 @@ class JussiInteralError(Exception):
                  log_error: bool = True,
                  error_logger: logging.Logger = None,
                  **kwargs) -> None:
-        super().__init__(self.format_message())
         self.kwargs = kwargs
+        super().__init__(self.format_message())
         self.logger = error_logger or logger
         self.sanic_request = sanic_request
         self.jussi_jsonrpc_request = jussi_jsonrpc_request
