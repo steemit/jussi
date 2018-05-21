@@ -98,6 +98,7 @@ def test_appbase_translation_responses(
     ('/', 'HEAD'),
     ('/', 'POST'),
     ('/health', 'GET'),
+    ('/health', 'HEAD'),
     ('/.well-known/healthcheck.json', 'GET')
 ])
 def test_response_headers(path, method, requests_session, jussi_url):
