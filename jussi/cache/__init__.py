@@ -33,7 +33,11 @@ def setup_caches(app: WebApp, loop) -> Any:
     logger.info('cache.setup_caches', when='before_server_start')
     args = app.config.args
 
-    caches = [CacheGroupItem(SimpleMaxTTLMemoryCache(), True, True, SpeedTier.FASTEST)]
+    caches = [CacheGroupItem(cache=SimpleMaxTTLMemoryCache(),
+                             read=True,
+                             write=True,
+                             speed_tier=SpeedTier.FASTEST)
+              ]
     if args.redis_host:
         try:
             redis_cache = aiocache.RedisCache(endpoint=args.redis_host,
@@ -48,14 +52,18 @@ def setup_caches(app: WebApp, loop) -> Any:
                         _ = asyncio.gather(redis_cache.set('key', value, ttl=60))
                         value2 = asyncio.gather(redis_cache.get('key'))
                         assert value == value2.result()
-
                     except Exception as e:
                         logger.exception('failed to add cache', exc_info=e)
                     else:
-                        caches.append(CacheGroupItem(redis_cache, True, True,
-                                                     SpeedTier.SLOW))
+                        caches.append(CacheGroupItem(cache=redis_cache,
+                                                     read=False,
+                                                     write=True,
+                                                     speed_tier=SpeedTier.SLOW))
                 else:
-                    caches.append(CacheGroupItem(redis_cache, True, True, SpeedTier.SLOW))
+                    caches.append(CacheGroupItem(cache=redis_cache,
+                                                 read=False,
+                                                 write=True,
+                                                 speed_tier=SpeedTier.SLOW))
         except Exception as e:
             logger.exception('failed to add redis cache to caches', exc_info=e)
         if args.redis_read_replica_hosts:
@@ -80,10 +88,16 @@ def setup_caches(app: WebApp, loop) -> Any:
                         except Exception as e:
                             logger.exception('failed to add cache', exc_info=e)
                         else:
-                            caches.append(CacheGroupItem(cache, True, False, SpeedTier.FAST))
+                            caches.append(CacheGroupItem(cache=cache,
+                                                         read=True,
+                                                         write=False,
+                                                         speed_tier=SpeedTier.FAST))
                     else:
                         caches.append(
-                            CacheGroupItem(cache, True, False, SpeedTier.FAST))
+                            CacheGroupItem(cache=cache,
+                                           read=True,
+                                           write=False,
+                                           speed_tier=SpeedTier.FAST))
 
     configured_cache_group = CacheGroup(caches=caches)
     return configured_cache_group

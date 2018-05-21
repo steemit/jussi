@@ -168,9 +168,6 @@ class CacheGroup(object):
                                             ttl: str = None,
                                             last_irreversible_block_num: int = None
                                             ) -> None:
-
-        value = await self.prepare_response_for_cache(request, response)
-
         key = jsonrpc_cache_key(request)
         ttl = ttl or request.upstream.ttl
         if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
@@ -179,10 +176,11 @@ class CacheGroup(object):
             ttl = irreversible_ttl(jsonrpc_response=response,
                                    last_irreversible_block_num=last_irreversible_block_num)
         elif ttl == TTL.NO_CACHE:
-            logger.debug('skipping cache', ttl=ttl, value=value)
+            logger.debug('skipping cache', ttl=ttl, urn=request.urn)
             return
         if isinstance(ttl, TTL):
             ttl = ttl.value
+        value = await self.prepare_response_for_cache(request, response)
         await self.set(key, value, ttl=ttl)
 
     async def cache_batch_jsonrpc_response(self,
@@ -196,8 +194,6 @@ class CacheGroup(object):
                 await self.get(
                     'last_irreversible_block_num')
         for i, response in enumerate(responses):
-            value = await self.prepare_response_for_cache(requests[i],
-                                                          response)
             key = jsonrpc_cache_key(requests[i])
             ttl = requests[i].upstream.ttl
             if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
@@ -207,6 +203,8 @@ class CacheGroup(object):
                 continue
             if isinstance(ttl, TTL):
                 ttl = ttl.value
+            value = await self.prepare_response_for_cache(requests[i],
+                                                          response)
             triplets.append((key, value, ttl))
             await self.multi_set(triplets)
 
