@@ -65,7 +65,7 @@ def setup_caches(app: WebApp, loop) -> Any:
                                                  write=True,
                                                  speed_tier=SpeedTier.SLOW))
         except Exception as e:
-            logger.exception('failed to add redis cache to caches', exc_info=e)
+            logger.error('failed to add redis cache to caches', exception=e)
         if args.redis_read_replica_hosts:
             for host in args.redis_read_replica_hosts:
                 if ':' in host:
@@ -86,7 +86,7 @@ def setup_caches(app: WebApp, loop) -> Any:
                         try:
                             _ = asyncio.gather(cache.get('key'))
                         except Exception as e:
-                            logger.exception('failed to add cache', exc_info=e)
+                            logger.error('failed to add cache', exception=e)
                         else:
                             caches.append(CacheGroupItem(cache=cache,
                                                          read=True,
