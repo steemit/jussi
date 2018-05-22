@@ -64,11 +64,7 @@ async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
 
 
 def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
-    if isinstance(jsonrpc_request, list):
-        # pylint: disable=expression-not-assigned
-        [validate_jsonrpc_request(r) for r in jsonrpc_request]
-        # pylint: enable=expression-not-assigned
-    elif isinstance(jsonrpc_request, dict):
+    if isinstance(jsonrpc_request, dict):
         assert JSONRPC_REQUEST_KEYS.issuperset(jsonrpc_request.keys())
         assert len(jsonrpc_request.keys()) >= 2
         assert jsonrpc_request.get('jsonrpc') == '2.0', 'bad jsonrpc version'
@@ -77,11 +73,14 @@ def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
                           (int, str, float, type(None))), 'bad jsonrpc id'
         assert isinstance(jsonrpc_request.get('params'),
                           (list, dict, type(None))), 'bad jsonrpc params'
-
+    elif isinstance(jsonrpc_request, list):
+        # pylint: disable=expression-not-assigned
+        [validate_jsonrpc_request(r) for r in jsonrpc_request]
+        # pylint: enable=expression-not-assigned
     elif isinstance(jsonrpc_request, SingleJsonRpcRequest):
         pass  # already be validated
     else:
-        raise InvalidRequest(data=jsonrpc_request.log_extra())
+        raise InvalidRequest(request=jsonrpc_request)
 
 
 def validate_jussi_response(jsonrpc_request: JsonRpcRequest,

@@ -44,16 +44,16 @@ class JussiJSONRPCRequest(NamedTuple):
         method = request['method']
         params = request.get('params', False)
 
-        return cls(_id,
-                   jsonrpc,
-                   method,
-                   params,
-                   urn,
-                   upstream,
-                   sanic_request.headers.get('x-amzn-trace-id'),
-                   sanic_request['jussi_request_id'],
-                   batch_index,
-                   original_request)
+        return JussiJSONRPCRequest(_id,
+                                   jsonrpc,
+                                   method,
+                                   params,
+                                   urn,
+                                   upstream,
+                                   sanic_request.headers.get('x-amzn-trace-id'),
+                                   sanic_request['jussi_request_id'],
+                                   batch_index,
+                                   original_request)
 
     # pylint: enable=no-member
 

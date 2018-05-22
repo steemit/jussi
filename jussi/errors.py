@@ -98,26 +98,23 @@ class JussiInteralError(Exception):
 
     def __init__(self,
                  sanic_request: SanicRequest = None,
-                 jussi_jsonrpc_request=None,
+                 jrpc_request=None,
+                 jrpc_response=None,
                  exception: Exception = None,
                  log_traceback: bool = False,
-                 error_id: str = None,
-                 log_error: bool = True,
                  error_logger: logging.Logger = None,
                  **kwargs) -> None:
+
         self.kwargs = kwargs
         super().__init__(self.format_message())
         self.logger = error_logger or logger
         self.sanic_request = sanic_request
-        self.jussi_jsonrpc_request = jussi_jsonrpc_request
+        self.jussi_jsonrpc_request = jrpc_request
+        self.jussi_jsonrpc_response = jrpc_response
         self.exception = exception
-        self.error_id = error_id or str(uuid.uuid4())
+
         self.log_traceback = log_traceback
-        self.log_error = log_error
-
-        if self.log_error:
-
-            self.log()
+        self.error_id = str(uuid.uuid4())
 
     def format_message(self):
         try:
@@ -132,7 +129,6 @@ class JussiInteralError(Exception):
             return dict()
 
         request = self.sanic_request
-
         request_data = {}
 
         if request.headers:
@@ -170,33 +166,28 @@ class JussiInteralError(Exception):
 
     def to_dict(self) -> dict:
         base_error = {
-            'message': self.format_message(),
             'error_id': self.error_id,
-            'exception': self.exception,
             'jrpc_request_id': self.jrpc_request_id,
             'jussi_request_id': self.jussi_request_id
         }
-
         if self.jussi_jsonrpc_request:
             try:
                 base_error.update(self.jussi_jsonrpc_request.log_extra())
             except Exception as e:
                 logger.warning(f'JussiInteralError jussi_jsonrpc_request serialization error: {e}')
-
         if self.kwargs:
             try:
                 base_error.update(**self.kwargs)
             except Exception as e:
                 logger.warning(f'JussiInteralError kwargs serialization error: {e}')
-
         return base_error
 
     def log(self) -> None:
         if self.log_traceback and self.exception:
-            self.logger.error(str(self.to_dict()),
+            self.logger.error(self.format_message(), **self.to_dict(),
                               exc_info=self.exception)
         else:
-            self.logger.error(str(self.to_dict()))
+            self.logger.error(self.format_message(), **self.to_dict())
 # pylint: enable=too-many-instance-attributes,too-many-arguments
 
 
