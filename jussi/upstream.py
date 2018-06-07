@@ -108,7 +108,7 @@ class _Upstreams(object):
         raise InvalidUpstreamURL(url=url, reason='invalid format', data={'urn': str(request_urn)})
 
     @functools.lru_cache(8192)
-    def ttl(self, request_urn: NamedTuple) -> str:
+    def ttl(self, request_urn: NamedTuple) -> int:
         _, ttl = self.__TTLS.longest_prefix(str(request_urn))
         return ttl
 
@@ -156,6 +156,6 @@ class Upstream(NamedTuple):
     @classmethod
     @functools.lru_cache(4096)
     def from_urn(cls, urn, upstreams: _Upstreams=None):
-        return cls(upstreams.url(urn),
-                   upstreams.ttl(urn),
-                   upstreams.timeout(urn))
+        return Upstream(upstreams.url(urn),
+                        upstreams.ttl(urn),
+                        upstreams.timeout(urn))
