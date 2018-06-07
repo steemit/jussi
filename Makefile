@@ -53,7 +53,7 @@ run: ## run docker image
 
 .PHONY: run-local
 run-local: ## run the python app without docker
-	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_config_file ALT_CONFIG.json
+	pipenv run python3 -m jussi.serve  --server_workers=1 --upstream_config_file DEV_config.json
 
 .PHONY: test
 test: ## run all tests

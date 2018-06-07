@@ -9,6 +9,7 @@ import ujson
 
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
+from ..request import JussiJSONRPCRequest
 from ..utils import async_include_methods
 from ..utils import async_nowait_middleware
 
@@ -43,8 +44,10 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
     try:
         if 'x-jussi-cache-hit' in response.headers:
             return
-        cache_group = request.app.config.cache_group
         jsonrpc_request = request.json
+        if not isinstance(jsonrpc_request, (list, JussiJSONRPCRequest)):
+            return
+        cache_group = request.app.config.cache_group
         jsonrpc_response = ujson.loads(response.body)
         last_irreversible_block_num = request.app.config.last_irreversible_block_num
         await cache_group.cache_jsonrpc_response(request=jsonrpc_request,
