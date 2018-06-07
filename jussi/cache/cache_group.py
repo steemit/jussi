@@ -133,7 +133,7 @@ class CacheGroup(object):
         except UncacheableResponse:
             pass
         except Exception as e:
-            logger.error('error while caching response', exc_info=e)
+            logger.error('error while caching response', e=e)
 
     async def get_jsonrpc_response(self,
                                    request: JsonRpcRequest) -> Optional[
