@@ -275,7 +275,7 @@ def is_valid_get_block_response(
 
         if 'block_id' in response['result']:
             block_id = response['result']['block_id']
-        elif 'block' in response['reslut']:
+        elif 'block' in response['result']:
             block_id = response['result']['block']['block_id']
         else:
             return False
