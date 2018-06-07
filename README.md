@@ -65,3 +65,62 @@ Content-Type: application/json
 1. return single jsonrpc response or assembled jsonrpc responses for batch requests
 1. cache response in redis cache
 1. cache response in memory
+
+## Using jussi as a proxy for local service development
+
+You can run jussi locally to proxy certain requests to a local service and send all other requests to api.steemit.com.
+
+For exmaple, let's say you want to do development on the conveyor microservice. You're running conveyor on your local docker network at 172.17.0.1.
+
+You need to configure jussi to forward requests in the conveyor namespace to your local service. Patch `DEV_config.json` like this:
+
+```diff
+diff --git a/DEV_config.json b/DEV_config.json
+index 1e72a7f..06e7a5c 100644
+--- a/DEV_config.json
++++ b/DEV_config.json
+@@ -11,7 +11,7 @@
+       "urls": [
+         [
+           "steemd",
+-          "https://steemd.steemitdev.com"
++          "https://api.steemit.com"
+         ]
+       ],
+       "ttls": [
+@@ -100,7 +100,7 @@
+       "urls": [
+         [
+           "appbase",
+-          "https://steemd.steemitdev.com"
++          "https://api.steemit.com"
+         ]
+       ],
+       "ttls": [
+@@ -147,6 +147,18 @@
+           0
+         ]
+       ]
++    },
++    {
++      "name": "conveyor",
++      "translate_to_appbase": false,
++      "urls": [
++        [
++          "conveyor",
++          "http://172.17.0.1:8090"
++        ]
++      ],
++      "ttls": [],
++      "timeouts": []
+     }
+   ]
+ }
+```
+
+Finally, build and start with the upstream url tests disabled:
+
+```
+docker build -t="$USER/${PWD##*/}:$(git rev-parse --abbrev-ref HEAD)" .
+docker run -e JUSSI_TEST_UPSTREAM_URLS=false -itp 9000:8080 "$USER/${PWD##*/}:$(git rev-parse --abbrev-ref HEAD)
+```
