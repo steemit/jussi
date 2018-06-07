@@ -258,6 +258,7 @@ def is_valid_get_block_response(
             jsonrpc_request) and is_valid_non_error_single_jsonrpc_response(
             response):
         return False
+    request_block_num, response_block_num = 'nope', 'nope'
     try:
         params = jsonrpc_request.urn.params
         if isinstance(params, list):
@@ -268,19 +269,23 @@ def is_valid_get_block_response(
             raise ValueError(f'bad urn params from {jsonrpc_request}: {params} ')
 
         if 'result' not in response:
-            raise Exception('response did not contain result')
+            raise Exception('jsonrpc response did not contain result')
         elif response['result'] is None:
             return False  # block does not exist yet
 
         if 'block_id' in response['result']:
             block_id = response['result']['block_id']
-        else:
+        elif 'block' in response['reslut']:
             block_id = response['result']['block']['block_id']
+        else:
+            return False
         response_block_num = block_num_from_id(block_id)
         assert int(request_block_num) == response_block_num
         return True
     except KeyError as e:
-        logger.error('is_valid_get_block_response key error', e=e,
+        logger.error('is_valid_get_block_response key error',
+                     e=e,
+                     response=response,
                      **jsonrpc_request.log_extra())
     except AssertionError:
         logger.error('request_block != response block_num',
@@ -289,35 +294,6 @@ def is_valid_get_block_response(
     except Exception as e:
         logger.error('is_valid_get_block_response error', e=e,
                      **jsonrpc_request.log_extra())
-    return False
-
-
-def is_valid_get_block_header_response(
-        jsonrpc_request: SingleJsonRpcRequest,
-        response: SingleJsonRpcResponse) -> bool:
-    if not is_get_block_request(
-            jsonrpc_request) and is_valid_non_error_single_jsonrpc_response(
-            response):
-        return False
-    try:
-        request_block_num = jsonrpc_request.urn.params[0]
-        if 'header' in response['result']:
-            response_block_num = block_num_from_id(
-                response['result']['header']['previous']) + 1
-        else:
-            response_block_num = block_num_from_id(
-                response['result']['previous']) + 1
-        assert int(request_block_num) == response_block_num
-        return True
-    except KeyError as e:
-        logger.error('is_valid_get_block_header_response key error: %s', e,
-                     **jsonrpc_request.log_extra())
-    except AssertionError:
-        logger.error(f'{request_block_num} != {response_block_num}',
-                     **jsonrpc_request.log_extra())
-    except Exception as e:
-        logger.exception('is_valid_get_block_header_response error : %s', e,
-                         **jsonrpc_request.log_extra())
     return False
 
 

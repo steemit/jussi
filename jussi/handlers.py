@@ -10,6 +10,7 @@ from sanic import response
 import ujson
 
 from .errors import InvalidUpstreamURL
+from .errors import RequestTimeourError
 from .errors import UpstreamResponseError
 from .typedefs import BatchJsonRpcRequest
 from .typedefs import BatchJsonRpcResponse
@@ -54,39 +55,40 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                    jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
     pools = sanic_http_request.app.config.websocket_pools
     pool = pools[jsonrpc_request.upstream.url]
-
     upstream_request = jsonrpc_request.to_upstream_request()
-    conn = await pool.acquire()
-    with async_timeout.timeout(jsonrpc_request.upstream.timeout):
-        try:
+    conn, upstream_response = None, None
+    try:
+        with async_timeout.timeout(jsonrpc_request.upstream.timeout):
+            conn = await pool.acquire()
             await conn.send(upstream_request)
             upstream_response_json = await conn.recv()
             upstream_response = ujson.loads(upstream_response_json)
             assert int(upstream_response.get('id')) == jsonrpc_request.upstream_id, \
                 f'{upstream_response.get("id")} should be {jsonrpc_request.upstream_id}'
-
             upstream_response['id'] = jsonrpc_request.id
             return upstream_response
 
-        except AssertionError as e:
-            request_info = jsonrpc_request.log_extra(
-                upstream_request=upstream_request)
-            try:
-                request_info['upstream_response'] = upstream_response
-            except NameError:
-                pass
-            asyncio.shield(pool.terminate_connection(conn))
-            raise UpstreamResponseError(sanic_request=sanic_http_request,
-                                        exception=e,
-                                        **request_info)
-        except Exception as e:
-            request_info = jsonrpc_request.log_extra(
-                upstream_request=upstream_request)
-            logger.exception('fetch_ws failed', **request_info)
-            await pool.terminate_connection(conn)
-            raise e
-        finally:
-            await pool.release(conn)
+    except TimeoutError as e:
+        asyncio.shield(pool.terminate_connection(conn))
+        raise RequestTimeourError(sanic_request=sanic_http_request,
+                                  exception=e,
+                                  upstream_request=upstream_request,
+                                  upstream_response=upstream_response)
+
+    except AssertionError as e:
+        asyncio.shield(pool.terminate_connection(conn))
+        raise UpstreamResponseError(sanic_request=sanic_http_request,
+                                    exception=e,
+                                    upstream_request=upstream_request,
+                                    upstream_response=upstream_response)
+    except Exception as e:
+        asyncio.shield(pool.terminate_connection(conn))
+        raise UpstreamResponseError(sanic_request=sanic_http_request,
+                                    exception=e,
+                                    upstream_request=upstream_request,
+                                    upstream_response=upstream_response)
+    finally:
+        await pool.release(conn)
 
 
 async def fetch_http(sanic_http_request: HTTPRequest,

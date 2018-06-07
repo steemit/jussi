@@ -22,12 +22,12 @@ class URN(namedtuple('URN', 'namespace api method params')):
     __cached_str = None
 
     @classmethod
-    def from_request(cls, single_jsonrpc_request: dict) -> namedtuple:
-        parsed = cls._parse_jrpc(single_jsonrpc_request)
+    def from_request(cls, single_jsonrpc_request: dict):
+        parsed = URN._parse_jrpc(single_jsonrpc_request)
         if isinstance(parsed['params'], dict):
             parsed['params'] = dict(sorted(parsed['params'].items()))
 
-        return cls(namespace=parsed['namespace'],
+        return URN(namespace=parsed['namespace'],
                    api=parsed['api'],
                    method=parsed['method'],
                    params=parsed['params'])
