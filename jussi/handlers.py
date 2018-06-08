@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-
 import asyncio
 import datetime
 import time
 
 import async_timeout
+import cytoolz
 import structlog
-from sanic import response
-
 import ujson
+
+from sanic import response
 from websockets.exceptions import ConnectionClosed
 
 from .errors import InvalidUpstreamURL
@@ -75,6 +75,14 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
         assert int(upstream_response.get('id')) == jsonrpc_request.upstream_id, \
             f'{upstream_response.get("id")} should be {jsonrpc_request.upstream_id}'
         upstream_response['id'] = jsonrpc_request.id
+
+        logger.info(
+            'response timings',
+            timings=[
+                f'{t2[0]}:{t2[1]-t1[1]}' for t1,
+                t2 in cytoolz.sliding_window(
+                    2,
+                    timings.items())])
         return upstream_response
 
     except TimeoutError as e:
@@ -126,7 +134,6 @@ async def fetch_http(sanic_http_request: HTTPRequest,
                             json=upstream_request,
                             headers=jsonrpc_request.upstream_headers,
                             timeout=jsonrpc_request.upstream.timeout) as resp:
-        logger.debug('response', resp=resp.read())
         upstream_response = await resp.json(encoding='utf-8', content_type=None)
     upstream_response['id'] = jsonrpc_request.id
     return upstream_response
