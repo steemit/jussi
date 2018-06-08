@@ -2,6 +2,7 @@
 
 import asyncio
 import datetime
+import time
 
 import async_timeout
 import structlog
@@ -57,33 +58,31 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
     pools = sanic_http_request.app.config.websocket_pools
     pool = pools[jsonrpc_request.upstream.url]
     upstream_request = jsonrpc_request.to_upstream_request()
+    perf = time.perf_counter
+    timings = {}
     try:
+        timings['start'] = perf()
         with async_timeout.timeout(jsonrpc_request.upstream.timeout):
             conn = await pool.acquire()
+            timings['acquired'] = perf()
             await conn.send(upstream_request)
+            timings['sent'] = acquired_time = perf()
             upstream_response_json = await conn.recv()
-            upstream_response = ujson.loads(upstream_response_json)
-            assert int(upstream_response.get('id')) == jsonrpc_request.upstream_id, \
-                f'{upstream_response.get("id")} should be {jsonrpc_request.upstream_id}'
-            upstream_response['id'] = jsonrpc_request.id
+            timings['response'] = perf()
         await pool.release(conn)
+        timings['released'] = perf()
+        upstream_response = ujson.loads(upstream_response_json)
+        assert int(upstream_response.get('id')) == jsonrpc_request.upstream_id, \
+            f'{upstream_response.get("id")} should be {jsonrpc_request.upstream_id}'
+        upstream_response['id'] = jsonrpc_request.id
         return upstream_response
 
     except TimeoutError as e:
-        try:
-            asyncio.shield(pool.terminate_connection(conn))
-        except NameError:
-            pass
-        try:
-            response = upstream_response
-        except NameError:
-            response = None
         raise RequestTimeourError(sanic_request=sanic_http_request,
                                   exception=e,
                                   upstream_request=upstream_request,
-                                  upstream_response=response,
+                                  timings=timings,
                                   **jsonrpc_request.log_extra())
-
     except AssertionError as e:
         try:
             asyncio.shield(pool.terminate_connection(conn))
@@ -97,29 +96,16 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                                     exception=e,
                                     upstream_request=upstream_request,
                                     upstream_response=response,
+                                    timings=timings,
                                     **jsonrpc_request.log_extra())
-
     except ConnectionClosed as e:
-        try:
-            asyncio.shield(pool.terminate_connection(conn))
-        except NameError:
-            pass
-        try:
-            response = upstream_response
-        except NameError:
-            response = None
         raise UpstreamResponseError(sanic_request=sanic_http_request,
                                     exception=e,
                                     upstream_request=upstream_request,
-                                    upstream_response=response,
+                                    timings=timings,
                                     **jsonrpc_request.log_extra())
-
     except Exception as e:
         try:
-            asyncio.shield(pool.terminate_connection(conn))
-        except NameError:
-            pass
-        try:
             response = upstream_response
         except NameError:
             response = None
@@ -127,6 +113,7 @@ async def fetch_ws(sanic_http_request: HTTPRequest,
                                     exception=e,
                                     upstream_request=upstream_request,
                                     upstream_response=response,
+                                    timings=timings,
                                     **jsonrpc_request.log_extra())
 
 
@@ -139,10 +126,10 @@ async def fetch_http(sanic_http_request: HTTPRequest,
                             json=upstream_request,
                             headers=jsonrpc_request.upstream_headers,
                             timeout=jsonrpc_request.upstream.timeout) as resp:
-
+        logger.debug('response', resp=resp.read())
         upstream_response = await resp.json(encoding='utf-8', content_type=None)
-        upstream_response['id'] = jsonrpc_request.id
-        return upstream_response
+    upstream_response['id'] = jsonrpc_request.id
+    return upstream_response
 # pylint: enable=no-value-for-parameter
 
 
