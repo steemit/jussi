@@ -10,8 +10,8 @@ from ..validators import limit_broadcast_transaction_request
 async def check_limits(request: HTTPRequest) -> None:
     # pylint: disable=no-member
 
-    if request.method == 'POST':
-        jsonrpc_request = request.json
+    if request.jsonrpc:
+        jsonrpc_request = request.jsonrpc
         if isinstance(jsonrpc_request, JussiJSONRPCRequest):
             limit_broadcast_transaction_request(jsonrpc_request,
                                                 limits=request.app.config.limits)

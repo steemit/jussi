@@ -9,10 +9,11 @@ from sanic.app import Sanic
 from sanic.request import Request
 from sanic.response import HTTPResponse as SanicHTTPResponse
 
-from .request import JussiJSONRPCRequest
+import jussi.httprequest
+import jussi.request
 
 WebApp = Sanic
-HTTPRequest = Request
+HTTPRequest = jussi.httprequest.JussiHTTPRequest
 HTTPResponse = SanicHTTPResponse
 
 # JSONRPC Request fields
@@ -23,7 +24,7 @@ JsonRpcRequestMethodField = str
 
 # JSONRPC Requests
 JsonRpcRequestDict = Dict[str, Any]
-SingleJsonRpcRequest = JussiJSONRPCRequest  # Dict[str, Any]
+SingleJsonRpcRequest = jussi.request.JussiJSONRPCRequest  # Dict[str, Any]
 BatchJsonRpcRequest = List[SingleJsonRpcRequest]
 JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
 

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from time import perf_counter
+
 from typing import Dict
 from typing import List
 from typing import NamedTuple
@@ -19,6 +21,7 @@ class JussiJSONRPCRequest(NamedTuple):
     jussi_request_id: str
     batch_index: int
     original_request: Optional[Dict]
+    timings: Dict
 
     # pylint: disable=no-member
     @classmethod
@@ -50,10 +53,11 @@ class JussiJSONRPCRequest(NamedTuple):
                                    params,
                                    urn,
                                    upstream,
-                                   sanic_request.headers.get('x-amzn-trace-id'),
-                                   sanic_request['jussi_request_id'],
+                                   sanic_request.amzn_trace_id,
+                                   sanic_request.jussi_request_id,
                                    batch_index,
-                                   original_request)
+                                   original_request,
+                                   timings={'created': perf_counter()})
 
     # pylint: enable=no-member
 

@@ -104,9 +104,9 @@ class URN(namedtuple('URN', 'namespace api method params')):
                     'params': _params
                 }
             else:
-                logger.error('failed to parse request method', extra={'matched': matched,
-                                                                      'params': params})
-                raise InvalidNamespaceError(namespace=single_jsonrpc_request['method'])
+                raise InvalidNamespaceError(jrpc_request=single_jsonrpc_request,
+                                            namespace=single_jsonrpc_request['method'],
+                                            matched=matched, params=params)
         except InvalidNamespaceAPIError as e:
             raise e
         except InvalidNamespaceError as e:

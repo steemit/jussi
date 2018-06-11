@@ -101,11 +101,10 @@ class _Upstreams(object):
         _, url = self.__URLS.longest_prefix(str(request_urn))
         if not url:
             raise InvalidUpstreamURL(
-                url=url, reason='No matching url found', data={
-                    'urn': str(request_urn)})
+                url=url, reason='No matching url found', urn=str(request_urn))
         elif url.startswith('ws') or url.startswith('http'):
             return url
-        raise InvalidUpstreamURL(url=url, reason='invalid format', data={'urn': str(request_urn)})
+        raise InvalidUpstreamURL(url=url, reason='invalid format', urn=str(request_urn))
 
     @functools.lru_cache(8192)
     def ttl(self, request_urn: NamedTuple) -> int:

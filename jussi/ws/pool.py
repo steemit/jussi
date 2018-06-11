@@ -169,13 +169,15 @@ class Pool(asyncio.AbstractServer):
 
     async def terminate_connection(self, conn):
         try:
-            logger.debug('terminating connection', conn=id(conn))
-            await conn.close()
+            if conn.open:
+                logger.debug('terminating connection', conn=id(conn))
+                await conn.close()
             self._terminated.add(conn)
             self.release(conn)
         except Exception as e:
-            logger.exception(e)
-            self._terminated.remove(conn)
+            logger.error('conn termination error', e=e, conn=conn)
+            if conn in self._terminated:
+                self._terminated.remove(conn)
 
     @asyncio.coroutine
     def wait_closed(self):

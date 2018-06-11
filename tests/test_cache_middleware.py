@@ -90,7 +90,6 @@ async def test_cache_response_middleware(test_cli):
 
 async def test_mocked_cache_response_middleware(mocked_app_test_cli, mocker):
     mocked_ws_conn, test_cli = mocked_app_test_cli
-
     mocked_ws_conn.recv.return_value = json.dumps(expected_response)
     response = await test_cli.post('/', json=req, headers={'x-jussi-request-id': '1'})
     assert 'x-jussi-cache-hit' not in response.headers

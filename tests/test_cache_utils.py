@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 import pytest
-from jussi.cache.ttl import TTL
+
 
 from jussi.cache.utils import block_num_from_jsonrpc_response
-from jussi.cache.utils import irreversible_ttl
 
 
 SBDS_DEFAULT_CACHE = 10

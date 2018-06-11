@@ -8,9 +8,11 @@ from sanic.exceptions import InvalidUsage
 from jussi.typedefs import HTTPRequest
 from jussi.typedefs import HTTPResponse
 
+from ..errors import JsonRpcError
 from ..errors import InvalidRequest
 from ..errors import ParseError
 from ..errors import ServerError
+
 from ..errors import handle_middleware_exceptions
 from ..utils import async_include_methods
 from ..validators import validate_jsonrpc_request as validate_request
@@ -23,20 +25,23 @@ logger = structlog.get_logger(__name__)
 async def validate_jsonrpc_request(
         request: HTTPRequest) -> Optional[HTTPResponse]:
     try:
-        _ = request.json
+        _ = request.jsonrpc
+    except InvalidRequest as e:
+        return InvalidRequest(sanic_request=request,
+                              exception=e).to_sanic_response()
+    except ParseError as e:
+        return ParseError(sanic_request=request,
+                          exception=e).to_sanic_response()
     except Exception as e:
-        return response.json(
-            ParseError(sanic_request=request, exception=e).to_dict())
+        return ParseError(sanic_request=request, exception=e).to_sanic_response()
+
     try:
         validate_request(jsonrpc_request=request.json)
-    except (AssertionError, TypeError) as e:
+    except (AssertionError, TypeError, KeyError) as e:
         # invalid jsonrpc
-        return response.json(
-            InvalidRequest(sanic_request=request, exception=e).to_dict())
+        return InvalidRequest(sanic_request=request, exception=e).to_sanic_response()
     except (InvalidUsage, ValueError) as e:
-        return response.json(
-            ParseError(sanic_request=request, exception=e).to_dict())
+        return ParseError(sanic_request=request, exception=e).to_sanic_response()
     except Exception as e:
         # json failed to parse
-        return response.json(
-            ServerError(sanic_request=request, exception=e).to_dict())
+        return ServerError(sanic_request=request, exception=e).to_sanic_response()

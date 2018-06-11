@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import sanic.response
-from sanic import Sanic
+
 
 import pytest
 
-from jussi.middlewares.jussi import convert_to_jussi_request
+
 from jussi.middlewares.jussi import finalize_jussi_response
 from jussi.upstream import _Upstreams
+from jussi.httprequest import JussiHTTPRequest
 from .conftest import TEST_UPSTREAM_CONFIG
 
 
@@ -28,7 +29,7 @@ response = {
 
 
 def test_request_id_in_response_headers():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -47,7 +48,6 @@ def test_request_id_in_response_headers():
         return sanic.response.text('options')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.get('/get')
@@ -64,7 +64,7 @@ def test_request_id_in_response_headers():
 
 
 def test_jussi_request_ids_equal():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -83,7 +83,6 @@ def test_jussi_request_ids_equal():
         return sanic.response.text('options')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.get('/get',
@@ -112,7 +111,7 @@ def test_jussi_request_ids_equal():
 
 
 def test_response_time_in_response_headers():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -131,7 +130,6 @@ def test_response_time_in_response_headers():
         return sanic.response.text('options')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
     _, response = app.test_client.post('/post')
 
@@ -152,19 +150,17 @@ def test_response_time_in_response_headers():
 
 
 def test_urn_parts_in_post_response_headers():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.post('/post')
     def handler(r):
         return sanic.response.text('post')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.post('/post', json=req)
     assert 'x-jussi-request-id' in response.headers
-    print(f'{response.headers}')
     assert response.headers['x-jussi-namespace'] == 'steemd', f'{response.headers}'
     assert response.headers['x-jussi-api'] == 'database_api', f'{response.headers}'
     assert response.headers['x-jussi-method'] == 'get_block', f'{response.headers}'
@@ -172,14 +168,13 @@ def test_urn_parts_in_post_response_headers():
 
 
 def test_urn_parts_not_in_batch_response_headers():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.post('/post')
     def handler(r):
         return sanic.response.text('post')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.post('/post', json=[req, req])
@@ -190,14 +185,13 @@ def test_urn_parts_not_in_batch_response_headers():
 
 
 def test_urn_parts_not_in_get_response_headers():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.get('/get')
     def handler(r):
         return sanic.response.text('get')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.get('/get')
@@ -208,14 +202,13 @@ def test_urn_parts_not_in_get_response_headers():
 
 
 def test_urn_parts_not_in_head_response_headers():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.head('/head')
     def handler(r):
         return sanic.response.text('head')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.head('/head')
@@ -226,14 +219,13 @@ def test_urn_parts_not_in_head_response_headers():
 
 
 def test_urn_parts_not_in_options_response_headers():
-    app = Sanic()
+    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
 
     @app.options('/options')
     def handler(r):
         return sanic.response.text('options')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-    app.request_middleware.append(convert_to_jussi_request)
     app.response_middleware.append(finalize_jussi_response)
 
     _, response = app.test_client.options('/options')

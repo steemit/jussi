@@ -21,7 +21,10 @@ async def get_response(request: HTTPRequest) -> None:
     # return cached response from cache if all requests were in cache
     cache_group = request.app.config.cache_group
     cache_read_timeout = request.app.config.cache_read_timeout
-    jsonrpc_request = request.json
+    jsonrpc_request = request.jsonrpc
+    if not jsonrpc_request:
+        logger.debug('skip cache.get', request_id=request.jussi_request_id)
+        return
     try:
         async with timeout(cache_read_timeout):
             cached_response = await cache_group.get_jsonrpc_response(jsonrpc_request)
@@ -32,10 +35,11 @@ async def get_response(request: HTTPRequest) -> None:
     except ConnectionRefusedError as e:
         logger.error('error connecting to redis cache', e=e)
     except asyncio.TimeoutError:
-        logger.info('request exceeded cache read timeout',
-                    timeout=cache_read_timeout)
+        logger.info('cache read timeout',
+                    timeout=cache_read_timeout,
+                    request_id=request.jussi_request_id)
     except Exception as e:
-        logger.exception('error querying cache for response', exc_info=e)
+        logger.error('error querying cache for response', e=e)
 
 
 @async_nowait_middleware
@@ -44,7 +48,7 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
     try:
         if 'x-jussi-cache-hit' in response.headers:
             return
-        jsonrpc_request = request.json
+        jsonrpc_request = request.jsonrpc
         if not isinstance(jsonrpc_request, (list, JussiJSONRPCRequest)):
             return
         cache_group = request.app.config.cache_group
@@ -53,8 +57,7 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
         await cache_group.cache_jsonrpc_response(request=jsonrpc_request,
                                                  response=jsonrpc_response,
                                                  last_irreversible_block_num=last_irreversible_block_num)
-
     except Exception as e:
         logger.error('error caching response',
                      e=e,
-                     request=request.json.log_extra())
+                     request=request.jsonrpc.log_extra())

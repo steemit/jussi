@@ -16,10 +16,10 @@ logger = structlog.get_logger(__name__)
 
 @async_nowait_middleware
 async def update_last_irreversible_block_num(request: HTTPRequest, response: HTTPResponse) -> None:
-    if request.method != 'POST' or not isinstance(request.json, JussiJSONRPCRequest):
+    if not isinstance(request.jsonrpc, JussiJSONRPCRequest):
         return
     try:
-        jsonrpc_request = request.json
+        jsonrpc_request = request.jsonrpc
         jsonrpc_response = ujson.loads(response.body)
         if is_get_dynamic_global_properties_request(jsonrpc_request):
             last_irreversible_block_num = jsonrpc_response['result']['last_irreversible_block_num']
@@ -36,5 +36,5 @@ async def update_last_irreversible_block_num(request: HTTPRequest, response: HTT
                 'updated last_irreversible_block_num',
                 new=last_irreversible_block_num)
     except Exception as e:
-        logger.exception('skipping update of last_irreversible_block_num',
-                         exc_info=e)
+        logger.error('skipping update of last_irreversible_block_num',
+                     request=request.jussi_request_id)

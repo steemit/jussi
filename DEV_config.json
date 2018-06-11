@@ -11,7 +11,7 @@
       "urls": [
         [
           "steemd",
-          "https://steemd.steemitdev.com"
+          "wss://steemd.steemitstage.com"
         ]
       ],
       "ttls": [
@@ -100,7 +100,7 @@
       "urls": [
         [
           "appbase",
-          "https://steemd.steemitdev.com"
+          "wss://steemd.steemitstage.com"
         ]
       ],
       "ttls": [

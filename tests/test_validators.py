@@ -19,15 +19,9 @@ from jussi.validators import limit_custom_json_op_length
 from jussi.validators import limit_custom_json_account
 from jussi.validators import is_broadcast_transaction_request
 
-from jussi.upstream import _Upstreams
-from .conftest import AttrDict
 
-dummy_request = AttrDict()
-dummy_request.headers = dict()
-dummy_request['jussi_request_id'] = '123456789012345'
-dummy_request.app = AttrDict()
-dummy_request.app.config = AttrDict()
-dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
+from .conftest import make_request
+dummy_request = make_request()
 
 
 request = JussiJSONRPCRequest.from_request(dummy_request, 0, {

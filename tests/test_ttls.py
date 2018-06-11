@@ -1,21 +1,12 @@
 # -*- coding: utf-8 -*-
 import pytest
-from .conftest import TEST_UPSTREAM_CONFIG
-from .conftest import AttrDict
 
 from jussi.cache.ttl import TTL
 from jussi.cache.utils import irreversible_ttl
-
 from jussi.request import JussiJSONRPCRequest
-from jussi.upstream import _Upstreams
 
-
-dummy_request = AttrDict()
-dummy_request.headers = dict()
-dummy_request['jussi_request_id'] = '123456789012345'
-dummy_request.app = AttrDict()
-dummy_request.app.config = AttrDict()
-dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
+from .conftest import make_request
+dummy_request = make_request()
 
 
 ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",

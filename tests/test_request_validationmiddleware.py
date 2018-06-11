@@ -9,24 +9,24 @@ parse_error = {
     'jsonrpc': '2.0',
     'error': {
         'code': -32700,
-        'message':
-        'Parse error'
+        'message': 'Parse error',
+        'data': {
+            'jussi_request_id': '123'
+        }
     }
 }
 
 invalid_request_error = {
+    'id': 1,
     'jsonrpc': '2.0',
     'error': {
         'code': -32600,
         'message': 'Invalid Request',
         'data': {
-            'request': {
-                'amzn_trace_id': None,
-                'jussi_request_id': '123'
-            }
+            'jussi_request_id': '123'
         }
-    },
-    'id': 1}
+    }
+}
 
 
 server_error = {
@@ -34,8 +34,10 @@ server_error = {
     'jsonrpc': '2.0',
     'error': {
         'code': -32000,
-        'message':
-        'Server error'
+        'message': 'Server error',
+        'data': {
+            'jussi_request_id': '123'
+        }
     }
 }
 
@@ -55,5 +57,5 @@ async def test_validate_jsonrpc_request_middleware(mocked_app_test_cli,
     json_response = await response.json()
     assert 'error_id' in json_response['error']['data']
     del json_response['error']['data']['error_id']
-    json_response['error']['data']['request']['jussi_request_id'] = '123'
+    json_response['error']['data']['jussi_request_id'] = '123'
     assert json_response == expected

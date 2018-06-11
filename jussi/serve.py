@@ -11,7 +11,7 @@ import jussi.logging_config
 import jussi.middlewares
 import jussi.sanic_config
 from jussi.typedefs import WebApp
-
+from jussi.httprequest import JussiHTTPRequest
 STEEMIT_MAX_BLOCK_SIZE = 393_216_000
 REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
 
@@ -112,7 +112,9 @@ def parse_args(args: list = None):
 def main():
     args = parse_args()
     # run app
-    app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
+    app = Sanic(__name__,
+                log_config=jussi.logging_config.LOGGING,
+                request_class=JussiHTTPRequest)
     app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
@@ -136,7 +138,9 @@ def main():
 if __name__ == '__main__':
     args = parse_args()
     # run app
-    app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
+    app = Sanic(__name__,
+                log_config=jussi.logging_config.LOGGING,
+                request_class=JussiHTTPRequest)
     app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)

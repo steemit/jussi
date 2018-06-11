@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import pytest
+from time import perf_counter
 
 from jussi.cache.backends.max_ttl import SimpleMaxTTLMemoryCache
 from jussi.cache import CacheGroupItem
@@ -10,24 +11,8 @@ from jussi.request import JussiJSONRPCRequest
 from .extra_caches import SimpleMemoryCache2
 from .extra_caches import SimpleMemoryCache3
 from .extra_caches import SimpleMemoryCache4
-from jussi.upstream import _Upstreams
-from .conftest import TEST_UPSTREAM_CONFIG
-
-
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-
-dummy_request = AttrDict()
-dummy_request.headers = dict()
-dummy_request['jussi_request_id'] = '123456789012345'
-dummy_request.app = AttrDict()
-dummy_request.app.config = AttrDict()
-
-dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
-
+from .conftest import make_request
+dummy_request = make_request()
 
 jrpc_req_1 = JussiJSONRPCRequest.from_request(dummy_request, 0, {
     "id": "1", "jsonrpc": "2.0",
