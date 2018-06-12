@@ -5,6 +5,7 @@ from .conftest import TEST_UPSTREAM_CONFIG
 from jussi.errors import JsonRpcError
 from jussi.errors import JussiLimitsError
 from jussi.errors import JussiCustomJsonOpLengthError
+from jussi.errors import InvalidRequest
 from jussi.request import JSONRPCRequest
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 from jussi.validators import is_get_block_header_request
@@ -19,7 +20,7 @@ from jussi.validators import limit_broadcast_transaction_request
 from jussi.validators import limit_custom_json_op_length
 from jussi.validators import limit_custom_json_account
 from jussi.validators import is_broadcast_transaction_request
-
+from jussi.validators import validate_jsonrpc_request
 
 from .conftest import make_request
 dummy_request = make_request()
@@ -90,6 +91,17 @@ batch_request = [request, request2]
 batch_response = [response, response]
 
 error_response = {"id": "1", "jsonrpc": "2.0", "error": {}}
+
+
+def test_vaildate_jsonrpc_request_invalid(invalid_jrpc_single_and_batch_requests):
+    request = invalid_jrpc_single_and_batch_requests
+    with pytest.raises((AssertionError, InvalidRequest, KeyError, AttributeError)):
+        validate_jsonrpc_request(request)
+
+
+def test_vaildate_jsonrpc_requests(batched_steemd_jrpc_calls):
+    request = batched_steemd_jrpc_calls
+    assert validate_jsonrpc_request(request) is None
 
 
 @pytest.mark.parametrize('req,expected', [

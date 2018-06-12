@@ -52,18 +52,15 @@ def validate_jsonrpc_request(jsonrpc_request: RawRequest) -> None:
         assert JSONRPC_REQUEST_KEYS.issuperset(jsonrpc_request.keys()) and \
             jsonrpc_request['jsonrpc'] == '2.0' and \
             isinstance(jsonrpc_request['method'], str) and \
-            isinstance(jsonrpc_request.get('id'), ID_TYPES) and \
-            isinstance(jsonrpc_request.get('params'), PARAMS_TYPES)
-    elif isinstance(jsonrpc_request, list):
+            isinstance(jsonrpc_request.get('id', None), ID_TYPES) and \
+            isinstance(jsonrpc_request.get('params', None), (list, dict, type(None)))
+    elif isinstance(jsonrpc_request, list) and jsonrpc_request:
         for r in jsonrpc_request:
             assert JSONRPC_REQUEST_KEYS.issuperset(r.keys()) and \
                 r['jsonrpc'] == '2.0' and \
                 isinstance(r['method'], str) and \
                 isinstance(r.get('id'), ID_TYPES) and \
                 isinstance(r.get('params'), PARAMS_TYPES)
-        else:
-            # handle case where jsonrpc_request = []
-            raise InvalidRequest(request=jsonrpc_request)
     elif isinstance(jsonrpc_request, SingleJsonRpcRequest):
         pass  # already be validated
     else:

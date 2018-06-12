@@ -2,6 +2,7 @@
 import ujson
 import asynctest
 import copy
+import itertools as it
 import jsonschema
 import os
 import pytest
@@ -22,6 +23,7 @@ from jussi.urn import URN
 from jussi.upstream import _Upstreams
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 from jussi.request.http import HTTPRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 
 
 def pytest_addoption(parser):
@@ -298,6 +300,54 @@ INVALID_JRPC_REQUESTS = [
     b'',
     None,
     False
+]
+
+INVALID_JRPC_BATCH_REQUESTS = [
+    [],
+    [{'Id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]}],
+    [{'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': 1000}, {}],
+    [{'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
+        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'jsonrpc': None, 'method': 'get_block', 'params': [1000]}],
+    [{'METHOD': 'get_block', 'id': 1, 'json_rpc': '2.0', 'params': '1000'},
+        {'id': 1, 'json_rpc': ['2.0'], 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]}],
+    [None,
+        {'METHOD': 'get_block', 'id': 1, 'json_rpc': '2.0', 'params': '1000'},
+        b'',
+        {},
+        {'id': 1, 'method': 'get_block', 'params': [1000]}],
+    ['',
+        {'ID': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
+        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        ''],
+    [{'METHOD': 'get_block', 'id': 1, 'json_rpc': '2.0', 'params': '1000'},
+        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
+        [],
+        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': 1000},
+        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': None},
+        {'id': [1], 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        False],
+    [{'id': 1, 'jsonrpc': None, 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'jsonrpc': None, 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
+        {'Id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': [1], 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json-rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': None, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]}],
+    [{'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': 1000},
+        {'Id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
+        {'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
+        {'id': 1, 'json-rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        b'',
+        {'id': 1, 'json_rpc': ['2.0'], 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json-rpc': '2.0', 'method': 'get_block', 'params': [1000]},
+        {'id': 1, 'json_rpc': ['2.0'], 'method': 'get_block', 'params': [1000]}]
 ]
 
 INVALID_JRPC_RESPONSES = [
@@ -848,6 +898,300 @@ STEEMD_JSON_RPC_CALLS = [{
 ]
 
 COMBINED_STEEMD_APPBASE_JSONRPC_CALLS = STEEMD_JSON_RPC_CALLS + APPBASE_REQUESTS
+
+BATCHED_COMBINED_APPBASE_JSONRPC_CALLS = [
+    [
+        {
+            'id': 27,
+            'jsonrpc': '2.0',
+            'method': 'call',
+            'params': ['database_api', 'get_miner_queue', []]
+        },
+        {'id': 66, 'jsonrpc': '2.0', 'method': 'get_feed_history', 'params': []},
+        {
+            'id': 23,
+            'jsonrpc': '2.0',
+            'method': 'call',
+            'params': ['database_api', 'get_dynamic_global_properties', []]
+        },
+        {
+            'id': 12,
+            'jsonrpc': '2.0',
+            'method': 'call',
+            'params': ['condenser_api', 'get_current_median_history_price', []]
+        },
+        {
+            'id': 26,
+            'jsonrpc': '2.0',
+            'method': 'call',
+            'params': ['database_api', 'get_liquidity_queue', ['steemit', 10]]
+        }],
+    [{
+        'id': 56,
+        'jsonrpc': '2.0',
+        'method': 'tags_api.get_discussions_by_author_before_date',
+        'params': {
+            'author': 'smooth',
+            'before_data': '2016-07-23T22:00:06',
+            'limit': 1,
+            'permlink': 'test'
+        }
+    },
+        {
+        'id': 60,
+        'jsonrpc': '2.0',
+        'method': 'get_discussions_by_feed',
+        'params': [{'limit': '1', 'tag': 'steem'}]
+    },
+        {'id': 76, 'jsonrpc': '2.0', 'method': 'get_state',
+         'params': ['/@layz3r']
+         },
+        {
+        'id': 73,
+        'jsonrpc': '2.0',
+        'method': 'get_owner_history',
+        'params': ['steemit']
+    },
+        {
+        'id': 67,
+        'jsonrpc': '2.0',
+        'method': 'get_hardfork_version',
+        'params': []
+    }],
+    [{
+        'id': 74,
+        'jsonrpc': '2.0',
+        'method': 'get_recovery_request',
+        'params': ['steemit']
+    },
+        {
+        'id': 4,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_active_votes', ['smooth', 'test']]
+    },
+        {
+        'id': 77,
+        'jsonrpc': '2.0',
+        'method': 'get_trending_tags',
+        'params': ['steemit', 10]
+    },
+        {
+        'id': 7,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'get_chain_properties', []]
+    },
+        {'id': 66, 'jsonrpc': '2.0', 'method': 'get_feed_history', 'params': []}],
+    [{
+        'id': 53,
+        'jsonrpc': '2.0',
+        'method': 'get_conversion_requests',
+        'params': ['steemit']
+    },
+        {
+        'id': 22,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api',
+                   'get_discussions_by_votes',
+                   [{'limit': '1', 'tag': 'steem'}]]
+    },
+        {
+        'id': 72,
+        'jsonrpc': '2.0',
+        'method': 'market_history_api.get_order_book',
+        'params': {'limit': 10}
+    },
+        {
+        'id': 71,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_open_orders',
+        'params': ['steemit']
+    },
+        {
+        'id': 52,
+        'jsonrpc': '2.0',
+        'method': 'get_content_replies',
+        'params': ['steemit', 'test']
+    }],
+    [{
+        'id': 23,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'get_dynamic_global_properties', []]
+    },
+        {
+        'id': 2,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'get_account_votes', ['steemit', 'test']]
+    },
+        {
+        'id': 58,
+        'jsonrpc': '2.0',
+        'method': 'get_discussions_by_children',
+        'params': [{'limit': '1', 'tag': 'steem'}]
+    },
+        {
+        'id': 41,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'lookup_witness_accounts',
+                   ['steemit', 10]]
+    },
+        {
+        'id': 56,
+        'jsonrpc': '2.0',
+        'method': 'get_discussions_by_author_before_date',
+        'params': ['smooth', 'test', '2016-07-23T22:00:06', '1']
+    }],
+    [{
+        'id': 78,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_witness_by_account',
+        'params': ['smooth.witness']
+    },
+        {
+        'id': 30,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_order_book', [10]]
+    },
+        {
+        'id': 83,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.lookup_witness_accounts',
+        'params': ['steemit', 10]
+    },
+        {'id': 47, 'jsonrpc': '2.0', 'method': 'get_active_witnesses',
+         'params': []
+         },
+        {
+        'id': 48,
+        'jsonrpc': '2.0',
+        'method': 'get_block_header',
+        'params': [1000]
+    }],
+    [{
+        'id': 8,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_config', []]
+    },
+        {
+        'id': 44,
+        'jsonrpc': '2.0',
+        'method': 'get_account_votes',
+        'params': ['steemit', 'test']
+    },
+        {
+        'id': 73,
+        'jsonrpc': '2.0',
+        'method': 'get_owner_history',
+        'params': ['steemit']
+    },
+        {
+        'id': 71,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_open_orders',
+        'params': ['steemit']
+    },
+        {
+        'id': 54,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_current_median_history_price',
+        'params': []
+    }],
+    [{
+        'id': 0,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_account_count', []]
+    },
+        {
+        'id': 53,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_conversion_requests',
+        'params': ['steemit']
+    },
+        {
+        'id': 44,
+        'jsonrpc': '2.0',
+        'method': 'get_account_votes',
+        'params': ['steemit', 'test']
+    },
+        {
+        'id': 83,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.lookup_witness_accounts',
+        'params': ['steemit', 10]
+    },
+        {
+        'id': 32,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'get_recovery_request', ['steemit']]
+    }],
+    [{'id': 66, 'jsonrpc': '2.0', 'method': 'database_api.get_feed_history'},
+     {
+        'id': 41,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'lookup_witness_accounts',
+                   ['steemit', 10]]
+    },
+        {
+        'id': 7,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'get_chain_properties', []]
+    },
+        {
+        'id': 59,
+        'jsonrpc': '2.0',
+        'method': 'tags_api.get_discussions_by_created',
+        'params': {'limit': '1', 'tag': 'steem'}
+    },
+        {
+        'id': 47,
+        'jsonrpc': '2.0',
+        'method': 'get_active_witnesses',
+        'params': []
+    }],
+    [{
+        'id': 78,
+        'jsonrpc': '2.0',
+        'method': 'condenser_api.get_witness_by_account',
+        'params': ['smooth.witness']
+    },
+        {
+        'id': 57,
+        'jsonrpc': '2.0',
+        'method': 'tags_api.get_discussions_by_cashout',
+        'params': {'limit': '1', 'tag': 'steem'}
+    },
+        {
+        'id': 37,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_witness_count', []]
+    },
+        {
+        'id': 4,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_active_votes', ['smooth', 'test']]
+    },
+        {
+        'id': 38,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['condenser_api', 'get_witness_schedule', []]
+    }
+    ]
+]
+
 
 STEEMD_JSONRPC_CALL_PAIRS = []
 for c in STEEMD_JSON_RPC_CALLS:
@@ -1965,7 +2309,17 @@ def steemd_jrpc_response_validator():
 
 
 @pytest.fixture(params=INVALID_JRPC_REQUESTS)
-def invalid_jrpc_requests(request):
+def invalid_jrpc_single_requests(request):
+    yield request.param
+
+
+@pytest.fixture(params=INVALID_JRPC_BATCH_REQUESTS)
+def invalid_jrpc_batch_requests(request):
+    yield request.param
+
+
+@pytest.fixture(params=it.chain(INVALID_JRPC_BATCH_REQUESTS, INVALID_JRPC_REQUESTS))
+def invalid_jrpc_single_and_batch_requests(request):
     yield request.param
 
 
@@ -1983,6 +2337,11 @@ def invalid_jrpc_responses(request):
 
 @pytest.fixture(params=COMBINED_STEEMD_APPBASE_JSONRPC_CALLS, ids=lambda c: c['method'])
 def all_steemd_jrpc_calls(request):
+    yield request.param
+
+
+@pytest.fixture(params=BATCHED_COMBINED_APPBASE_JSONRPC_CALLS, ids=lambda c: c['method'])
+def batched_steemd_jrpc_calls(request):
     yield request.param
 
 
