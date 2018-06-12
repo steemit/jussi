@@ -18,10 +18,11 @@ structlog.configure(
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
-        # structlog.processors.TimeStamper(fmt="iso"),
+        # structlog.processors.TimeStamper(fmt="iso",utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
+        # structlog.dev.ConsoleRenderer(colors=True)
         structlog.processors.JSONRenderer(serializer=rapidjson.dumps)
     ],
     context_class=dict,

@@ -170,7 +170,6 @@ class Pool(asyncio.AbstractServer):
     async def terminate_connection(self, conn):
         try:
             if conn.open:
-                logger.debug('terminating connection', conn=id(conn))
                 await conn.close()
             self._terminated.add(conn)
             self.release(conn)

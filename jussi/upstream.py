@@ -92,7 +92,6 @@ class _Upstreams(object):
         try:
             if (request_urn.api == 'database_api' or request_urn.api == 'condenser_api') and ACCOUNT_TRANSFER_PATTERN.match(
                     request_urn.params[0]):
-                logger.debug('matched')
                 url = os.environ.get('JUSSI_ACCOUNT_TRANSFER_STEEMD_URL')
                 if url:
                     return url
@@ -135,9 +134,9 @@ class _Upstreams(object):
             try:
                 parsed_url = urlparse(url)
                 host = urlparse(url).netloc
-                logger.info('attempting to add %s', parsed_url)
+                logger.info('attempting to add uptream url', url=parsed_url)
                 socket.gethostbyname(host)
-                logger.info('added %s', parsed_url)
+                logger.info('added upstream url', url=parsed_url)
             except socket.gaierror:
                 raise InvalidUpstreamHost(url=url)
             except Exception as e:

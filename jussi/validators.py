@@ -250,7 +250,7 @@ def limit_broadcast_transaction_request(
         try:
             blacklist_accounts = limits['accounts_blacklist']
         except Exception as e:
-            logger.warning('using empty accounts_blacklist: %s', e)
+            logger.warning('using empty accounts_blacklist', e=e)
 
         limit_custom_json_op_length(ops, size_limit=CUSTOM_JSON_SIZE_LIMIT)
         limit_custom_json_account(ops, blacklist_accounts=blacklist_accounts)

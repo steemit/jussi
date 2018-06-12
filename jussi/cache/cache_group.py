@@ -180,7 +180,6 @@ class CacheGroup(object):
             ttl = irreversible_ttl(jsonrpc_response=response,
                                    last_irreversible_block_num=last_irreversible_block_num)
         elif ttl == TTL.NO_CACHE:
-            logger.debug('skipping cache', ttl=ttl, urn=request.urn)
             return
         if isinstance(ttl, TTL):
             ttl = ttl.value
