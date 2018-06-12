@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
 
@@ -10,8 +11,10 @@ import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.sanic_config
+
 from jussi.typedefs import WebApp
-from jussi.httprequest import JussiHTTPRequest
+from jussi.request import HTTPRequest
+
 STEEMIT_MAX_BLOCK_SIZE = 393_216_000
 REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
 
@@ -114,7 +117,7 @@ def main():
     # run app
     app = Sanic(__name__,
                 log_config=jussi.logging_config.LOGGING,
-                request_class=JussiHTTPRequest)
+                request_class=HTTPRequest)
     app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
@@ -128,7 +131,8 @@ def main():
         port=app.config.args.server_port,
         workers=app.config.args.server_workers,
         access_log=False,
-        debug=app.config.args.debug)
+        debug=app.config.args.debug,
+        backlog=1000)
 
     app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)
@@ -140,7 +144,7 @@ if __name__ == '__main__':
     # run app
     app = Sanic(__name__,
                 log_config=jussi.logging_config.LOGGING,
-                request_class=JussiHTTPRequest)
+                request_class=HTTPRequest)
     app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
@@ -154,7 +158,8 @@ if __name__ == '__main__':
         port=app.config.args.server_port,
         workers=app.config.args.server_workers,
         access_log=False,
-        debug=app.config.args.debug)
+        debug=app.config.args.debug,
+        backlog=1000)
 
     app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)

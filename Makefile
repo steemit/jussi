@@ -158,7 +158,7 @@ test-live-prod-steemd-calls:
 	mkdir $@
 
 %.pstats: perf
-	-pipenv run python -m cProfile -o $*.pstats contrib/serve.py
+	-pipenv run python -m cProfile -o $*.pstats ./jussi/serve.py --server_workers=1 --upstream_config_file DEV_config.json
 
 %.png: %.pstats
 	-pipenv run gprof2dot -f pstats $< | dot -Tpng -o $@

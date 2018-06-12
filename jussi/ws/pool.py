@@ -214,12 +214,6 @@ class Pool(asyncio.AbstractServer):
                 yield from self._fill_free_pool(True)
                 if self._free:
                     conn = self._free.popleft()
-                    logger.debug(
-                        'pool connections',
-                        free=self.freesize,
-                        used=len(self._used),
-                        acquiring=self._acquiring)
-
                     assert conn.open, conn
                     assert conn not in self._used, (conn, self._used)
                     self._used.add(conn)
@@ -244,7 +238,6 @@ class Pool(asyncio.AbstractServer):
             elif self._recycle > -1 \
                     and self._connect_message_counter[id(conn)] > self._recycle:
                 yield from self.terminate_connection(conn)
-                logger.debug('recycled connection', conn=id(conn))
                 self._connect_message_counter.clear()
                 self._free.pop()
             else:
@@ -252,7 +245,6 @@ class Pool(asyncio.AbstractServer):
             n += 1
 
         while self.size < self.minsize:
-            logger.debug('opening ws connection')
             self._acquiring += 1
             try:
                 conn = yield from connect(
@@ -286,8 +278,6 @@ class Pool(asyncio.AbstractServer):
     def release(self, conn):
         """Release free connection back to the connection pool.
         """
-        logger.debug('releasing conn', conn=id(conn))
-
         fut = create_future(self._loop)
         fut.set_result(None)
         if conn in self._terminated:

@@ -2,18 +2,16 @@
 import itertools as it
 
 import structlog
-from funcy.decorators import Call
-from funcy.decorators import decorator
 
 from .errors import InvalidRequest
 from .errors import JussiCustomJsonOpLengthError
 from .errors import JussiLimitsError
-from .errors import ServerError
-from .errors import UpstreamResponseError
+
 from .typedefs import JsonRpcRequest
 from .typedefs import JsonRpcResponse
 from .typedefs import SingleJsonRpcRequest
 from .typedefs import SingleJsonRpcResponse
+from .typedefs import RawRequest
 
 logger = structlog.get_logger(__name__)
 
@@ -49,7 +47,7 @@ BROADCAST_TRANSACTION_METHODS = {
 #
 
 
-def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
+def validate_jsonrpc_request(jsonrpc_request: RawRequest) -> None:
     if isinstance(jsonrpc_request, dict):
         assert JSONRPC_REQUEST_KEYS.issuperset(jsonrpc_request.keys()) and \
             jsonrpc_request['jsonrpc'] == '2.0' and \
@@ -134,8 +132,8 @@ def is_valid_non_error_jsonrpc_response(jsonrpc_request: JsonRpcRequest,
 
 
 def is_valid_jussi_response(
-        jsonrpc_request: SingleJsonRpcRequest,
-        response: SingleJsonRpcResponse) -> bool:
+        jsonrpc_request: JsonRpcRequest,
+        response: JsonRpcResponse) -> bool:
     try:
         if not is_valid_jsonrpc_request(jsonrpc_request):
             return False
@@ -152,8 +150,7 @@ def is_valid_jussi_response(
                     for req, resp in zip(jsonrpc_request, response))
         return False
     except Exception as e:
-        logger.error('is_valid_jussi_response error', e=e,
-                     **jsonrpc_request.log_extra())
+        logger.error('is_valid_jussi_response error', e=e)
     return False
 
 
@@ -162,8 +159,7 @@ def is_get_block_request(jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
         return jsonrpc_request.urn.namespace in (
             'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_block'
     except Exception as e:
-        logger.warning('is_get_block_request error', e=e,
-                       **jsonrpc_request.log_extra())
+        logger.warning('is_get_block_request error', e=e)
         return False
 
 
@@ -184,8 +180,7 @@ def is_get_dynamic_global_properties_request(
         return jsonrpc_request.urn.namespace in (
             'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_dynamic_global_properties'
     except Exception as e:
-        logger.warning('is_get_dynamic_global_properties_request failed', e=e,
-                       **jsonrpc_request.log_extra())
+        logger.warning('is_get_dynamic_global_properties_request failed', e=e)
         return False
 
 
@@ -223,15 +218,13 @@ def is_valid_get_block_response(
     except KeyError as e:
         logger.error('is_valid_get_block_response key error',
                      e=e,
-                     response=response,
-                     **jsonrpc_request.log_extra())
+                     response=response)
     except AssertionError:
         logger.error('request_block != response block_num',
                      request_block_num=request_block_num,
                      response_block_num=response_block_num)
     except Exception as e:
-        logger.error('is_valid_get_block_response error', e=e,
-                     **jsonrpc_request.log_extra())
+        logger.error('is_valid_get_block_response error', e=e)
     return False
 
 

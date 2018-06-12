@@ -7,14 +7,15 @@ from jussi.cache import CacheGroupItem
 from jussi.cache import SpeedTier
 from jussi.cache.cache_group import CacheGroup
 from jussi.cache.utils import jsonrpc_cache_key
-from jussi.request import JussiJSONRPCRequest
+from jussi.request import JSONRPCRequest
 from .extra_caches import SimpleMemoryCache2
 from .extra_caches import SimpleMemoryCache3
 from .extra_caches import SimpleMemoryCache4
 from .conftest import make_request
+from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 dummy_request = make_request()
 
-jrpc_req_1 = JussiJSONRPCRequest.from_request(dummy_request, 0, {
+jrpc_req_1 = jsonrpc_from_request(dummy_request, 0, {
     "id": "1", "jsonrpc": "2.0",
     "method": "get_block", "params": [1000]
 })
@@ -35,11 +36,11 @@ jrpc_resp_1 = {
 
 error_response = {"id": "1", "jsonrpc": "2.0", "error": {}}
 
-batch1_jrpc = [JussiJSONRPCRequest.from_request(dummy_request, _id, {
+batch1_jrpc = [jsonrpc_from_request(dummy_request, _id, {
     "id": _id, "jsonrpc": "2.0",
     "method": "get_block", "params": [1000]
 }) for _id in range(10)]
-batch2_jrpc = [JussiJSONRPCRequest.from_request(dummy_request, _id, {
+batch2_jrpc = [jsonrpc_from_request(dummy_request, _id, {
     "id": _id, "jsonrpc": "2.0", "method": "get_block",
     "params": [1000]
 }) for _id in range(20, 30)]
@@ -62,11 +63,11 @@ expected2 = [None,
              },
              ]
 
-request = JussiJSONRPCRequest.from_request(dummy_request, 0, {
+request = jsonrpc_from_request(dummy_request, 0, {
     "id": "1", "jsonrpc": "2.0",
     "method": "get_block", "params": [1000]
 })
-request2 = JussiJSONRPCRequest.from_request(dummy_request, 0, {
+request2 = jsonrpc_from_request(dummy_request, 0, {
     "id": "1", "jsonrpc": "2.0", "method": "call",
     "params": ["database_api", "get_block", [1000]]
 })
@@ -263,7 +264,7 @@ async def test_cache_group_cache_jsonrpc_response(
 
     cache_group = CacheGroup(caches)
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     resp['jsonrpc'] = '2.0'
     key = jsonrpc_cache_key(req)
 
@@ -288,7 +289,7 @@ async def test_cache_group_get_jsonrpc_response(steemd_requests_and_responses):
 
     cache_group = CacheGroup(caches)
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     resp['jsonrpc'] = '2.0'
     key = jsonrpc_cache_key(req)
     assert await cache_group.get(key) is None
@@ -314,7 +315,7 @@ async def test_cache_group_get_single_jsonrpc_response(
 
     cache_group = CacheGroup(caches)
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     resp['jsonrpc'] = '2.0'
     key = jsonrpc_cache_key(req)
     assert await cache_group.get(key) is None
@@ -341,7 +342,7 @@ async def test_cache_group_get_batch_jsonrpc_responses(
     cache_group = CacheGroup(caches)
 
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     resp['jsonrpc'] = '2.0'
     batch_req = [req, req, req]
     batch_resp = [resp, resp, resp]
@@ -356,7 +357,7 @@ async def test_cache_group_get_batch_jsonrpc_responses(
 
 def test_cache_group_is_complete_response(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     assert CacheGroup.is_complete_response(req, resp) is True
 
 
@@ -395,7 +396,7 @@ def test_cache_group_is_complete_response_bad_responses(req, resp, expected):
 
 def test_cache_group_x_jussi_cache_key(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     batch_req = [req, req, req]
     assert jsonrpc_cache_key(req) == CacheGroup.x_jussi_cache_key(req)
     assert CacheGroup.x_jussi_cache_key(batch_req) == 'batch'

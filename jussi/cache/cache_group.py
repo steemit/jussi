@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import asyncio
 from typing import Optional
+from typing import Any
+from typing import List
+from typing import Union
+from typing import NoReturn
+
 
 import cytoolz
 import structlog
@@ -16,7 +21,6 @@ from ..typedefs import JsonRpcResponse
 from ..typedefs import JsonRpcResponseDict
 from ..typedefs import SingleJsonRpcRequest
 from ..typedefs import SingleJsonRpcResponse
-from ..utils import is_batch_jsonrpc
 from ..validators import is_valid_jussi_response
 from ..validators import is_valid_non_error_single_jsonrpc_response
 from .ttl import TTL
@@ -38,7 +42,7 @@ FAST_TIER = 2
 
 class CacheGroup(object):
     # pylint: disable=unused-argument, too-many-arguments, no-else-return
-    def __init__(self, caches):
+    def __init__(self, caches: List[Any]) -> None:
         self._cache_group_items = caches
         self._read_cache_items = []
         self._read_caches = []
@@ -71,11 +75,11 @@ class CacheGroup(object):
                     read_caches=self._read_caches,
                     write_caches=self._write_caches)
 
-    async def set(self, key, value, **kwargs):
+    async def set(self, key: str, value: Any, **kwargs) -> NoReturn:
         await asyncio.gather(*[cache.set(key, value, **kwargs) for cache
                                in self._write_caches], return_exceptions=False)
 
-    async def get(self, key, **kwargs):
+    async def get(self, key: str, **kwargs) -> Union[asyncio.Future, None]:
         for cache in self._read_caches:
             result = await cache.get(key, **kwargs)
             if result is not None:
@@ -106,10 +110,10 @@ class CacheGroup(object):
                         pairs, ttl=ttl))
         await asyncio.gather(*futures, return_exceptions=False)
 
-    async def clear(self):
+    async def clear(self) -> Union[asyncio.tasks._GatheringFuture, List[bool]]:
         return await asyncio.gather(*[cache.clear() for cache in self._write_caches])
 
-    async def close(self):
+    async def close(self) -> Union[asyncio.tasks._GatheringFuture, List[None]]:
         return await asyncio.gather(*[cache.close() for cache in self._all_caches])
 
     # jsonrpc related methods
@@ -118,18 +122,18 @@ class CacheGroup(object):
     async def cache_jsonrpc_response(self,
                                      request: JsonRpcRequest = None,
                                      response: JsonRpcResponse = None,
-                                     last_irreversible_block_num: int = None) -> None:
+                                     last_irreversible_block_num: int = None) -> NoReturn:
         """Don't cache error responses
         """
         try:
-            if is_batch_jsonrpc(request):
-                return await self.cache_batch_jsonrpc_response(requests=request,
-                                                               responses=response,
-                                                               last_irreversible_block_num=last_irreversible_block_num)
+            if isinstance(request, list):
+                await self.cache_batch_jsonrpc_response(requests=request,
+                                                        responses=response,
+                                                        last_irreversible_block_num=last_irreversible_block_num)
             else:
-                return await self.cache_single_jsonrpc_response(request=request,
-                                                                response=response,
-                                                                last_irreversible_block_num=last_irreversible_block_num)
+                await self.cache_single_jsonrpc_response(request=request,
+                                                         response=response,
+                                                         last_irreversible_block_num=last_irreversible_block_num)
         except UncacheableResponse:
             pass
         except Exception as e:
@@ -138,7 +142,7 @@ class CacheGroup(object):
     async def get_jsonrpc_response(self,
                                    request: JsonRpcRequest) -> Optional[
             JsonRpcResponse]:
-        if is_batch_jsonrpc(request):
+        if isinstance(request, list):
             return await self.get_batch_jsonrpc_responses(request)
         else:
             return await self.get_single_jsonrpc_response(request)

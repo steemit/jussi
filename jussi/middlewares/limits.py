@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
+from time import perf_counter
 from ..errors import JsonRpcBatchSizeError
 from ..errors import handle_middleware_exceptions
-from ..request import JussiJSONRPCRequest
 from ..typedefs import HTTPRequest
 from ..validators import limit_broadcast_transaction_request
 
@@ -9,18 +9,16 @@ from ..validators import limit_broadcast_transaction_request
 @handle_middleware_exceptions
 async def check_limits(request: HTTPRequest) -> None:
     # pylint: disable=no-member
+    request.timings['check_limits.enter'] = perf_counter()
+    if request.is_single_jrpc:
+        limit_broadcast_transaction_request(request.jsonrpc,
+                                            limits=request.app.config.limits)
+    elif request.is_batch_jrpc:
+        if len(request.jsonrpc) > request.app.config.jsonrpc_batch_size_limit:
+            raise JsonRpcBatchSizeError(jrpc_batch_size=len(request.jsonrpc),
+                                        jrpc_batch_size_limit=request.app.config.jsonrpc_batch_size_limit)
 
-    if request.jsonrpc:
-        jsonrpc_request = request.jsonrpc
-        if isinstance(jsonrpc_request, JussiJSONRPCRequest):
-            limit_broadcast_transaction_request(jsonrpc_request,
-                                                limits=request.app.config.limits)
-
-        elif isinstance(jsonrpc_request, list):
-            if len(jsonrpc_request) > request.app.config.jsonrpc_batch_size_limit:
-                raise JsonRpcBatchSizeError(jrpc_batch_size=len(jsonrpc_request),
-                                            jrpc_batch_size_limit=request.app.config.jsonrpc_batch_size_limit)
-
-            for single_jsonrpc_request in jsonrpc_request:
-                limit_broadcast_transaction_request(single_jsonrpc_request,
-                                                    limits=request.app.config.limits)
+        _ = [limit_broadcast_transaction_request(r, limits=request.app.config.limits)
+             for r in request.jsonrpc
+             ]
+    request.timings['check_limits.exit'] = perf_counter()

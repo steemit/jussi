@@ -42,7 +42,7 @@ Content-Type: application/json
 ### Request/Response Cycle
 
 1. validate jsonrpc request
-1. convert individual jsonrpc requests into `JussiJSONRPCRequest` objects, which add its pseudo-urn and upstream configuration
+1. convert individual jsonrpc requests into `JSONRPCRequest` objects, which add its pseudo-urn and upstream configuration
 1. generate cache key (pseudo-urn for the moment)
 1. if a single jsonrpc request:
    1. check in-memory cache, if miss

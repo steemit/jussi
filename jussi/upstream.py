@@ -107,12 +107,12 @@ class _Upstreams(object):
         raise InvalidUpstreamURL(url=url, reason='invalid format', urn=str(request_urn))
 
     @functools.lru_cache(8192)
-    def ttl(self, request_urn: NamedTuple) -> int:
+    def ttl(self, request_urn) -> int:
         _, ttl = self.__TTLS.longest_prefix(str(request_urn))
         return ttl
 
     @functools.lru_cache(8192)
-    def timeout(self, request_urn: NamedTuple) -> int:
+    def timeout(self, request_urn) -> int:
         _, timeout = self.__TIMEOUTS.longest_prefix(str(request_urn))
         if timeout is 0:
             timeout = None
@@ -126,7 +126,7 @@ class _Upstreams(object):
     def namespaces(self)-> frozenset:
         return self.__NAMESPACES
 
-    def translate_to_appbase(self, request_urn: NamedTuple) -> bool:
+    def translate_to_appbase(self, request_urn) -> bool:
         return request_urn.namespace in self.__TRANSLATE_TO_APPBASE
 
     def validate_urls(self):

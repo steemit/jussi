@@ -1,24 +1,18 @@
 # -*- coding: utf-8 -*-
 import logging
-import uuid
-from typing import Dict
-from typing import Optional
-from typing import Union
-
 import structlog
-from funcy.decorators import Call
+import uuid
 from funcy.decorators import decorator
-from cytoolz import get_in
 from sanic import response
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
-
-
-import ujson
+from typing import Optional
+from typing import Union
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
-from .typedefs import JsonRpcErrorResponse
+from .typedefs import JsonRpcRequest
+from .typedefs import JsonRpcResponse
 from .typedefs import WebApp
 
 logger = structlog.get_logger(__name__)
@@ -44,7 +38,7 @@ def setup_error_handlers(app: WebApp) -> WebApp:
         # pylint: disable=unused-argument
         if not request:
             return None
-        return RequestTimeoutError(sanic_request=request).to_sanic_response()
+        return RequestTimeoutError(http_request=request).to_sanic_response()
 
     # pylint: disable=unused-argument
     @app.exception(JsonRpcError)
@@ -57,7 +51,7 @@ def setup_error_handlers(app: WebApp) -> WebApp:
     def handle_errors(request: HTTPRequest,
                       exception: Exception) -> HTTPResponse:
         """handles all errors"""
-        return JsonRpcError(sanic_request=request,
+        return JsonRpcError(http_request=request,
                             exception=exception).to_sanic_response()
 
     return app
@@ -75,17 +69,9 @@ async def handle_middleware_exceptions(call):
             if not e.http_request:
                 e.add_http_request(call.request)
             return e.to_sanic_response()
-        return JsonRpcError(sanic_request=call.request,
+        return JsonRpcError(http_request=call.request,
                             exception=e).to_sanic_response()
 
-
-@decorator
-async def ignore_errors_async(call: Call) -> Optional[dict]:
-    try:
-        return await call()
-    except Exception as e:
-        logger.exception('Error ignored %s', e)
-        return None
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments
 
@@ -98,9 +84,9 @@ class JussiInteralError(Exception):
     message = 'Jussi internal error'
 
     def __init__(self,
-                 sanic_request: HTTPRequest = None,
-                 jrpc_request=None,
-                 jrpc_response=None,
+                 http_request: HTTPRequest = None,
+                 jrpc_request: JsonRpcRequest=None,
+                 jrpc_response: JsonRpcResponse=None,
                  exception: Exception = None,
                  log_traceback: bool = False,
                  error_logger: logging.Logger = None,
@@ -109,7 +95,7 @@ class JussiInteralError(Exception):
         self.kwargs = kwargs
         super().__init__(self.format_message())
 
-        self.http_request = sanic_request
+        self.http_request = http_request
         self.jsonrpc_request = jrpc_request
         self.jsonrpc_response = jrpc_response
         self.exception = exception
@@ -119,7 +105,7 @@ class JussiInteralError(Exception):
 
         self.error_id = str(uuid.uuid4())
 
-    def format_message(self, kwargs=None) ->str:
+    def format_message(self, kwargs: dict=None) ->str:
         kwargs = kwargs or self.kwargs
         try:
             return self.message.format_map(Default(**kwargs))
@@ -170,10 +156,10 @@ class JussiInteralError(Exception):
     def add_http_request(self, http_request: HTTPRequest) -> None:
         self.http_request = http_request
 
-    def add_jsonrpc_request(self, jsonrpc_request) -> None:
+    def add_jsonrpc_request(self, jsonrpc_request: JsonRpcRequest) -> None:
         self.jsonrpc_request = jsonrpc_request
 
-    def add_jsonrpc_response(self, jsonrpc_response) -> None:
+    def add_jsonrpc_response(self, jsonrpc_response: JsonRpcResponse) -> None:
         self.jsonrpc_response = jsonrpc_response
 
     def to_dict(self) -> dict:
@@ -207,14 +193,13 @@ class JussiInteralError(Exception):
 
 class JsonRpcError(JussiInteralError):
     """Base class for the JsonRpc other exceptions.
-
-    :param data: Extra info (optional).
     """
     message = 'Internal Error'
     code = -32603
     # pylint: disable=too-many-arguments
 
     def to_sanic_response(self) -> HTTPResponse:
+        self.log()
         error = {
             'jsonrpc': '2.0',
             'id': self.jrpc_request_id,

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import ujson
-from time import perf_counter
 import asynctest
 import copy
 import jsonschema
@@ -21,8 +20,8 @@ import jussi.middlewares
 import jussi.serve
 from jussi.urn import URN
 from jussi.upstream import _Upstreams
-from jussi.request import JussiJSONRPCRequest
-from jussi.httprequest import JussiHTTPRequest
+from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.http import HTTPRequest
 
 
 def pytest_addoption(parser):
@@ -166,8 +165,9 @@ APPBASE_CONDENSER_API_METHODS = {
 
 
 def build_translatable_steemd_requests_and_responses():
+    from jussi.urn import from_request
     for req, resp in JRPC_REQUESTS_AND_RESPONSES:
-        urn = URN.from_request(req)
+        urn = from_request(req)
         if urn.method not in ('get_liquidity_queue', 'get_miner_queue',
                               'get_discussions_by_payout'):
             yield req, resp
@@ -867,7 +867,7 @@ LONG_REQUESTS = [
 ]
 
 # pylint:  disable=unused-variable,unused-argument,attribute-defined-outside-init
-
+from jussi.urn import _empty
 URN_TEST_REQUEST_DICTS = [
     # --------APPBASE METHOD=CALL, CONDENSER----------------------
     # appbase, method=call, condenser api, params empty list
@@ -954,7 +954,7 @@ URN_TEST_REQUEST_DICTS = [
         'namespace': 'appbase',
         'api': 'appbase_api',
         'method': 'appbase_method',
-        'params': False
+        'params': _empty
     },
         'appbase.appbase_api.appbase_method',
         'wss://appbase.steemitdev.com',
@@ -991,7 +991,7 @@ URN_TEST_REQUEST_DICTS = [
         'namespace': 'appbase',
         'api': 'appbase_api',
         'method': 'appbase_method',
-        'params': False
+        'params': _empty
     },
         'appbase.appbase_api.appbase_method',
         'wss://appbase.steemitdev.com',
@@ -1027,7 +1027,7 @@ URN_TEST_REQUEST_DICTS = [
         'namespace': 'appbase',
         'api': 'jsonrpc',
         'method': 'get_methods',
-        'params': False
+        'params': _empty
 
     },
         'appbase.jsonrpc.get_methods',
@@ -1141,7 +1141,7 @@ URN_TEST_REQUEST_DICTS = [
         'namespace': 'appbase',
         'api': 'appbase_api',
         'method': 'appbase_method',
-        'params': False
+        'params': _empty
     },
         'appbase.appbase_api.appbase_method',
         'wss://appbase.steemitdev.com',
@@ -1232,7 +1232,7 @@ URN_TEST_REQUEST_DICTS = [
         'namespace': 'appbase',
         'api': 'jsonrpc',
         'method': 'get_methods',
-        'params': False
+        'params': _empty
 
     },
         'appbase.jsonrpc.get_methods',
@@ -1271,7 +1271,7 @@ URN_TEST_REQUEST_DICTS = [
         'namespace': 'steemd',
         'api': 'database_api',
         'method': 'get_dynamic_global_properties',
-        'params': False
+        'params': _empty
     },
         'steemd.database_api.get_dynamic_global_properties',
         'wss://steemd.steemitdev.com',
@@ -1422,7 +1422,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         {
         'namespace': 'namespace',
-        'api': False,
+        'api': _empty,
         'method': 'method',
         'params': ['database_api', 'get_account_count', []]
     },
@@ -1440,7 +1440,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         {
         'namespace': 'namespace',
-        'api': False,
+        'api': _empty,
         'method': 'method',
         'params': {'z': 'val1', 'a': [], 'f': 1}
     },
@@ -1457,9 +1457,9 @@ URN_TEST_REQUEST_DICTS = [
     },
         {
         'namespace': 'namespace',
-        'api': False,
+        'api': _empty,
         'method': 'method',
-        'params': False
+        'params': _empty
     },
         'namespace.method',
         'wss://namespace.method.steemitdev.com',
@@ -1475,7 +1475,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         {
         'namespace': 'namespace',
-        'api': False,
+        'api': _empty,
         'method': 'method',
         'params': []
     },
@@ -1493,7 +1493,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         {
         'namespace': 'namespace',
-        'api': False,
+        'api': _empty,
         'method': 'method',
         'params': {}
     },
@@ -1511,7 +1511,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         {
         'namespace': 'namespace',
-        'api': False,
+        'api': _empty,
         'method': 'method',
         'params': [666]
     },
@@ -1529,7 +1529,7 @@ URN_TEST_REQUEST_DICTS = [
     },
         {
         'namespace': 'namespace',
-        'api': False,
+        'api': _empty,
         'method': 'method',
         'params': {'key': 'value'}
     },
@@ -1550,7 +1550,7 @@ URN_TEST_REQUEST_DICTS = [
         'namespace': 'namespace',
         'api': 'api',
         'method': 'method',
-        'params': False
+        'params': _empty
     },
         'namespace.api.method',
         'wss://namespace.api.method.steemitdev.com',
@@ -1825,7 +1825,7 @@ def make_request(headers=None, body=None, app=None, method='POST',
     if not app:
         app = sanic.Sanic('testApp')
         app.config.upstreams = _Upstreams(upstreams, validate=False)
-    req = JussiHTTPRequest(url_bytes, headers, '1.1', method, 'tcp')
+    req = HTTPRequest(url_bytes, headers, '1.1', method, 'tcp')
     req.app = app
     if body:
         if isinstance(body, dict):
@@ -1848,7 +1848,7 @@ def app(loop):
     args.upstream_config_file = upstream_config_path
     args.test_upstream_urls = False
     # run app
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
     app.config.args = args
     app.config.args.server_port = 42101
     app.config.args.websocket_pool_minsize = 0
@@ -1972,7 +1972,7 @@ def invalid_jrpc_requests(request):
 @pytest.fixture(scope='session', params=INVALID_JRPC_REQUESTS)
 def invalid_jussi_jsonrpc_requests(request, dummy_request):
     invalid_request = request.param
-    invalid_jussijsonrpc_request = JussiJSONRPCRequest(dummy_request, 0, invalid_request)
+    invalid_jussijsonrpc_request = JSONRPCRequest(dummy_request, 0, invalid_request)
     yield invalid_jussijsonrpc_request
 
 
@@ -2045,7 +2045,7 @@ def urn_test_requests(urn_test_request_dicts):
     jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dicts
 
     dummy_request = make_request()
-    jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0, jsonrpc_request)
+    jussi_request = jsonrpc_from_request(dummy_request, 0, jsonrpc_request)
     yield (jsonrpc_request,
            urn,
            url,
@@ -2060,8 +2060,8 @@ def steemd_jussi_requests(just_steemd_requests_and_responses):
     jsonrpc_request, _ = just_steemd_requests_and_responses
     dummy_request = make_request()
 
-    jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0,
-                                                     jsonrpc_request)
+    jussi_request = jsonrpc_from_request(dummy_request, 0,
+                                         jsonrpc_request)
     yield jussi_request
 
 
@@ -2070,8 +2070,8 @@ def steemd_jussi_requests_and_dicts(just_steemd_requests_and_responses):
     jsonrpc_request, _ = just_steemd_requests_and_responses
     dummy_request = make_request()
 
-    jussi_request = JussiJSONRPCRequest.from_request(dummy_request, 0,
-                                                     jsonrpc_request)
+    jussi_request = jsonrpc_from_request(dummy_request, 0,
+                                         jsonrpc_request)
     yield (jussi_request, jsonrpc_request)
 
 

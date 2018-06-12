@@ -5,7 +5,8 @@ from .conftest import TEST_UPSTREAM_CONFIG
 from jussi.errors import JsonRpcError
 from jussi.errors import JussiLimitsError
 from jussi.errors import JussiCustomJsonOpLengthError
-from jussi.request import JussiJSONRPCRequest
+from jussi.request import JSONRPCRequest
+from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 from jussi.validators import is_get_block_header_request
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
@@ -24,12 +25,12 @@ from .conftest import make_request
 dummy_request = make_request()
 
 
-request = JussiJSONRPCRequest.from_request(dummy_request, 0, {
+request = jsonrpc_from_request(dummy_request, 0, {
     "id": "1", "jsonrpc": "2.0",
     "method": "get_block", "params": [1000]
 })
 
-request2 = JussiJSONRPCRequest.from_request(dummy_request, 1, {
+request2 = jsonrpc_from_request(dummy_request, 1, {
     "id": "1", "jsonrpc": "2.0", "method": "call",
     "params": ["database_api", "get_block", [1000]]
 })
@@ -76,11 +77,11 @@ bad_response2 = {
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
         "transaction_ids": []}}
 
-bh_request1 = JussiJSONRPCRequest.from_request(dummy_request, 0, {
+bh_request1 = jsonrpc_from_request(dummy_request, 0, {
     "id": "1", "jsonrpc": "2.0",
     "method": "get_block_header", "params": [1000]
 })
-bh_request2 = JussiJSONRPCRequest.from_request(dummy_request, 0, {
+bh_request2 = jsonrpc_from_request(dummy_request, 0, {
     "id": "1", "jsonrpc": "2.0", "method": "call",
     "params": ["database_api", "get_block_header", [1000]]
 })
@@ -97,8 +98,8 @@ error_response = {"id": "1", "jsonrpc": "2.0", "error": {}}
     (dict(jsonrpc='2.0', method='m'), False)
 ])
 def test_is_get_block_request(req, expected):
-    if not isinstance(req, JussiJSONRPCRequest):
-        req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    if not isinstance(req, JSONRPCRequest):
+        req = jsonrpc_from_request(dummy_request, 0, req)
     assert is_get_block_request(req) is expected
 
 
@@ -115,8 +116,8 @@ def test_is_get_block_request(req, expected):
     (dict(jsonrpc='2.0', method='m'), False)
 ])
 def test_is_get_block_header_request(req, expected):
-    if not isinstance(req, JussiJSONRPCRequest):
-        req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    if not isinstance(req, JSONRPCRequest):
+        req = jsonrpc_from_request(dummy_request, 0, req)
     assert is_get_block_header_request(req) is expected
 
 
@@ -140,8 +141,8 @@ def test_is_get_block_header_request(req, expected):
 
 ])
 def test_is_valid_get_block_response(req, response, expected):
-    if not isinstance(req, JussiJSONRPCRequest):
-        req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    if not isinstance(req, JSONRPCRequest):
+        req = jsonrpc_from_request(dummy_request, 0, req)
     assert is_valid_get_block_response(req, response) is expected
 
 
@@ -171,14 +172,14 @@ def test_is_valid_get_block_response(req, response, expected):
     ([request], [response, response], False),
 ])
 def test_is_valid_jsonrpc_response(req, resp, expected):
-    # if not isinstance(req, JussiJSONRPCRequest):
-    #    req = JussiJSONRPCRequest.from_request(dummy_request,0,req)
+    # if not isinstance(req, JSONRPCRequest):
+    #    req = jsonrpc_from_request(dummy_request,0,req)
     assert is_valid_jsonrpc_response(req, resp) is expected
 
 
 def test_is_valid_jsonrpc_response_using_steemd(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     assert is_valid_jsonrpc_response(req, resp) is True
 
 
@@ -257,15 +258,15 @@ def test_is_valid_non_error_single_jsonrpc_response_using_steemd(
     ([request], [response, response], False),
 ])
 def test_is_valid_non_error_jsonrpc_response(req, resp, expected):
-    # if not isinstance(req, JussiJSONRPCRequest):
-    #    req = JussiJSONRPCRequest.from_request(dummy_request,0,req)
+    # if not isinstance(req, JSONRPCRequest):
+    #    req = jsonrpc_from_request(dummy_request,0,req)
     assert is_valid_non_error_jsonrpc_response(req, resp) is expected
 
 
 def test_is_valid_non_error_jsonrpc_response_using_steemd(
         steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     assert is_valid_non_error_jsonrpc_response(req, resp) is True
 
 
@@ -300,14 +301,14 @@ def test_is_valid_non_error_jsonrpc_response_using_steemd(
     ([request, request], [bad_response1], False)
 ])
 def test_is_valid_jussi_response(req, resp, expected):
-    # if not isinstance(req, JussiJSONRPCRequest):
-    #    req = JussiJSONRPCRequest.from_request(dummy_request,0,req)
+    # if not isinstance(req, JSONRPCRequest):
+    #    req = jsonrpc_from_request(dummy_request,0,req)
     assert is_valid_jussi_response(req, resp) is expected
 
 
 def test_is_valid_jussi_response_using_steemd(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     assert is_valid_jussi_response(req, resp) is True
 
 
@@ -369,37 +370,37 @@ def test_limit_custom_json_account(ops, expected):
 
 def test_is_broadcast_transaction_false(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0,
-                                           req)
+    req = jsonrpc_from_request(dummy_request, 0,
+                               req)
     assert is_broadcast_transaction_request(req) is False
 
 
 def test_is_broadcast_transaction_true(valid_broadcast_transactions):
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0,
-                                           valid_broadcast_transactions)
+    req = jsonrpc_from_request(dummy_request, 0,
+                               valid_broadcast_transactions)
     assert is_broadcast_transaction_request(req) is True
 
 
 def test_is_broadcast_transaction_true_invalid(invalid_broadcast_transactions):
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0,
-                                           invalid_broadcast_transactions)
+    req = jsonrpc_from_request(dummy_request, 0,
+                               invalid_broadcast_transactions)
     assert is_broadcast_transaction_request(req) is True
 
 
 def test_limit_broadcast_transaction_request(steemd_requests_and_responses):
     req, resp = steemd_requests_and_responses
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, req)
+    req = jsonrpc_from_request(dummy_request, 0, req)
     limit_broadcast_transaction_request(req)
 
 
 def test_valid_limit_broadcast_transaction_request(valid_broadcast_transactions):
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, valid_broadcast_transactions)
+    req = jsonrpc_from_request(dummy_request, 0, valid_broadcast_transactions)
     limit_broadcast_transaction_request(
         req, limits=TEST_UPSTREAM_CONFIG['limits'])
 
 
 def test_invalid_limit_broadcast_transaction_request(invalid_broadcast_transactions):
-    req = JussiJSONRPCRequest.from_request(dummy_request, 0, invalid_broadcast_transactions)
+    req = jsonrpc_from_request(dummy_request, 0, invalid_broadcast_transactions)
     with pytest.raises(JsonRpcError):
         limit_broadcast_transaction_request(
             req, limits=TEST_UPSTREAM_CONFIG['limits'])

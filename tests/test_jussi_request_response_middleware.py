@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 import sanic.response
 
-
-import pytest
-
-
 from jussi.middlewares.jussi import finalize_jussi_response
 from jussi.upstream import _Upstreams
-from jussi.httprequest import JussiHTTPRequest
+from jussi.request.http import HTTPRequest
 from .conftest import TEST_UPSTREAM_CONFIG
 
 
@@ -29,7 +25,7 @@ response = {
 
 
 def test_request_id_in_response_headers():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -64,7 +60,7 @@ def test_request_id_in_response_headers():
 
 
 def test_jussi_request_ids_equal():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -111,7 +107,7 @@ def test_jussi_request_ids_equal():
 
 
 def test_response_time_in_response_headers():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -150,7 +146,7 @@ def test_response_time_in_response_headers():
 
 
 def test_urn_parts_in_post_response_headers():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -168,7 +164,7 @@ def test_urn_parts_in_post_response_headers():
 
 
 def test_urn_parts_not_in_batch_response_headers():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.post('/post')
     def handler(r):
@@ -185,7 +181,7 @@ def test_urn_parts_not_in_batch_response_headers():
 
 
 def test_urn_parts_not_in_get_response_headers():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.get('/get')
     def handler(r):
@@ -202,7 +198,7 @@ def test_urn_parts_not_in_get_response_headers():
 
 
 def test_urn_parts_not_in_head_response_headers():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.head('/head')
     def handler(r):
@@ -219,7 +215,7 @@ def test_urn_parts_not_in_head_response_headers():
 
 
 def test_urn_parts_not_in_options_response_headers():
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     @app.options('/options')
     def handler(r):

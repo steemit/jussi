@@ -23,11 +23,9 @@ def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
 def irreversible_ttl(jsonrpc_response: dict=None,
                      last_irreversible_block_num: int=None) -> TTL:
     if not jsonrpc_response:
-        logger.warning(
-            'bad/missing response, skipping cache', response=jsonrpc_response)
         return TTL.NO_CACHE
     if not isinstance(last_irreversible_block_num, (int, TTL)):
-        logger.warning('bad/missing last_irrersible_block_num', lirb=last_irreversible_block_num)
+        logger.info('bad/missing last_irrersible_block_num', lirb=last_irreversible_block_num)
         return TTL.NO_CACHE
     try:
         jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
@@ -49,24 +47,24 @@ def block_num_from_jsonrpc_response(
     # for appbase get_block
     block_id = get_in(['result', 'block', 'block_id'], jsonrpc_response)
     if block_id:
-        return block_num_from_id(block_id)
+        return int(str(block_id)[:8], base=16)
 
     # for appbase get_block_header
     previous = get_in(['result', 'header', 'previous'],
                       jsonrpc_response)
     if previous:
-        return block_num_from_id(previous) + 1
+        return int(str(previous)[:8], base=16) + 1
 
     # for steemd get_block
     block_id = get_in(['result', 'block_id'], jsonrpc_response)
     if block_id:
-        return block_num_from_id(block_id)
+        return int(str(block_id)[:8], base=16)
 
     # for steemd get_block_header
     previous = get_in(['result', 'previous'],
                       jsonrpc_response)
     if previous:
-        return block_num_from_id(previous) + 1
+        return int(str(previous)[:8], base=16) + 1
 
 
 def block_num_from_id(block_hash: str) -> int:

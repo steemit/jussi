@@ -3,7 +3,6 @@ import pytest
 import sanic
 import sanic.response
 import sanic.request
-import ujson
 from jussi.errors import InvalidRequest
 from jussi.errors import JsonRpcError
 from jussi.errors import ParseError
@@ -11,7 +10,7 @@ from jussi.errors import ServerError
 from jussi.errors import handle_middleware_exceptions
 from .conftest import make_request
 
-from jussi.httprequest import JussiHTTPRequest
+from jussi.request.http import HTTPRequest
 
 
 jrpc_req = {
@@ -21,9 +20,9 @@ jrpc_req = {
     'params': [1, 2, 3]
 }
 
-fake_sanic_request = make_request(body=jrpc_req)
+fake_http_request = make_request(body=jrpc_req)
 
-fake_minimal_sanic_request = make_request()
+fake_minimal_http_request = make_request()
 
 
 default_error_message_data = {
@@ -141,29 +140,29 @@ server_error = {
       Exception(),
       minimal_error_with_no_jsonrpc_id),
      (jrpc_req,
-      JsonRpcError(sanic_request=fake_sanic_request),
+      JsonRpcError(http_request=fake_http_request),
       minimal_error2),
      (jrpc_req,
       JsonRpcError(
-          sanic_request=fake_sanic_request, data=test_data),
+          http_request=fake_http_request, data=test_data),
       jrpc_error_with_data),
      (jrpc_req,
       JsonRpcError(
-          sanic_request=fake_sanic_request, data=test_data,
+          http_request=fake_http_request, data=test_data,
           exception=Exception('test'),
           error_id='123'),
       jrpc_error_with_data),
      (jrpc_req,
-      ParseError(sanic_request=fake_sanic_request),
+      ParseError(http_request=fake_http_request),
       parse_error),
      (jrpc_req,
-      InvalidRequest(sanic_request=fake_sanic_request),
+      InvalidRequest(http_request=fake_http_request),
       invalid_request_error),
      (jrpc_req,
-      ServerError(sanic_request=fake_sanic_request),
+      ServerError(http_request=fake_http_request),
       server_error)])
 def test_middleware_error_handler(rpc_req, error, expected):
-    app = sanic.Sanic('testApp', request_class=JussiHTTPRequest)
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     # pylint: disable=unused-argument,unused-variable
 
