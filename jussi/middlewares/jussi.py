@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from time import perf_counter
-
+import inspect
 import structlog
 from reprlib import repr
 
@@ -29,5 +29,11 @@ async def finalize_jussi_response(request: HTTPRequest,
             response.headers['x-jussi-method'] = request.jsonrpc.urn.method
             response.headers['x-jussi-params'] = repr(request.jsonrpc.urn.params)
             logger.debug('httprequest timings', timings=request.jsonrpc.timings_str)
+
+        #stack = inspect.stack()
+        #connections = stack[4][0].f_locals['connections']
+        #state = stack[4][0].f_locals['state']
+        #server = stack[4][0].f_locals['http_server']
+
     except BaseException as e:
         logger.warning('finalize_jussi error', e=e)

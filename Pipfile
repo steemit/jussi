@@ -37,6 +37,7 @@ pydevd = "*"
 line-profiler = "*"
 structlog = "*"
 python-rapidjson = "*"
+jupyter = "*"
 
 [packages]
 ujson = "*"
@@ -62,6 +63,7 @@ msgpack = "*"
 configargparse = "*"
 structlog = "*"
 python-rapidjson = "*"
+line-profiler = "*"
 
 [requires]
 python_version = "3.6"

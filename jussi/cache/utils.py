@@ -5,18 +5,18 @@ from typing import Optional
 import cytoolz
 import structlog
 
-from ..typedefs import BatchJsonRpcRequest
+from ..typedefs import BatchJrpcRequest
 from ..typedefs import CachedBatchResponse
 from ..typedefs import CachedSingleResponse
-from ..typedefs import SingleJsonRpcRequest
-from ..typedefs import SingleJsonRpcResponse
+from ..typedefs import SingleJrpcRequest
+from ..typedefs import SingleJrpcResponse
 from .ttl import TTL
 
 logger = structlog.get_logger(__name__)
 
 
 @functools.lru_cache(8192)
-def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
+def jsonrpc_cache_key(single_jsonrpc_request: SingleJrpcRequest) -> str:
     return str(single_jsonrpc_request.urn)
 
 
@@ -73,15 +73,15 @@ def block_num_from_id(block_hash: str) -> int:
     return int(str(block_hash)[:8], base=16)
 
 
-def merge_cached_response(request: SingleJsonRpcRequest,
+def merge_cached_response(request: SingleJrpcRequest,
                           cached_response: CachedSingleResponse,
-                          ) -> Optional[SingleJsonRpcResponse]:
+                          ) -> Optional[SingleJrpcResponse]:
     if not cached_response:
         return None
     return {'id': request.id, 'jsonrpc': '2.0', 'result': cached_response['result']}
 
 
-def merge_cached_responses(request: BatchJsonRpcRequest,
+def merge_cached_responses(request: BatchJrpcRequest,
                            cached_responses: CachedBatchResponse) -> CachedBatchResponse:
     return [merge_cached_response(req, resp) for req, resp in zip(
         request, cached_responses)]

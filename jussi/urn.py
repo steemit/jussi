@@ -101,7 +101,6 @@ def _parse_jrpc(single_jsonrpc_request) -> dict:
     try:
         method = single_jsonrpc_request['method']
         params = single_jsonrpc_request.get('params', _empty)
-
         matched = _parse_jrpc_method(method)
 
         if matched.get('appbase_api'):

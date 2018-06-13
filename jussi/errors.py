@@ -11,8 +11,8 @@ from typing import Union
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
-from .typedefs import JsonRpcRequest
-from .typedefs import JsonRpcResponse
+from .typedefs import JrpcRequest
+from .typedefs import JrpcResponse
 from .typedefs import WebApp
 
 logger = structlog.get_logger(__name__)
@@ -85,8 +85,8 @@ class JussiInteralError(Exception):
 
     def __init__(self,
                  http_request: HTTPRequest = None,
-                 jrpc_request: JsonRpcRequest=None,
-                 jrpc_response: JsonRpcResponse=None,
+                 jrpc_request: JrpcRequest=None,
+                 jrpc_response: JrpcResponse=None,
                  exception: Exception = None,
                  log_traceback: bool = False,
                  error_logger: logging.Logger = None,
@@ -156,10 +156,10 @@ class JussiInteralError(Exception):
     def add_http_request(self, http_request: HTTPRequest) -> None:
         self.http_request = http_request
 
-    def add_jsonrpc_request(self, jsonrpc_request: JsonRpcRequest) -> None:
+    def add_jsonrpc_request(self, jsonrpc_request: JrpcRequest) -> None:
         self.jsonrpc_request = jsonrpc_request
 
-    def add_jsonrpc_response(self, jsonrpc_response: JsonRpcResponse) -> None:
+    def add_jsonrpc_response(self, jsonrpc_response: JrpcResponse) -> None:
         self.jsonrpc_response = jsonrpc_response
 
     def to_dict(self) -> dict:
@@ -212,7 +212,7 @@ class JsonRpcError(JussiInteralError):
                 }
             }
         }
-        return response.json(error)
+        return response.json(error, headers={'x-jussi-error-id': self.error_id})
 
 
 class ParseError(JsonRpcError):

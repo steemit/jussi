@@ -46,7 +46,9 @@ async def get_response(request: HTTPRequest) -> None:
 @async_nowait_middleware
 async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
     try:
-        if 'x-jussi-cache-hit' in response.headers or not request.jsonrpc:
+        if 'x-jussi-cache-hit' in response.headers or not request.jsonrpc or not response.body:
+            return
+        if 'x-jussi-error-id' in response.headers:
             return
         jsonrpc_response = loads(response.body)
         if not jsonrpc_response:

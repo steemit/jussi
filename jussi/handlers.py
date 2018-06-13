@@ -17,8 +17,8 @@ from .errors import RequestTimeoutError
 from .errors import UpstreamResponseError
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
-from .typedefs import SingleJsonRpcRequest
-from .typedefs import SingleJsonRpcResponse
+from .typedefs import SingleJrpcRequest
+from .typedefs import SingleJrpcResponse
 
 
 logger = structlog.get_logger(__name__)
@@ -54,42 +54,41 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
 
 
 async def fetch_ws(http_request: HTTPRequest,
-                   jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
-    jsonrpc_request.timings['fetch_ws.enter'] = perf_counter()
+                   jrpc_request: SingleJrpcRequest) -> SingleJrpcResponse:
+    jrpc_request.timings['fetch_ws.enter'] = perf_counter()
     pools = http_request.app.config.websocket_pools
-    pool = pools[jsonrpc_request.upstream.url]
-    upstream_request = jsonrpc_request.to_upstream_request()
+    pool = pools[jrpc_request.upstream.url]
+    upstream_request = jrpc_request.to_upstream_request()
     try:
-        with timeout(jsonrpc_request.upstream.timeout):
+        with timeout(jrpc_request.upstream.timeout):
             conn = await pool.acquire()
-            jsonrpc_request.timings['fetch_ws.acquired'] = perf_counter()
+            jrpc_request.timings['fetch_ws.acquired'] = perf_counter()
             await conn.send(upstream_request)
-            jsonrpc_request.timings['fetch_ws.sent'] = perf_counter()
+            jrpc_request.timings['fetch_ws.sent'] = perf_counter()
             upstream_response_json = await conn.recv()
-            jsonrpc_request.timings['fetch_ws.response'] = perf_counter()
+            jrpc_request.timings['fetch_ws.response'] = perf_counter()
         await pool.release(conn)
         upstream_response = loads(upstream_response_json)
-        assert int(upstream_response.get('id')) == jsonrpc_request.upstream_id
-        upstream_response['id'] = jsonrpc_request.id
-        jsonrpc_request.timings['fetch_ws.exit'] = perf_counter()
+        assert int(upstream_response.get('id')) == jrpc_request.upstream_id
+        upstream_response['id'] = jrpc_request.id
+        jrpc_request.timings['fetch_ws.exit'] = perf_counter()
         return upstream_response
 
     except TimeoutError as e:
         raise RequestTimeoutError(http_request=http_request,
-                                  jrpc_request=jsonrpc_request,
+                                  jrpc_request=jrpc_request,
                                   exception=e,
                                   upstream_request=upstream_request)
     except AssertionError as e:
-        await pool.terminate_connection(conn)
         raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jsonrpc_request,
+                                    jrpc_request=jrpc_request,
                                     exception=e,
                                     upstream_request=upstream_request,
                                     upstream_response=upstream_response
                                     )
     except ConnectionClosed as e:
         raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jsonrpc_request,
+                                    jrpc_request=jrpc_request,
                                     exception=e,
                                     upstream_request=upstream_request)
     except Exception as e:
@@ -102,54 +101,50 @@ async def fetch_ws(http_request: HTTPRequest,
         except NameError:
             response = None
         raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jsonrpc_request,
+                                    jrpc_request=jrpc_request,
                                     exception=e,
                                     upstream_request=upstream_request,
-                                    upstream_response=response)
+                                    upstream_response=response,
+                                    log_traceback=True)
 
 
 async def fetch_http(http_request: HTTPRequest,
-                     jsonrpc_request: SingleJsonRpcRequest) -> SingleJsonRpcResponse:
-    jsonrpc_request.timings['fetch_http.enter'] = perf_counter()
+                     jrpc_request: SingleJrpcRequest) -> SingleJrpcResponse:
+    jrpc_request.timings['fetch_http.enter'] = perf_counter()
     session = http_request.app.config.aiohttp['session']
-    upstream_request = jsonrpc_request.to_upstream_request(as_json=False)
+    upstream_request = jrpc_request.to_upstream_request(as_json=False)
     try:
 
-        async with session.post(jsonrpc_request.upstream.url,
+        async with session.post(jrpc_request.upstream.url,
                                 json=upstream_request,
-                                headers=jsonrpc_request.upstream_headers,
-                                timeout=jsonrpc_request.upstream.timeout) as resp:
-            jsonrpc_request.timings['fetch_http.sent'] = perf_counter()
+                                headers=jrpc_request.upstream_headers,
+                                timeout=jrpc_request.upstream.timeout) as resp:
+            jrpc_request.timings['fetch_http.sent'] = perf_counter()
             upstream_response = await resp.json(encoding='utf-8', content_type=None)
-            jsonrpc_request.timings['fetch_http.response'] = perf_counter()
+            jrpc_request.timings['fetch_http.response'] = perf_counter()
     except Exception as e:
         try:
             response = upstream_response
         except NameError:
             response = None
         raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jsonrpc_request,
+                                    jrpc_request=jrpc_request,
                                     exception=e,
                                     upstream_request=upstream_request,
                                     upstream_response=response)
-    upstream_response['id'] = jsonrpc_request.id
-    jsonrpc_request.timings['fetch_http.exit'] = perf_counter()
+    upstream_response['id'] = jrpc_request.id
+    jrpc_request.timings['fetch_http.exit'] = perf_counter()
     return upstream_response
 # pylint: enable=no-value-for-parameter
 
 
 async def dispatch_single(http_request: HTTPRequest,
-                          jsonrpc_request) -> SingleJsonRpcResponse:
+                          jrpc_request) -> SingleJrpcResponse:
     # pylint: disable=unexpected-keyword-arg
-    if jsonrpc_request.upstream.url.startswith('ws'):
-        json_response = await fetch_ws(
-            http_request,
-            jsonrpc_request)
-    elif jsonrpc_request.upstream.url.startswith('http'):
-        json_response = await fetch_http(
-            http_request,
-            jsonrpc_request)
+    if jrpc_request.upstream.url.startswith('ws'):
+        response = await fetch_ws(http_request, jrpc_request)
+    elif jrpc_request.upstream.url.startswith('http'):
+        response = await fetch_http(http_request, jrpc_request)
     else:
-        raise InvalidUpstreamURL(url=jsonrpc_request.upstream.url, reason='scheme')
-
-    return json_response
+        raise InvalidUpstreamURL(url=jrpc_request.upstream.url, reason='scheme')
+    return response

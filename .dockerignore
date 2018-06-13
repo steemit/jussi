@@ -52,3 +52,5 @@ perf/
 *.log
 .elasticbeanstalk/
 upstream_traffic.json
+Untitled.ipynb
+.pytest_cache

@@ -3,7 +3,7 @@ import logging
 from collections import deque
 from typing import Callable
 
-from funcy.decorators import decorator
+
 from statsd.client import StatsClientBase
 from statsd.client import PipelineBase
 

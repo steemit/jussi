@@ -69,13 +69,6 @@ class HTTPRequest:
         self.timings = {'created': perf_counter()}
         self._log = _empty
 
-    def __repr__(self) -> str:
-        if self.method is None or not self.path:
-            return '<{0}>'.format(self.__class__.__name__)
-        return '<{0}: {1} {2}>'.format(self.__class__.__name__,
-                                       self.method,
-                                       self.path)
-
     @property
     def json(self) -> Optional[RawRequest]:
         if self.parsed_json is _empty:
@@ -191,5 +184,5 @@ class HTTPRequest:
                                 '%(rid)018d' % {'rid': getrandbits(50)})
 
     @property
-    def amzn_trace_id(self) -> Optional[str]:
-        return self.headers.get('x-amzn-trace-id')
+    def amzn_trace_id(self) -> str:
+        return self.headers.get('x-amzn-trace-id', '')

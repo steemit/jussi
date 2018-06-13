@@ -15,11 +15,10 @@ logger = structlog.get_logger(__name__)
 
 @async_nowait_middleware
 async def update_last_irreversible_block_num(request: HTTPRequest, response: HTTPResponse) -> None:
-    if not request.is_single_jrpc:
+    if not request.is_single_jrpc or 'x-jussi-error-id' in response.headers:
         return
     request.timings['update_last_irreversible_block_num.enter'] = perf_counter()
     try:
-
         jsonrpc_response = ujson.loads(response.body)
         if is_get_dynamic_global_properties_request(request.jsonrpc):
             last_irreversible_block_num = jsonrpc_response['result']['last_irreversible_block_num']

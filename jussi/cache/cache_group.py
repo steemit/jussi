@@ -14,14 +14,13 @@ from jussi.errors import JussiInteralError
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
 
-from ..typedefs import BatchJsonRpcRequest
-from ..typedefs import BatchJsonRpcResponse
-from ..typedefs import JsonRpcRequest
-from ..typedefs import JsonRpcResponse
-from ..typedefs import JsonRpcResponseDict
-from ..typedefs import SingleJsonRpcRequest
-from ..typedefs import SingleJsonRpcResponse
-from ..validators import is_valid_jussi_response
+from ..typedefs import BatchJrpcRequest
+from ..typedefs import BatchJrpcResponse
+from ..typedefs import JrpcRequest
+from ..typedefs import JrpcResponse
+from ..typedefs import SingleJrpcRequest
+from ..typedefs import SingleJrpcResponse
+from ..validators import is_valid_non_error_jussi_response
 from ..validators import is_valid_non_error_single_jsonrpc_response
 from .ttl import TTL
 from .utils import irreversible_ttl
@@ -120,8 +119,8 @@ class CacheGroup(object):
     #
 
     async def cache_jsonrpc_response(self,
-                                     request: JsonRpcRequest = None,
-                                     response: JsonRpcResponse = None,
+                                     request: JrpcRequest = None,
+                                     response: JrpcResponse = None,
                                      last_irreversible_block_num: int = None) -> NoReturn:
         """Don't cache error responses
         """
@@ -140,16 +139,15 @@ class CacheGroup(object):
             logger.error('error while caching response', e=e)
 
     async def get_jsonrpc_response(self,
-                                   request: JsonRpcRequest) -> Optional[
-            JsonRpcResponse]:
-        if isinstance(request, list):
-            return await self.get_batch_jsonrpc_responses(request)
-        else:
+                                   request: JrpcRequest) -> Optional[
+            JrpcResponse]:
+        if not isinstance(request, list):
             return await self.get_single_jsonrpc_response(request)
+        else:
+            return await self.get_batch_jsonrpc_responses(request)
 
     async def get_single_jsonrpc_response(self,
-                                          request: JsonRpcRequest) -> Optional[
-            SingleJsonRpcResponse]:
+                                          request: SingleJrpcRequest) -> Optional[SingleJrpcResponse]:
         if request.upstream.ttl == TTL.NO_CACHE:
             return None
         key = jsonrpc_cache_key(request)
@@ -159,16 +157,16 @@ class CacheGroup(object):
         return merge_cached_response(request, cached_response)
 
     async def get_batch_jsonrpc_responses(self,
-                                          requests: BatchJsonRpcRequest) -> \
-            Optional[BatchJsonRpcResponse]:
+                                          requests: BatchJrpcRequest) -> \
+            Optional[BatchJrpcResponse]:
         keys = [jsonrpc_cache_key(request) for request in requests]
         cached_responses = await self.multi_get(keys)
 
         return merge_cached_responses(requests, cached_responses)
 
     async def cache_single_jsonrpc_response(self,
-                                            request: SingleJsonRpcRequest = None,
-                                            response: SingleJsonRpcResponse = None,
+                                            request: SingleJrpcRequest = None,
+                                            response: SingleJrpcResponse = None,
                                             ttl: str = None,
                                             last_irreversible_block_num: int = None
                                             ) -> None:
@@ -187,8 +185,8 @@ class CacheGroup(object):
         await self.set(key, value, ttl=ttl)
 
     async def cache_batch_jsonrpc_response(self,
-                                           requests: BatchJsonRpcRequest = None,
-                                           responses: BatchJsonRpcResponse = None,
+                                           requests: BatchJrpcRequest = None,
+                                           responses: BatchJrpcResponse = None,
                                            last_irreversible_block_num: int = None) -> None:
         triplets = []
         ttls = set(r.upstream.ttl for r in requests)
@@ -212,16 +210,16 @@ class CacheGroup(object):
             await self.multi_set(triplets)
 
     async def prepare_response_for_cache(self,
-                                         request: SingleJsonRpcRequest,
-                                         response: SingleJsonRpcResponse) -> \
-            Optional[JsonRpcResponseDict]:
+                                         request: SingleJrpcRequest,
+                                         response: SingleJrpcResponse) -> \
+            Optional[SingleJrpcResponse]:
         if not is_valid_non_error_single_jsonrpc_response(response):
             raise UncacheableResponse(reason='is_valid_non_error_single_jsonrpc_response',
                                       jrpc_request=request,
                                       jrpc_response=response)
 
-        if is_get_block_request(jsonrpc_request=request):
-            if not is_valid_get_block_response(jsonrpc_request=request,
+        if is_get_block_request(request=request):
+            if not is_valid_get_block_response(request=request,
                                                response=response):
                 raise UncacheableResponse(reason='invalid get_block response',
                                           jrpc_request=request,
@@ -229,13 +227,13 @@ class CacheGroup(object):
         return response
 
     @staticmethod
-    def is_complete_response(request: JsonRpcRequest,
-                             cached_response: JsonRpcResponse) -> bool:
-        return is_valid_jussi_response(request, cached_response)
+    def is_complete_response(request: JrpcRequest,
+                             cached_response: JrpcResponse) -> bool:
+        return is_valid_non_error_jussi_response(request, cached_response)
 
     @staticmethod
-    def x_jussi_cache_key(request: JsonRpcRequest) -> str:
-        if isinstance(request, SingleJsonRpcRequest):
+    def x_jussi_cache_key(request: JrpcRequest) -> str:
+        if isinstance(request, SingleJrpcRequest):
             return jsonrpc_cache_key(request)
         else:
             return 'batch'

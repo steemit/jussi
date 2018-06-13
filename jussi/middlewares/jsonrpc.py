@@ -22,7 +22,7 @@ async def validate_jsonrpc_request(
         return
     request.timings['validate_jsonrpc_request.enter'] = perf_counter()
     try:
-        validate_request(jsonrpc_request=request.json)
+        validate_request(request.json)
         _ = request.jsonrpc
     except (AssertionError, TypeError, KeyError) as e:
         # invalid jsonrpc
