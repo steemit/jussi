@@ -19,8 +19,7 @@ from .errors import InvalidUpstreamURL
 
 logger = structlog.get_logger(__name__)
 
-ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?@([^\/\s]+)/transfers$')
-WITNESS_VOTING_PATTERN = re.compile(r'^\/?~?witnesses$')
+ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?(@([^\/\s]+)/transfers|~?witnesses)$')
 
 
 #-------------------
@@ -93,8 +92,9 @@ class _Upstreams(object):
         # certain steemd.get_state paths must be routed differently
         if (request_urn.api in ['database_api', 'condenser_api']
                 and request_urn.method == 'get_state'
-                and (ACCOUNT_TRANSFER_PATTERN.match(request_urn.params[0])
-                    or WITNESS_VOTING_PATTERN.match(request_urn.params[0]))):
+                and isinstance(request_urn.params, list)
+                and len(request_urn.params) == 1
+                and ACCOUNT_TRANSFER_PATTERN.match(request_urn.params[0])):
             url = os.environ.get('JUSSI_ACCOUNT_TRANSFER_STEEMD_URL')
             if url:
                 return url
