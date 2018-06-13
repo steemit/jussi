@@ -10,6 +10,7 @@ from sanic import response
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 from ..utils import async_nowait_middleware
+from ..cache.cache_group import UncacheableResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -64,5 +65,7 @@ async def cache_response(request: HTTPRequest, response: HTTPResponse) -> None:
                                                            responses=jsonrpc_response,
                                                            last_irreversible_block_num=last_irreversible_block_num)
 
+    except UncacheableResponse:
+        pass
     except Exception as e:
-        logger.error('error caching response', e=e)
+        logger.error('error caching response', e=e, exc_info=e)

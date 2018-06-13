@@ -15,6 +15,7 @@ from random import getrandbits
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 from jussi.request.jsonrpc import JSONRPCRequest
 
+
 # HTTP/1.1: https://www.w3.org/Protocols/rfc2616/rfc2616-sec7.html#sec7.2.1
 # > If the media type remains unknown, the recipient SHOULD treat it
 # > as type "application/octet-stream"
@@ -44,7 +45,7 @@ class HTTPRequest:
         'body', 'parsed_json', 'parsed_jsonrpc',
         '_ip', '_parsed_url', 'uri_template', 'stream',
         '_socket', '_port', 'timings', '_log', 'is_batch_jrpc',
-        'is_single_jrpc'
+        'is_single_jrpc', 'validator'
     )
 
     def __init__(self, url_bytes: bytes, headers: dict,
@@ -68,6 +69,8 @@ class HTTPRequest:
 
         self.timings = {'created': perf_counter()}
         self._log = _empty
+        from jussi.validators import validate_jsonrpc_request
+        self.validator = validate_jsonrpc_request
 
     @property
     def json(self) -> Optional[RawRequest]:
@@ -90,6 +93,7 @@ class HTTPRequest:
                 if self.method != 'POST':
                     return self.parsed_jsonrpc
                 jsonrpc_request = self.json
+                self.validator(jsonrpc_request)
                 if isinstance(jsonrpc_request, dict):
                     self.parsed_jsonrpc = jsonrpc_from_request(self, 0,
                                                                jsonrpc_request)
@@ -100,8 +104,9 @@ class HTTPRequest:
                         for batch_index, req in enumerate(jsonrpc_request)
                     ]
                     self.is_batch_jrpc = True
-            except Exception:
-                pass
+            except Exception as e:
+                from jussi.errors import InvalidRequest
+                raise InvalidRequest(http_request=self, exception=e)
         return self.parsed_jsonrpc
 
     @property

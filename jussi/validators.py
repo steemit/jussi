@@ -4,7 +4,7 @@ from typing import NoReturn
 
 import structlog
 
-from .errors import InvalidRequest
+#from .errors import InvalidRequest
 from .errors import JussiCustomJsonOpLengthError
 from .errors import JussiLimitsError
 
@@ -51,6 +51,7 @@ BROADCAST_TRANSACTION_METHODS = {
 
 
 def validate_jsonrpc_request(request: RawRequest) -> NoReturn:
+    from .errors import InvalidRequest
     if isinstance(request, dict):
         assert JSONRPC_REQUEST_KEYS.issuperset(request.keys()) and \
             request['jsonrpc'] == '2.0' and \

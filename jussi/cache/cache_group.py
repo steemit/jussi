@@ -181,7 +181,7 @@ class CacheGroup(object):
             return
         if isinstance(ttl, TTL):
             ttl = ttl.value
-        value = await self.prepare_response_for_cache(request, response)
+        value = self.prepare_response_for_cache(request, response)
         await self.set(key, value, ttl=ttl)
 
     async def cache_batch_jsonrpc_response(self,
@@ -204,14 +204,14 @@ class CacheGroup(object):
                 continue
             if isinstance(ttl, TTL):
                 ttl = ttl.value
-            value = await self.prepare_response_for_cache(requests[i],
-                                                          response)
+            value = self.prepare_response_for_cache(requests[i],
+                                                    response)
             triplets.append((key, value, ttl))
             await self.multi_set(triplets)
 
-    async def prepare_response_for_cache(self,
-                                         request: SingleJrpcRequest,
-                                         response: SingleJrpcResponse) -> \
+    def prepare_response_for_cache(self,
+                                   request: SingleJrpcRequest,
+                                   response: SingleJrpcResponse) -> \
             Optional[SingleJrpcResponse]:
         if not is_valid_non_error_single_jsonrpc_response(response):
             raise UncacheableResponse(reason='is_valid_non_error_single_jsonrpc_response',

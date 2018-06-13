@@ -44,6 +44,8 @@ def setup_error_handlers(app: WebApp) -> WebApp:
     @app.exception(JsonRpcError)
     def handle_jsonrpc_error(request: HTTPRequest,
                              exception: JsonRpcError) -> HTTPResponse:
+        if not exception.http_request:
+            exception.add_http_request(request)
         return exception.to_sanic_response()
     # pylint: enable=unused-argument
 
