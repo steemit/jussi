@@ -20,6 +20,7 @@ from .errors import InvalidUpstreamURL
 logger = structlog.get_logger(__name__)
 
 ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?@([^\/\s]+)/transfers$')
+WITNESS_VOTING_PATTERN = re.compile(r'^\/?~?witnesses$')
 
 
 #-------------------
@@ -89,14 +90,15 @@ class _Upstreams(object):
 
     @functools.lru_cache(8192)
     def url(self, request_urn) -> str:
-        try:
-            if (request_urn.api == 'database_api' or request_urn.api == 'condenser_api') and ACCOUNT_TRANSFER_PATTERN.match(
-                    request_urn.params[0]):
-                url = os.environ.get('JUSSI_ACCOUNT_TRANSFER_STEEMD_URL')
-                if url:
-                    return url
-        except Exception:
-            pass
+        # certain steemd.get_state paths must be routed differently
+        if (request_urn.api in ['database_api', 'condenser_api']
+                and request_urn.method == 'get_state'
+                and (ACCOUNT_TRANSFER_PATTERN.match(request_urn.params[0])
+                    or WITNESS_VOTING_PATTERN.match(request_urn.params[0]))):
+            url = os.environ.get('JUSSI_ACCOUNT_TRANSFER_STEEMD_URL')
+            if url:
+                return url
+
         _, url = self.__URLS.longest_prefix(str(request_urn))
         if not url:
             raise InvalidUpstreamURL(
