@@ -109,6 +109,11 @@ def parse_args(args: list = None):
                         env_var='JUSSI_REDIS_READ_REPLICA_HOSTS', default=None,
                         nargs='*')
 
+    parser.add_argument('--statsd_host', type=str, env_var='JUSSI_STATSD_HOST',
+                        default='127.0.0.1')
+    parser.add_argument('--statsd_port', type=int, env_var='JUSSI_STATSD_PORT',
+                        default=8125)
+
     return parser.parse_args(args=args)
 
 

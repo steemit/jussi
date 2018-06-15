@@ -9,7 +9,6 @@ from ..validators import limit_broadcast_transaction_request
 @handle_middleware_exceptions
 async def check_limits(request: HTTPRequest) -> None:
     # pylint: disable=no-member
-    request.timings['check_limits.enter'] = perf_counter()
     if request.is_single_jrpc:
         limit_broadcast_transaction_request(request.jsonrpc,
                                             limits=request.app.config.limits)
@@ -21,4 +20,3 @@ async def check_limits(request: HTTPRequest) -> None:
         _ = [limit_broadcast_transaction_request(r, limits=request.app.config.limits)
              for r in request.jsonrpc
              ]
-    request.timings['check_limits.exit'] = perf_counter()

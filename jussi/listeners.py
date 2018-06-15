@@ -100,6 +100,17 @@ def setup_listeners(app: WebApp) -> WebApp:
 
         app.config.jsonrpc_batch_size_limit = args.jsonrpc_batch_size_limit
 
+    @app.listener('before_server_start')
+    async def setup_statsd(app: WebApp, loop) -> None:
+        logger = app.config.logger
+        logger.info('setup_statsd', when='before_server_start')
+        args = app.config.args
+        from .async_stats import AsyncStatsClient
+        app.config.statsd_client = AsyncStatsClient(host=args.statsd_host,
+                                                    port=args.statsd_port,
+                                                    prefix='jussi')
+        await app.config.statsd_client.init()
+
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger

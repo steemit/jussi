@@ -26,17 +26,6 @@ class QStatsClient(StatsClientBase):
 
     # pylint: enable=arguments-differ
 
-    def add_stats_to_pipeline(self, pipeline):
-        # pylint: disable=protected-access
-        for stat in self._q:
-            logger.debug('stat added to pipeline', stat=stat)
-            pipeline._stats.append(stat)
-            if len(pipeline._stats) >= self.max_stats_per_flush:
-                logger.info('QStatsClient.stats_per_flush limit of %s reached',
-                            self.max_stats_per_flush)
-                break
-        return pipeline
-
     def pipeline(self):
         raise NotImplementedError('No need to call pipeline with this client')
 
@@ -55,3 +44,7 @@ class QStatsClient(StatsClientBase):
             else:
                 data += '\n' + stat
         client._after(data)
+
+    def _after(self, data):
+        if data:
+            self._send(data)

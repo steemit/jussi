@@ -4,6 +4,8 @@ from typing import Optional
 from typing import Union
 from typing import List
 from typing import Dict
+from typing import Tuple
+from typing import TypeVar
 from cytoolz import sliding_window
 
 
@@ -29,12 +31,14 @@ class Empty:
 
 _empty = Empty()
 
-RawRequestDict = Dict[str, Union[str, float, int, list, dict]]
+RawRequestDict = Dict[str, Union[str, float, int, list, dict, bool, type(None)]]
 RawRequestList = List[RawRequestDict]
-RawRequest = Union[RawRequestDict, RawRequestList]
-SingleJsonRpcRequest = JSONRPCRequest
-BatchJsonRpcRequest = List[SingleJsonRpcRequest]
-JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
+RawRequest = TypeVar('RawRequest', RawRequestDict, RawRequestList)
+
+SingleJrpcRequest = JSONRPCRequest
+BatchJrpcRequest = List[SingleJrpcRequest]
+JrpcRequest = TypeVar('JrpcRequest', SingleJrpcRequest,
+                      BatchJrpcRequest)
 
 
 class HTTPRequest:
@@ -67,7 +71,7 @@ class HTTPRequest:
         self.is_batch_jrpc = False
         self.is_single_jrpc = False
 
-        self.timings = {'created': perf_counter()}
+        self.timings = [(perf_counter(), 'http_create')]
         self._log = _empty
         from jussi.validators import validate_jsonrpc_request
         self.validator = validate_jsonrpc_request
@@ -80,13 +84,13 @@ class HTTPRequest:
                 if not self.body:
                     return self.parsed_json
                 self.parsed_json = json_loads(self.body)
-            except Exception:
+            except Exception as e:
                 from jussi.errors import ParseError
-                raise ParseError(http_request=self)
+                raise ParseError(http_request=self, exception=e)
         return self.parsed_json
 
     @property
-    def jsonrpc(self) -> Optional[JsonRpcRequest]:
+    def jsonrpc(self) -> Optional[JrpcRequest]:
         if self.parsed_jsonrpc is _empty:
             self.parsed_jsonrpc = None
             try:
@@ -120,12 +124,6 @@ class HTTPRequest:
         if not hasattr(self, '_socket'):
             self._get_address()
         return self._port
-
-    @property
-    def socket(self):
-        if not hasattr(self, '_socket'):
-            self._get_socket()
-        return self._socket
 
     def _get_address(self):
         self._socket = (self.transport.get_extra_info('peername') or
@@ -174,14 +172,6 @@ class HTTPRequest:
             None,
             self.query_string,
             None))
-
-    @property
-    def timings_str(self) -> dict:
-        try:
-            return {t2[0]: t2[1] - t1[1] for t1, t2 in
-                    sliding_window(2, self.timings.items())}
-        except Exception:
-            return {}
 
     @property
     def jussi_request_id(self) -> str:

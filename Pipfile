@@ -64,6 +64,7 @@ configargparse = "*"
 structlog = "*"
 python-rapidjson = "*"
 line-profiler = "*"
+cython = "*"
 
 [requires]
 python_version = "3.6"

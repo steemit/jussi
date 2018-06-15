@@ -8,6 +8,8 @@ from typing import Dict
 from typing import Optional
 from typing import TypeVar
 from typing import Union
+from typing import List
+from typing import Tuple
 
 
 class Empty:
@@ -53,7 +55,7 @@ class JSONRPCRequest:
                  jussi_request_id: str,
                  batch_index: int,
                  original_request,
-                 timings: Dict[str, float]) -> None:
+                 timings: List[Tuple[float, str]]) -> None:
         self.id = _id
         self.jsonrpc = jsonrpc
         self.method = method
@@ -94,14 +96,6 @@ class JSONRPCRequest:
     @property
     def translated(self) -> bool:
         return self.original_request is not None
-
-    @property
-    def timings_str(self):
-        try:
-            return {t2[0]: t2[1] - t1[1] for t1, t2 in
-                    sliding_window(2, self.timings.items())}
-        except Exception:
-            return {}
 
     def log_extra(self, **kwargs) -> Optional[Dict[str, Any]]:
         try:
@@ -159,7 +153,7 @@ def from_request(http_request, batch_index: int, request: Dict[str, any]):
     jsonrpc = request['jsonrpc']
     method = request['method']
     params = request.get('params', _empty)
-    timings = {'created': perf_counter()}
+    timings = [(perf_counter(), 'jsonrpc_create')]
     return JSONRPCRequest(_id,
                           jsonrpc,
                           method,
