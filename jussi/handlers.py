@@ -4,7 +4,8 @@ import asyncio
 import datetime
 from time import perf_counter as perf
 from concurrent.futures import CancelledError
-
+from concurrent.futures import TimeoutError
+from asyncio.tasks import Task
 from async_timeout import timeout
 import structlog
 from sanic import response
@@ -75,10 +76,12 @@ async def fetch_ws(http_request: HTTPRequest,
         return upstream_response
 
     except (TimeoutError, CancelledError) as e:
+
         raise RequestTimeoutError(http_request=http_request,
                                   jrpc_request=jrpc_request,
                                   exception=e,
-                                  upstream_request=upstream_request)
+                                  upstream_request=upstream_request,
+                                  tasks_count=Task.all_tasks())
     except AssertionError as e:
         raise UpstreamResponseError(http_request=http_request,
                                     jrpc_request=jrpc_request,
