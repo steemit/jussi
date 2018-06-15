@@ -125,6 +125,12 @@ class HTTPRequest:
             self._get_address()
         return self._port
 
+    @property
+    def socket(self):
+        if not hasattr(self, '_socket'):
+            self._get_socket()
+        return self._socket
+
     def _get_address(self):
         self._socket = (self.transport.get_extra_info('peername') or
                         (None, None))

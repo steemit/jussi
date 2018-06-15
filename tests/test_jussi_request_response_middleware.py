@@ -150,6 +150,7 @@ def test_urn_parts_in_post_response_headers():
 
     @app.post('/post')
     def handler(r):
+        r.jsonrpc
         return sanic.response.text('post')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
