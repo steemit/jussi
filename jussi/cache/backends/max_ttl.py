@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from time import perf_counter
 from typing import List
-from typing import NoReturn
 from typing import Tuple
 from typing import TypeVar
+from typing import NoReturn
+from typing import Optional
 
 import structlog
 
@@ -13,14 +14,15 @@ MEMORY_CACHE_MAX_TTL = 180
 MEMORY_CACHE_MAX_SIZE = 2000
 
 
-CacheTTL = TypeVar('TTL', int, type(None))
+CacheTTL = Optional[int]
 CacheKey = str
 CacheKeys = List[CacheKey]
 CacheValue = TypeVar('CacheValue', int, float, str, dict)
 CachePair = Tuple[CacheKey, CacheValue]
 CacheTriplet = Tuple[CacheKey, CacheValue, CacheTTL]
 CacheTriplets = List[CacheTriplet]
-CacheResult = TypeVar('CacheValue', int, float, str, dict, type(None))
+CacheResultValue = TypeVar('CacheValue', int, float, str, dict)
+CacheResult = Optional[CacheResultValue]
 CacheResults = List[CacheResult]
 
 
@@ -44,7 +46,7 @@ class SimplerMaxTTLMemoryCache:
                 return result
             else:
                 del self._cache[key]
-            return None
+        return None
 
     async def get(self, key: CacheKey) -> CacheResult:
         return self.gets(key)
@@ -55,15 +57,15 @@ class SimplerMaxTTLMemoryCache:
     async def multi_get(self, keys: CacheKeys) -> CacheResults:
         return [self.gets(k) for k in keys]
 
-    def sets(self, key: CacheKey, value: CacheValue, ex: CacheTTL=None) -> NoReturn:
-        if ex is None or ex > self._max_ttl:
-            ex = self._max_ttl
+    def sets(self, key: CacheKey, value: CacheValue, expire_time: CacheTTL=None) -> NoReturn:
+        if expire_time is None or expire_time > self._max_ttl:
+            expire_time = self._max_ttl
         self.prune()
-        self._cache[key] = (perf_counter() + ex), value
+        self._cache[key] = (perf_counter() + expire_time), value
         return
 
-    async def set(self, key: CacheKey, value: CacheValue, ex: CacheTTL=None) -> NoReturn:
-        return self.sets(key, value, ex=ex)
+    async def set(self, key: CacheKey, value: CacheValue, expire_time: CacheTTL=None) -> NoReturn:
+        return self.sets(key, value, expire_time=expire_time)
 
     def multi_sets(self, triplets: CacheTriplets) -> NoReturn:
         _ = [self.sets(k, v, ttl) for k, v, ttl in triplets]
@@ -71,6 +73,10 @@ class SimplerMaxTTLMemoryCache:
 
     async def multi_set(self, triplets: CacheTriplets) -> NoReturn:
         _ = [self.sets(k, v, ttl) for k, v, ttl in triplets]
+        return
+
+    async def set_many(self, data, expire_time: CacheTTL=None) -> NoReturn:
+        _ = [self.sets(k, v, expire_time=expire_time) for k, v, in data.items()]
         return
 
     def deletes(self, key: CacheKey) -> NoReturn:
@@ -85,7 +91,7 @@ class SimplerMaxTTLMemoryCache:
         now = perf_counter()
         pruned = []
         for k, v in self._items:
-            timestamp, result = self._cache[k]
+            timestamp, _ = v
             if timestamp - now < 0:
                 pruned.append(k)
         if pruned:

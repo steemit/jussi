@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import logging
 import uuid
-from typing import Optional
+import logging
 from typing import Union
+from typing import Optional
 
 import structlog
 from funcy.decorators import decorator
@@ -10,11 +10,11 @@ from sanic import response
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
 
-from .typedefs import HTTPRequest
-from .typedefs import HTTPResponse
-from .typedefs import JrpcRequest
-from .typedefs import JrpcResponse
 from .typedefs import WebApp
+from .typedefs import HTTPRequest
+from .typedefs import JrpcRequest
+from .typedefs import HTTPResponse
+from .typedefs import JrpcResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -112,7 +112,7 @@ class JussiInteralError(Exception):
         kwargs = kwargs or self.kwargs
         try:
             return self.message.format_map(Default(**kwargs))
-        except Exception as e:
+        except Exception:
             return self.message
 
     @property

@@ -4,13 +4,12 @@ from time import perf_counter as perf
 
 import structlog
 from sanic import response
-
 from ujson import loads
 
-from ..cache.cache_group import UncacheableResponse
+from ..utils import async_nowait_middleware
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..utils import async_nowait_middleware
+from ..cache.cache_group import UncacheableResponse
 
 logger = structlog.get_logger(__name__)
 

@@ -2,10 +2,10 @@
 import asyncio
 from typing import Any
 from typing import List
-from typing import NoReturn
-from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import NoReturn
+from typing import Optional
 
 import structlog
 
@@ -13,31 +13,32 @@ from jussi.errors import JussiInteralError
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
 
-from ..typedefs import BatchJrpcRequest
-from ..typedefs import BatchJrpcResponse
-from ..typedefs import JrpcRequest
-from ..typedefs import JrpcResponse
-from ..typedefs import SingleJrpcRequest
-from ..typedefs import SingleJrpcResponse
-from ..validators import is_valid_non_error_jussi_response
-from ..validators import is_valid_non_error_single_jsonrpc_response
-from .backends.max_ttl import SimplerMaxTTLMemoryCache
 from .ttl import TTL
 from .utils import irreversible_ttl
 from .utils import jsonrpc_cache_key
 from .utils import merge_cached_response
 from .utils import merge_cached_responses
+from ..typedefs import JrpcRequest
+from ..typedefs import JrpcResponse
+from ..typedefs import BatchJrpcRequest
+from ..typedefs import BatchJrpcResponse
+from ..typedefs import SingleJrpcRequest
+from ..typedefs import SingleJrpcResponse
+from ..validators import is_valid_non_error_jussi_response
+from ..validators import is_valid_non_error_single_jsonrpc_response
+from .backends.max_ttl import SimplerMaxTTLMemoryCache
 
 logger = structlog.getLogger(__name__)
 
-CacheTTL = TypeVar('TTL', int, type(None))
+CacheTTL = Optional[int]
 CacheKey = str
 CacheKeys = List[CacheKey]
 CacheValue = TypeVar('CacheValue', int, float, str, dict)
 CachePair = Tuple[CacheKey, CacheValue]
 CacheTriplet = Tuple[CacheKey, CacheValue, CacheTTL]
 CacheTriplets = List[CacheTriplet]
-CacheResult = TypeVar('CacheValue', int, float, str, dict, type(None))
+CacheResultValue = TypeVar('CacheValue', int, float, str, dict)
+CacheResult = Optional[CacheResultValue]
 CacheResults = List[CacheResult]
 
 
@@ -78,6 +79,10 @@ class CacheGroup:
                 reverse=True))
         self._write_caches = [item.cache for item in self._write_cache_items]
 
+        if self._read_caches == [] and len(self._write_caches) > 0:
+            logger.info('setting single write cache as read/write')
+            self._read_caches = self._write_caches
+
         logger.info('CacheGroup configured',
                     items=self._cache_group_items,
                     read_items=self._read_cache_items,
@@ -115,9 +120,9 @@ class CacheGroup:
                 return results
         return results
 
-    async def set(self, key: CacheKey, value: CacheValue, ex: CacheTTL=None) -> NoReturn:
-        self._memory_cache.sets(key, value, ex=ex)
-        await asyncio.gather(*[cache.set(key, value, ex=ex) for cache
+    async def set(self, key: CacheKey, value: CacheValue, expire_time: CacheTTL=None) -> NoReturn:
+        self._memory_cache.sets(key, value, expire_time=expire_time)
+        await asyncio.gather(*[cache.set(key, value, expire_time=expire_time) for cache
                                in self._write_caches], return_exceptions=False)
 
     async def multi_set(self, triplets: CacheTriplets) -> NoReturn:
@@ -127,8 +132,10 @@ class CacheGroup:
 
         # FIXME with pipeline
         futures = []
+        ttl = triplets[0][2]
+        pairs = {k: v for k, v, t in triplets}
         for cache in self._write_caches:
-            futures.extend([cache.set(key, val, ex=ttl) for key, val, ttl in triplets])
+            futures.extend([cache.set_many(pairs, expire_time=ttl)])
         if futures:
             await asyncio.gather(*futures, return_exceptions=False)
 
@@ -137,7 +144,8 @@ class CacheGroup:
         await asyncio.gather(*[cache.clear() for cache in self._write_caches])
 
     async def close(self) -> NoReturn:
-        await asyncio.gather(*[cache.close() for cache in self._all_caches])
+        for cache in self._all_caches:
+            cache.client.connection_pool.disconnect()
 
     # jsonrpc related methods
     #
@@ -207,7 +215,7 @@ class CacheGroup:
         if isinstance(ttl, TTL):
             ttl = ttl.value
         value = self.prepare_response_for_cache(request, response)
-        await self.set(key, value, ex=ttl)
+        await self.set(key, value, expire_time=ttl)
 
     async def cache_batch_jsonrpc_response(self,
                                            requests: BatchJrpcRequest = None,

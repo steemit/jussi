@@ -4,13 +4,14 @@ from typing import Optional
 
 import cytoolz
 import structlog
+import ujson
 
+from .ttl import TTL
 from ..typedefs import BatchJrpcRequest
-from ..typedefs import CachedBatchResponse
-from ..typedefs import CachedSingleResponse
 from ..typedefs import SingleJrpcRequest
 from ..typedefs import SingleJrpcResponse
-from .ttl import TTL
+from ..typedefs import CachedBatchResponse
+from ..typedefs import CachedSingleResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -41,7 +42,7 @@ def irreversible_ttl(jsonrpc_response: dict=None,
 
 
 def block_num_from_jsonrpc_response(
-        jsonrpc_response: dict=None) -> int:
+        jsonrpc_response: dict=None) -> Optional[int]:
     # pylint: disable=no-member
     get_in = cytoolz.get_in
     # for appbase get_block
@@ -65,6 +66,7 @@ def block_num_from_jsonrpc_response(
                       jsonrpc_response)
     if previous:
         return int(str(previous)[:8], base=16) + 1
+    return None
 
 
 def block_num_from_id(block_hash: str) -> int:
@@ -78,6 +80,10 @@ def merge_cached_response(request: SingleJrpcRequest,
                           ) -> Optional[SingleJrpcResponse]:
     if not cached_response:
         return None
+    # FIXME
+    # if isinstance(cached_response, str):
+    #    cached_response = ujson.loads(cached_response)
+
     return {'id': request.id, 'jsonrpc': '2.0', 'result': cached_response['result']}
 
 

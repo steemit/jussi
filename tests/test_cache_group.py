@@ -123,7 +123,7 @@ async def test_cache_group_clear():
     cache_group = CacheGroup(caches)
 
     for cache_item in caches:
-        await cache_item.cache.set('key', 'value', ex=180)
+        await cache_item.cache.set('key', 'value', expire_time=180)
 
     await cache_group.clear()
 
@@ -143,14 +143,14 @@ async def test_cache_group_get():
     cache_group = CacheGroup(caches)
     assert caches[0] is not caches[1]
 
-    await cache_group._read_caches[0].set('key', 0, ex=180)
+    await cache_group._read_caches[0].set('key', 0, expire_time=180)
     assert await cache_group._read_caches[0].get('key') == 0
 
-    await cache_group._read_caches[1].set('key', 1, ex=180)
+    await cache_group._read_caches[1].set('key', 1, expire_time=180)
     assert await cache_group._read_caches[0].get('key') == 0
     assert await cache_group._read_caches[1].get('key') == 1
 
-    await cache_group._read_caches[2].set('key', 2, ex=180)
+    await cache_group._read_caches[2].set('key', 2, expire_time=180)
     assert await cache_group._read_caches[0].get('key') == 0
     assert await cache_group._read_caches[1].get('key') == 1
     assert await cache_group._read_caches[2].get('key') == 2
@@ -176,7 +176,7 @@ async def test_cache_group_set():
         await cache_item.cache.clear()
     cache_group = CacheGroup(caches)
 
-    await cache_group.set('key', 1, ex=180)
+    await cache_group.set('key', 1, expire_time=180)
     for i, cache_item in enumerate(caches):
         assert await cache_item.cache.get('key') == 1
 

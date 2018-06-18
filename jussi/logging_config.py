@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-import logging
 import os
 import sys
 import time
+import logging
 
+import ujson
 import structlog
 from pythonjsonlogger.jsonlogger import JsonFormatter
 
+# pylint: disable=c-extension-no-member
 import rapidjson
-import ujson
 from jussi.typedefs import WebApp
 
 # pylint: disable=no-member

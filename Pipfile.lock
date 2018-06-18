@@ -17,10 +17,10 @@
     "default": {
         "aiocache": {
             "hashes": [
-                "sha256:537aa878f29444da3451160be2cdb8930f72819630e9adc80fc7edd7f71c486c",
-                "sha256:79a11c15d3fb855ec2c6864f3ae99481d0d2881321d8adb044548c0aebf5eb3e"
+                "sha256:3d212b4b7eff8ce3ebf60bbd34fc4e56b4052e8fabc4c7383c91fc98171c665e",
+                "sha256:c51e67985aee252ccbfe207df9521ab590cb22f642ff0c518d33d0cceca94c23"
             ],
-            "version": "==0.9.1"
+            "version": "==0.10.0"
         },
         "aiodns": {
             "hashes": [
@@ -62,14 +62,6 @@
                 "sha256:d3adfc3295a91a97cab472751e26ff85949566a131cebb27a778e49aa0638c1a"
             ],
             "version": "==1.1.0"
-        },
-        "appnope": {
-            "hashes": [
-                "sha256:5b26757dc6f79a3b7dc9fab95359328d5747fcb2409d331ea66d0272b90ab2a0",
-                "sha256:8b995ffe925347a2138d7ac0fe77155e4311a0ea6d6da4f5128fe4b3cbe5ed71"
-            ],
-            "markers": "sys_platform == 'darwin'",
-            "version": "==0.1.0"
         },
         "aredis": {
             "hashes": [
@@ -593,14 +585,6 @@
                 "sha256:ff1447c84a02b9cd5dd3a9332d1fb181a4386c3625765bb5caf1cfbc210ab3f9"
             ],
             "version": "==3.3.2"
-        },
-        "appnope": {
-            "hashes": [
-                "sha256:5b26757dc6f79a3b7dc9fab95359328d5747fcb2409d331ea66d0272b90ab2a0",
-                "sha256:8b995ffe925347a2138d7ac0fe77155e4311a0ea6d6da4f5128fe4b3cbe5ed71"
-            ],
-            "markers": "sys_platform == 'darwin'",
-            "version": "==0.1.0"
         },
         "aspy.yaml": {
             "hashes": [
@@ -1284,6 +1268,7 @@
                 "sha256:1adb80e7a782c12e52ef9a8182bebeb73f1d7e24e374397af06fb4956c8dc5c0",
                 "sha256:e27001de32f627c22380a688bcc43ce83504a7bc5da472209b4c70f02829f0b8"
             ],
+            "markers": "python_version >= '2.7'",
             "version": "==2.7.3"
         },
         "python-rapidjson": {

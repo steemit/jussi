@@ -3,10 +3,10 @@ from time import perf_counter
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import Tuple
-from typing import TypeVar
 from typing import Union
+from typing import TypeVar
+from typing import Optional
 
 from ujson import dumps
 
@@ -29,6 +29,8 @@ JsonRpcRequestParamsField = TypeVar('JRPCParamsField', Empty, list, dict)
 JsonRpcRequestVersionField = str
 JsonRpcRequestMethodField = str
 
+# pylint: disable=too-many-instance-attributes
+
 
 class JSONRPCRequest:
     __slots__ = ('id',
@@ -43,6 +45,7 @@ class JSONRPCRequest:
                  'original_request',
                  'timings')
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  _id: JsonRpcRequestIdField,
                  jsonrpc: JsonRpcRequestVersionField,

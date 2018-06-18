@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from typing import Dict
 from typing import List
-from typing import TypeVar
 from typing import Union
+from typing import TypeVar
 
 import pygtrie
 from sanic.app import Sanic

@@ -1,26 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import asyncio
 import os
+import asyncio
 
-import configargparse
 import uvloop
+import configargparse
 from sanic import Sanic
 
 import jussi.errors
 import jussi.handlers
 import jussi.listeners
-import jussi.logging_config
 import jussi.middlewares
 import jussi.sanic_config
+import jussi.logging_config
 from jussi.request import HTTPRequest
 from jussi.typedefs import WebApp
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-#loop = asyncio.get_event_loop()
-# loop.set_debug(True)
-STEEMIT_MAX_BLOCK_SIZE = 393_216_000
-REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
 
 
 def strtobool(val):
@@ -55,12 +51,18 @@ def parse_args(args: list = None):
                         type=lambda x: bool(strtobool(x)),
                         env_var='JUSSI_DEBUG',
                         default=False)
+    parser.add_argument('--debug_route',
+                        type=lambda x: bool(strtobool(x)),
+                        env_var='JUSSI_DEBUG_ROUTE',
+                        default=False)
     parser.add_argument('--server_host', type=str, env_var='JUSSI_SERVER_HOST',
                         default='0.0.0.0')
     parser.add_argument('--server_port', type=int, env_var='JUSSI_SERVER_PORT',
                         default=9000)
     parser.add_argument('--server_workers', type=int,
                         env_var='JUSSI_SERVER_WORKERS', default=os.cpu_count())
+    parser.add_argument('--server_tcp_backlog', type=int,
+                        env_var='JUSSI_SERVER_TCP_BACKLOG', default=1000)
 
     parser.add_argument('--jsonrpc_batch_size_limit', type=int,
                         env_var='JUSSI_JSONRPC_BATCH_SIZE_LIMIT', default=50)
@@ -73,9 +75,6 @@ def parse_args(args: list = None):
                         default=8)
     parser.add_argument('--websocket_queue_size',
                         env_var='JUSSI_WEBSOCKET_QUEUE', type=int, default=1)
-    parser.add_argument('--websocket_pool_recycle',
-                        env_var='JUSSI_WEBSOCKET_POOL_RECYCLE', type=int,
-                        default=-1)
 
     # server version
     parser.add_argument('--source_commit', env_var='SOURCE_COMMIT', type=str,
@@ -138,7 +137,7 @@ def main():
         workers=app.config.args.server_workers,
         access_log=False,
         debug=app.config.args.debug,
-        backlog=1000)
+        backlog=app.config.args.server_tcp_backlog)
 
     app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)
@@ -165,7 +164,7 @@ if __name__ == '__main__':
         workers=app.config.args.server_workers,
         access_log=False,
         debug=app.config.args.debug,
-        backlog=1000)
+        backlog=app.config.args.server_tcp_backlog)
 
     app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)

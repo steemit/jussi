@@ -2,9 +2,11 @@
 import asyncio
 
 import structlog
+# pylint: disable=no-name-in-module
 from websockets import WebSocketClientProtocol as WSConn
 from websockets import connect as websockets_connect
 
+# pylint: enable=no-name-in-module
 logger = structlog.get_logger(__name__)
 
 '''
@@ -53,21 +55,7 @@ MAX_WEBSOCKET_RECV_SIZE = None  # no limit
 MAX_WEBSOCKET_READ_LIMIT = STEEMIT_MAX_BLOCK_SIZE + 1000
 
 
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-
-FakeWSConn = AttrDict()
-FakeWSConn.closed = False
-FakeWSConn.open = False
-FakeWSConn.fail_connection = lambda: None
-FakeWSConn.close = lambda: None
-FakeWSConn.send = lambda x: None
-FakeWSConn.recv = lambda: None
-
-
+# pylint: disable=protected-access
 class PoolConnectionProxy:
     __slots__ = ('_con', '_holder')
 
@@ -181,6 +169,8 @@ class PoolConnectionHolder:
 
         # Put ourselves back to the pool queue.
         self._pool._queue.put_nowait(self)
+
+# pylint: disable=too-many-instance-attributes,too-many-arguments,protected-access
 
 
 class Pool:

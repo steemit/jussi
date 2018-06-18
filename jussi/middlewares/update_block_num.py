@@ -2,13 +2,12 @@
 import asyncio
 from time import perf_counter
 
+import ujson
 import structlog
 
-import ujson
-
+from ..utils import async_nowait_middleware
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..utils import async_nowait_middleware
 from ..validators import is_get_dynamic_global_properties_request
 
 logger = structlog.get_logger(__name__)

@@ -6,13 +6,11 @@ services:
     ports:
       - "8080:8080"
     environment:
-      JUSSI_REDIS_HOST: redis1
-      JUSSI_REDIS_PORT: 6379
-      JUSSI_REDIS_READ_REPLICA_HOSTS: redis2:6379
-      LOG_LEVEL: DEBUG
+      #JUSSI_REDIS_URL: redis://redis1:6380
+      LOG_LEVEL: ERROR
+      JUSSI_DEBUG_ROUTE: "True"
     links:
       - redis1
-      - redis2
     volumes:
       - /Users/muyloco/Dev/steemit/jussi/DEV_config.json:/app/DEV_config.json
   redis1:
@@ -20,8 +18,3 @@ services:
     image: "redis:3.2"
     ports:
       - "6380:6379"
-  redis2:
-    restart: "no"
-    image: "redis:3.2"
-    ports:
-      - "6379:6379"

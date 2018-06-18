@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import json
 import sys
+import json
 from urllib.parse import urlparse
 
+import ujson
 import aiohttp
 
-import ujson
 from jussi.ws.pool import Pool
 
 from .cache import setup_caches
@@ -18,8 +18,15 @@ def setup_listeners(app: WebApp) -> WebApp:
     @app.listener('before_server_start')
     def setup_debug(app: WebApp, loop) -> None:
         logger = app.config.logger
-        logger.info('setup_debug', when='before_server_start')
-        loop.set_debug(app.config.args.debug)
+        logger.info('setup_debug', debug=app.config.args.debug,
+                    debug_route=app.config.args.debug_route,
+                    when='before_server_start')
+        if app.config.args.debug_route is True:
+            from jussi.handlers import debug
+            app.add_route(debug, '/debug', methods=['GET'])
+        if app.config.args.debug is True:
+            from jussi.handlers import debug
+            app.add_route(debug, '/debug', methods=['GET'])
 
     @app.listener('before_server_start')
     def setup_upstreams(app: WebApp, loop) -> None:
@@ -55,12 +62,6 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('setup_websocket_connection_pools', when='before_server_start')
         args = app.config.args
         upstream_urls = app.config.upstreams.urls
-        app.config.websocket_pool_kwargs = dict(
-            minsize=args.websocket_pool_minsize,
-            maxsize=args.websocket_pool_maxsize,
-            timeout=5,
-            pool_recycle=args.websocket_pool_recycle,
-            max_queue=args.websocket_queue_size)
 
         pools = dict()
         for url in upstream_urls:
@@ -116,10 +117,15 @@ def setup_listeners(app: WebApp) -> WebApp:
             url = urlparse(args.statsd_url)
             port = url.port or 8125
             from .async_stats import AsyncStatsClient
-            app.config.statsd_client = AsyncStatsClient(host=url.host,
+            app.config.statsd_client = AsyncStatsClient(host=url.hostname,
                                                         port=port,
                                                         prefix='jussi')
             await app.config.statsd_client.init()
+            logger.info('setup_statsd',
+                        statsd_hostname=url.hostname,
+                        statsd_port=port,
+                        prefix='jussi',
+                        client=app.config.statsd_client)
 
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:

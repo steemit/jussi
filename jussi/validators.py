@@ -7,11 +7,11 @@ import structlog
 from jussi.request import JSONRPCRequest
 
 #from .errors import InvalidRequest
-from .errors import JussiCustomJsonOpLengthError
 from .errors import JussiLimitsError
+from .errors import JussiCustomJsonOpLengthError
+from .typedefs import RawRequest
 from .typedefs import JrpcRequest
 from .typedefs import JrpcResponse
-from .typedefs import RawRequest
 from .typedefs import SingleJrpcResponse
 
 logger = structlog.get_logger(__name__)
@@ -78,7 +78,7 @@ def is_valid_jsonrpc_request(request: JrpcRequest) -> bool:
     try:
         validate_jsonrpc_request(request)
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 

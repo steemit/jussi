@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-import functools
 import re
 import reprlib
+import functools
 from typing import Dict
-from typing import TypeVar
 from typing import Union
+from typing import TypeVar
 
 import structlog
 
-from .errors import InvalidNamespaceAPIError
 from .errors import InvalidNamespaceError
+from .errors import InvalidNamespaceAPIError
 
 logger = structlog.get_logger(__name__)
 

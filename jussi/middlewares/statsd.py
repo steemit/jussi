@@ -3,15 +3,17 @@ from asyncio.tasks import Task
 
 import structlog
 
+from ..utils import async_nowait_middleware
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..utils import async_nowait_middleware
 
 logger = structlog.get_logger(__name__)
 
+# pylint: disable=no-member,pointless-statement,protected-access
+
 
 async def init_stats(request: HTTPRequest) -> None:
-    # pylint: disable=no-member
+
     try:
         statsd_client = getattr(request.app.config, 'statsd_client', None)
         if not statsd_client:
@@ -21,10 +23,12 @@ async def init_stats(request: HTTPRequest) -> None:
         if request.is_single_jrpc:
             statsd_client.incr('jrpc.inflight')
         elif request.is_batch_jrpc and statsd_client:
-            [statsd_client.incr('jrpc.inflight') for r in range(len(request.json))]
+            _ = [statsd_client.incr('jrpc.inflight') for r in range(len(request.json))]
 
     except BaseException as e:
         logger.warning('send_stats', e=e)
+
+# pylint: disable=unused-argument
 
 
 @async_nowait_middleware

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from reprlib import repr
 from time import perf_counter as perf
+from reprlib import repr as _repr
 
 import structlog
 
@@ -24,6 +24,6 @@ async def finalize_jussi_response(request: HTTPRequest,
             response.headers['x-jussi-namespace'] = request.jsonrpc.urn.namespace
             response.headers['x-jussi-api'] = request.jsonrpc.urn.api
             response.headers['x-jussi-method'] = request.jsonrpc.urn.method
-            response.headers['x-jussi-params'] = repr(request.jsonrpc.urn.params)
+            response.headers['x-jussi-params'] = _repr(request.jsonrpc.urn.params)
     except BaseException as e:
         logger.warning('finalize_jussi error', e=e)

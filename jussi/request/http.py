@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
-from random import getrandbits
 from time import perf_counter
+from random import getrandbits
 from typing import Dict
 from typing import List
-from typing import Optional
-from typing import TypeVar
 from typing import Union
+from typing import TypeVar
+from typing import Optional
 from urllib.parse import urlunparse
 
+from ujson import loads as json_loads
+# pylint: disable=no-name-in-module
 from httptools import parse_url
 
 from jussi.request.jsonrpc import JSONRPCRequest
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request
-from ujson import loads as json_loads
+
+# pylint: enable=no-name-in-module
+
 
 # HTTP/1.1: https://www.w3.org/Protocols/rfc2616/rfc2616-sec7.html#sec7.2.1
 # > If the media type remains unknown, the recipient SHOULD treat it
@@ -35,6 +39,8 @@ SingleJrpcRequest = JSONRPCRequest
 BatchJrpcRequest = List[SingleJrpcRequest]
 JrpcRequest = TypeVar('JrpcRequest', SingleJrpcRequest,
                       BatchJrpcRequest)
+
+# pylint: disable=too-many-instance-attributes,too-many-arguments,attribute-defined-outside-init
 
 
 class HTTPRequest:
@@ -123,9 +129,7 @@ class HTTPRequest:
 
     @property
     def socket(self):
-        if not hasattr(self, '_socket'):
-            self._get_socket()
-        return self._socket
+        return None
 
     def _get_address(self):
         self._socket = (self.transport.get_extra_info('peername') or

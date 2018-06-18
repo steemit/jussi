@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
-import functools
-import itertools as it
-import json
 import os
 import re
+import json
 import socket
+import functools
+import itertools as it
 from typing import NamedTuple
 from urllib.parse import urlparse
 
-import jsonschema
+import ujson
 import pygtrie
 import structlog
+import jsonschema
 
-import ujson
-
-from .errors import InvalidUpstreamHost
 from .errors import InvalidUpstreamURL
+from .errors import InvalidUpstreamHost
 
 logger = structlog.get_logger(__name__)
 

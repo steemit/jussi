@@ -11,7 +11,7 @@ async def test_cache_clear(cache_cls):
     cache = cache_cls()
     await cache.clear()
     assert await cache.get('key') is None
-    await cache.set('key', 'value', ex=None)
+    await cache.set('key', 'value', expire_time=None)
     assert await cache.get('key') == 'value'
     await cache.clear()
     assert await cache.get('key') is None
@@ -21,7 +21,7 @@ async def test_cache_clear(cache_cls):
 async def test_cache_set_get(cache_cls):
     cache = cache_cls()
     await cache.clear()
-    await cache.set('key', 'value', ex=None)
+    await cache.set('key', 'value', expire_time=None)
     assert await cache.get('key') == 'value'
 
 
@@ -29,8 +29,8 @@ async def test_cache_set_get(cache_cls):
 async def test_cache_multi_get(cache_cls):
     cache = cache_cls()
     await cache.clear()
-    await cache.set('key', 'value', ex=None)
-    await cache.set('key2', 'value2', ex=None)
+    await cache.set('key', 'value', expire_time=None)
+    await cache.set('key2', 'value2', expire_time=None)
 
     assert await cache.multi_get(['key', 'key2']) == ['value', 'value2']
 

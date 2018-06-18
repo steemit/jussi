@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import asyncio
-from collections import deque
 from random import random
 from typing import List
 from typing import Tuple
+from collections import deque
 
 import structlog
+# pylint: disable=no-name-in-module
 from cytoolz import sliding_window
+
+# pylint: enable=no-name-in-module
 
 logger = structlog.get_logger('stats')
 
@@ -15,19 +18,24 @@ __all__ = ['AsyncStatsClient']
 
 
 class DatagramClientProtocol:
+
     def __init__(self):
         self.transport = None
 
     def connection_made(self, transport):
         self.transport = transport
 
+    # pylint: disable=no-self-use
     def error_received(self, exc):
         logger.debug('error received:', e=exc)
 
+    # pylint: disable=unused-argument
     def connection_lost(self, exc):
         logger.info("socket closed, stopping the event loop")
         loop = asyncio.get_event_loop()
         loop.stop()
+
+# pylint: disable=too-many-instance-attributes,too-many-arguments
 
 
 class AsyncStatsClient:

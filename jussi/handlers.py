@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-
 import asyncio
 import datetime
-from asyncio.tasks import Task
-from concurrent.futures import CancelledError
-from concurrent.futures import TimeoutError
+import concurrent.futures
+import inspect
+
 from time import perf_counter as perf
 
+import cytoolz
 import structlog
-from sanic import response
-from websockets.exceptions import ConnectionClosed
 
+from sanic import response
 from ujson import loads
+from websockets.exceptions import ConnectionClosed
 
 from .errors import InvalidUpstreamURL
 from .errors import RequestTimeoutError
@@ -43,8 +43,6 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
 
 
 async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
-    pools = http_request.app.config.websocket_pools
-    pool = list(pools.values())[0]
     return response.json({
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat(),
@@ -53,9 +51,91 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
         'jussi_num': http_request.app.config.last_irreversible_block_num
     })
 
+
+async def debug(http_request: HTTPRequest) -> HTTPResponse:
+    app = http_request.app
+    cache_group = app.config.cache_group
+    pools = pools = http_request.app.config.websocket_pools
+    import inspect
+
+    cache_data = []
+    try:
+        cache_group = app.config.cache_group
+        cache_data.append({
+            'cache.memory_cache': {
+                'keys': cache_group._memory_cache._keys
+            }
+        })
+        for i, cache in enumerate(cache_group._read_caches):
+            data = {
+                'read_cache.pool.available': len(cache.client.connection_pool._available_connections),
+                'read_cache.pool.in_use': len(cache.client.connection_pool._in_use_connections)
+            }
+            cache_data.append(data)
+        for i, cache in enumerate(cache_group._write_caches):
+            data = {
+                'write_cache.pool.available': len(cache.client.connection_pool._available_connections),
+                'write_cache.pool.in_use': len(cache.client.connection_pool._in_use_connections)
+            }
+            cache_data.append(data)
+    except Exception as e:
+        logger.error('error adding cache info', e=e)
+
+    server_data = dict()
+    try:
+        frames = inspect.stack()
+        server_frame = [f for f in frames if f.filename.endswith('sanic/server.py')][0]
+        server = server_frame.frame.f_locals
+        server_data = {
+            'connections': len(server['connections']),
+            'pid': str(server['pid']),
+            'state': str(server['state'])
+        }
+        del frames
+        del server_frame
+        del server
+    except Exception as e:
+        logger.error('error adding cache info', e=e)
+
+    ws_pools = []
+    try:
+        for url, pool in pools.items():
+            data = {
+                'url': url,
+                'queue': pool._queue.qsize,
+                'in_use': len([ch._in_use for ch in pool._holders if ch._in_use is not None]),
+                'ws_read_q_sizes': [ch._con.messages.qsize() for ch in pool._holders if ch._con]
+            }
+            ws_pools.append(data)
+    except Exception as e:
+        logger.error('error adding cache info', e=e)
+
+    async_data = dict()
+    try:
+        tasks = asyncio.tasks.Task.all_tasks()
+        grouped_tasks = cytoolz.groupby(lambda t: t._state, tasks)
+        for k, v in grouped_tasks.items():
+            grouped_tasks[k] = len(v)
+        async_data = {
+            'tasks.count': len(tasks),
+            'tasks': grouped_tasks
+        }
+    except Exception as e:
+        logger.error('error adding cache info', e=e)
+    data = {
+        'source_commit': http_request.app.config.args.source_commit,
+        'docker_tag': http_request.app.config.args.docker_tag,
+        'jussi_num': http_request.app.config.last_irreversible_block_num,
+        'asyncio': async_data,
+        'cache': cache_data,
+        'server': server_data,
+        'ws_pools': ws_pools
+
+    }
+    return response.json(data)
+
+
 # pylint: disable=no-value-for-parameter, too-many-locals
-
-
 async def fetch_ws(http_request: HTTPRequest,
                    jrpc_request: SingleJrpcRequest) -> SingleJrpcResponse:
     jrpc_request.timings.append((perf(), 'fetch_ws.enter'))
@@ -72,18 +152,19 @@ async def fetch_ws(http_request: HTTPRequest,
         jrpc_request.timings.append((perf(), 'fetch_ws.response'))
         upstream_response = loads(upstream_response_json)
         await pool.release(conn)
-        #assert int(upstream_response.get('id')) == jrpc_request.upstream_id
+        assert int(upstream_response.get('id')) == jrpc_request.upstream_id
         upstream_response['id'] = jrpc_request.id
         jrpc_request.timings.append((perf(), 'fetch_ws.exit'))
         return upstream_response
 
-    except (TimeoutError, CancelledError) as e:
+    except (concurrent.futures.TimeoutError,
+            concurrent.futures.CancelledError) as e:
 
         raise RequestTimeoutError(http_request=http_request,
                                   jrpc_request=jrpc_request,
                                   exception=e,
                                   upstream_request=upstream_request,
-                                  tasks_count=Task.all_tasks())
+                                  tasks_count=asyncio.tasks.Task.all_tasks())
     except AssertionError as e:
         raise UpstreamResponseError(http_request=http_request,
                                     jrpc_request=jrpc_request,
@@ -98,7 +179,7 @@ async def fetch_ws(http_request: HTTPRequest,
                                     upstream_request=upstream_request)
     except Exception as e:
         try:
-            await pool.terminate_connection(conn)
+            conn.terminate()
         except NameError:
             pass
         try:

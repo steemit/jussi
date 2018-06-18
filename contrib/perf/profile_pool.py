@@ -23,6 +23,21 @@ resp = {
 resp_json = ujson.dumps(resp).encode('utf8')
 
 
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+FakeWSConn = AttrDict()
+FakeWSConn.closed = False
+FakeWSConn.open = False
+FakeWSConn.fail_connection = lambda: None
+FakeWSConn.close = lambda: None
+FakeWSConn.send = lambda x: None
+FakeWSConn.recv = lambda: None
+
+
 @app.route("/hello")
 async def test(request):
     return json({"hello": "world"})
