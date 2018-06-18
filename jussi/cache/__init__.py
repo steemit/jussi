@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import datetime
-
-
+from urllib.parse import urlparse
+from aredis import StrictRedis
 from collections import namedtuple
 from typing import Any
 from enum import IntEnum
 
-import aiocache
-import aiocache.backends
+
 import structlog
 
-from .backends.max_ttl import SimpleMaxTTLMemoryCache
-from .serializers import CompressionSerializer
+
 from .cache_group import CacheGroup
 from ..typedefs import WebApp
 
@@ -32,19 +30,10 @@ CacheGroupItem = namedtuple('CacheGroupItem', ('cache', 'read', 'write', 'speed_
 def setup_caches(app: WebApp, loop) -> Any:
     logger.info('cache.setup_caches', when='before_server_start')
     args = app.config.args
-
-    caches = [CacheGroupItem(cache=SimpleMaxTTLMemoryCache(),
-                             read=True,
-                             write=True,
-                             speed_tier=SpeedTier.FASTEST)
-              ]
-    if args.redis_host:
+    caches = []
+    if args.redis_url:
         try:
-            redis_cache = aiocache.RedisCache(endpoint=args.redis_host,
-                                              port=args.redis_port,
-                                              pool_min_size=args.redis_pool_minsize,
-                                              pool_max_size=args.redis_pool_maxsize,
-                                              serializer=CompressionSerializer())
+            redis_cache = StrictRedis().from_url(args.redis_url)
             if redis_cache:
                 if args.cache_test_before_add:
                     value = datetime.datetime.utcnow().isoformat()
@@ -66,21 +55,13 @@ def setup_caches(app: WebApp, loop) -> Any:
                                                  speed_tier=SpeedTier.SLOW))
         except Exception as e:
             logger.error('failed to add redis cache to caches', exception=e)
-        if args.redis_read_replica_hosts:
-            for host in args.redis_read_replica_hosts:
-                if ':' in host:
-                    host, port = host.split(':')
-                else:
-                    port = args.redis_port
+        if args.redis_read_replica_urls:
+            for url in urlparse(args.redis_read_replica_hosts):
                 logger.info('Adding redis read replicas',
-                            read_replica=args.redis_read_replica_hosts,
-                            host=host,
-                            port=port)
-                cache = aiocache.RedisCache(endpoint=host,
-                                            port=port,
-                                            pool_min_size=args.redis_pool_minsize,
-                                            pool_max_size=args.redis_pool_maxsize,
-                                            serializer=CompressionSerializer())
+                            read_replica=url,
+                            host=url.hostname,
+                            port=url.port)
+                cache = StrictRedis().from_url(args.redis_url)
                 if cache:
                     if args.cache_test_before_add:
                         try:
@@ -91,13 +72,13 @@ def setup_caches(app: WebApp, loop) -> Any:
                             caches.append(CacheGroupItem(cache=cache,
                                                          read=True,
                                                          write=False,
-                                                         speed_tier=SpeedTier.FAST))
+                                                         speed_tier=SpeedTier.SLOW))
                     else:
                         caches.append(
                             CacheGroupItem(cache=cache,
                                            read=True,
                                            write=False,
-                                           speed_tier=SpeedTier.FAST))
+                                           speed_tier=SpeedTier.SLOW))
 
     configured_cache_group = CacheGroup(caches=caches)
     return configured_cache_group

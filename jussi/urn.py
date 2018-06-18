@@ -2,10 +2,11 @@
 import functools
 import re
 import reprlib
-import structlog
 from typing import Dict
 from typing import TypeVar
 from typing import Union
+
+import structlog
 
 from .errors import InvalidNamespaceAPIError
 from .errors import InvalidNamespaceError

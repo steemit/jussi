@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from time import perf_counter
 from ..errors import JsonRpcBatchSizeError
 from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest

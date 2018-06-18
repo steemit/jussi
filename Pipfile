@@ -65,6 +65,8 @@ structlog = "*"
 python-rapidjson = "*"
 line-profiler = "*"
 cython = "*"
+hiredis = "*"
+aredis = "*"
 
 [requires]
 python_version = "3.6"

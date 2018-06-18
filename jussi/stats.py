@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging
 from collections import deque
-from typing import Callable
-
 
 from statsd.client import StatsClientBase
-from statsd.client import PipelineBase
 
 logger = logging.getLogger(__name__)
 

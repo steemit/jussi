@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from time import perf_counter as perf
 from reprlib import repr
+from time import perf_counter as perf
+
 import structlog
 
 from ..errors import handle_middleware_exceptions

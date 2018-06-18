@@ -17,7 +17,6 @@ def setup_middlewares(app):
     # request middleware
     app.request_middleware.append(init_stats)
     app.request_middleware.append(check_limits)
-
     app.request_middleware.append(get_response)
 
     # response middlware

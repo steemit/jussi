@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from asyncio.tasks import Task
+
 import structlog
 
-from ..utils import async_nowait_middleware
-from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
+from ..utils import async_nowait_middleware
 
 logger = structlog.get_logger(__name__)
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import asyncio
 import os
 
 import configargparse
+import uvloop
 from sanic import Sanic
 
 import jussi.errors
@@ -11,10 +13,12 @@ import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.sanic_config
-
-from jussi.typedefs import WebApp
 from jussi.request import HTTPRequest
+from jussi.typedefs import WebApp
 
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+#loop = asyncio.get_event_loop()
+# loop.set_debug(True)
 STEEMIT_MAX_BLOCK_SIZE = 393_216_000
 REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
 
@@ -96,24 +100,20 @@ def parse_args(args: list = None):
                         env_var='JUSSI_CACHE_TEST_BEFORE_ADD', default=False)
 
     # redis config
-
-    parser.add_argument('--redis_host', type=str, env_var='JUSSI_REDIS_HOST',
+    # redis://[:password]@localhost:6379/0
+    parser.add_argument('--redis_url', type=str, env_var='JUSSI_REDIS_URL',
+                        help='redis://[:password]@localhost:6379/0',
                         default=None)
-    parser.add_argument('--redis_port', type=int, env_var='JUSSI_REDIS_PORT',
-                        default=6379)
-    parser.add_argument('--redis_pool_minsize', type=int,
-                        env_var='JUSSI_REDIS_POOL_MINSIZE', default=1)
-    parser.add_argument('--redis_pool_maxsize', type=int,
-                        env_var='JUSSI_REDIS_POOL_MAXSIZE', default=30)
-    parser.add_argument('--redis_read_replica_hosts', type=str,
-                        env_var='JUSSI_REDIS_READ_REPLICA_HOSTS', default=None,
+
+    parser.add_argument('--redis_read_replica_urls', type=str,
+                        env_var='JUSSI_REDIS_READ_REPLICA_URLS', default=None,
+                        help='redis://[:password]@localhost:6379/0',
                         nargs='*')
 
-    # statsd
-    parser.add_argument('--statsd_host', type=str, env_var='JUSSI_STATSD_HOST',
+    # statsd statsd://host:port
+    parser.add_argument('--statsd_url', type=str, env_var='JUSSI_STATSD_URL',
+                        help='statsd://host:port',
                         default=None)
-    parser.add_argument('--statsd_port', type=int, env_var='JUSSI_STATSD_PORT',
-                        default=8125)
 
     return parser.parse_args(args=args)
 

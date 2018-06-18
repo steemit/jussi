@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 from time import perf_counter
-from ujson import dumps
-
-from cytoolz import sliding_window
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
-from typing import List
-from typing import Tuple
+
+from ujson import dumps
 
 
 class Empty:
@@ -136,7 +135,6 @@ class JSONRPCRequest:
 def from_request(http_request, batch_index: int, request: Dict[str, any]):
     from ..urn import from_request as urn_from_request
     from ..upstream import Upstream
-    from ..urn import URN
 
     upstreams = http_request.app.config.upstreams
     urn = urn_from_request(request)  # type:URN

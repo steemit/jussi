@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import functools
-import structlog
 from typing import Callable
 from typing import Optional
+
+import structlog
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse

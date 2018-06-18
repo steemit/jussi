@@ -4,17 +4,15 @@ from typing import NoReturn
 
 import structlog
 
+from jussi.request import JSONRPCRequest
+
 #from .errors import InvalidRequest
 from .errors import JussiCustomJsonOpLengthError
 from .errors import JussiLimitsError
-
 from .typedefs import JrpcRequest
 from .typedefs import JrpcResponse
-from .typedefs import SingleJrpcRequest
-from .typedefs import SingleJrpcResponse
 from .typedefs import RawRequest
-
-from jussi.request import JSONRPCRequest
+from .typedefs import SingleJrpcResponse
 
 logger = structlog.get_logger(__name__)
 

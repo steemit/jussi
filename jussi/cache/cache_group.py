@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 import asyncio
-from typing import Optional
 from typing import Any
 from typing import List
-from typing import Union
 from typing import NoReturn
+from typing import Optional
+from typing import Tuple
+from typing import TypeVar
 
-
-import cytoolz
 import structlog
 
 from jussi.errors import JussiInteralError
@@ -22,6 +21,7 @@ from ..typedefs import SingleJrpcRequest
 from ..typedefs import SingleJrpcResponse
 from ..validators import is_valid_non_error_jussi_response
 from ..validators import is_valid_non_error_single_jsonrpc_response
+from .backends.max_ttl import SimplerMaxTTLMemoryCache
 from .ttl import TTL
 from .utils import irreversible_ttl
 from .utils import jsonrpc_cache_key
@@ -29,6 +29,16 @@ from .utils import merge_cached_response
 from .utils import merge_cached_responses
 
 logger = structlog.getLogger(__name__)
+
+CacheTTL = TypeVar('TTL', int, type(None))
+CacheKey = str
+CacheKeys = List[CacheKey]
+CacheValue = TypeVar('CacheValue', int, float, str, dict)
+CachePair = Tuple[CacheKey, CacheValue]
+CacheTriplet = Tuple[CacheKey, CacheValue, CacheTTL]
+CacheTriplets = List[CacheTriplet]
+CacheResult = TypeVar('CacheValue', int, float, str, dict, type(None))
+CacheResults = List[CacheResult]
 
 
 class UncacheableResponse(JussiInteralError):
@@ -39,10 +49,11 @@ SLOW_TIER = 1
 FAST_TIER = 2
 
 
-class CacheGroup(object):
+class CacheGroup:
     # pylint: disable=unused-argument, too-many-arguments, no-else-return
     def __init__(self, caches: List[Any]) -> None:
         self._cache_group_items = caches
+        self._memory_cache = SimplerMaxTTLMemoryCache()
         self._read_cache_items = []
         self._read_caches = []
         self._write_cache_items = []
@@ -74,46 +85,59 @@ class CacheGroup(object):
                     read_caches=self._read_caches,
                     write_caches=self._write_caches)
 
-    async def set(self, key: str, value: Any, **kwargs) -> NoReturn:
-        await asyncio.gather(*[cache.set(key, value, **kwargs) for cache
-                               in self._write_caches], return_exceptions=False)
-
-    async def get(self, key: str, **kwargs) -> Union[asyncio.Future, None]:
+    async def get(self, key: CacheKey) -> CacheResult:
+        # no memory cache read here for optimization, it has already happened
         for cache in self._read_caches:
-            result = await cache.get(key, **kwargs)
+            result = await cache.get(key)
             if result is not None:
                 return result
 
-    async def multi_get(self, keys, **kwargs):
+    async def multi_get(self, keys: CacheKeys) -> CacheResults:
+        # set blank results object
         results = [None for key in keys]
+
+        # check memory cache first, preserving cache hits if not all hits
+        memory_cache_results = self._memory_cache.multi_gets(keys)
+        cache_iter = iter(memory_cache_results)
+        results = [existing or next(cache_iter) for existing in results]
+        if all(results):
+            return results
+
+        # read from one cache at a time
         for cache in self._read_caches:
             missing = [
                 key for key, response in zip(
                     keys, results) if not response]
-            cache_results = await cache.multi_get(missing, **kwargs)
+            cache_results = await cache.multi_get(missing)
             cache_iter = iter(cache_results)
             results = [existing or next(cache_iter) for existing in results]
             if all(results):
                 return results
         return results
 
-    async def multi_set(self, triplets):
+    async def set(self, key: CacheKey, value: CacheValue, ex: CacheTTL=None) -> NoReturn:
+        self._memory_cache.sets(key, value, ex=ex)
+        await asyncio.gather(*[cache.set(key, value, ex=ex) for cache
+                               in self._write_caches], return_exceptions=False)
+
+    async def multi_set(self, triplets: CacheTriplets) -> NoReturn:
         # pylint: disable=no-member
-        grouped_by_ttl = cytoolz.groupby(lambda t: t[2], triplets)
+        # set memory cache
+        self._memory_cache.multi_sets(triplets)
+
+        # FIXME with pipeline
         futures = []
         for cache in self._write_caches:
-            for ttl, ttl_group in grouped_by_ttl.items():
-                pairs = [t[:2] for t in ttl_group]
-                futures.append(
-                    cache.multi_set(
-                        pairs, ttl=ttl))
-        await asyncio.gather(*futures, return_exceptions=False)
+            futures.extend([cache.set(key, val, ex=ttl) for key, val, ttl in triplets])
+        if futures:
+            await asyncio.gather(*futures, return_exceptions=False)
 
-    async def clear(self) -> Union[asyncio.tasks._GatheringFuture, List[bool]]:
-        return await asyncio.gather(*[cache.clear() for cache in self._write_caches])
+    async def clear(self) -> NoReturn:
+        self._memory_cache.clears()
+        await asyncio.gather(*[cache.clear() for cache in self._write_caches])
 
-    async def close(self) -> Union[asyncio.tasks._GatheringFuture, List[None]]:
-        return await asyncio.gather(*[cache.close() for cache in self._all_caches])
+    async def close(self) -> NoReturn:
+        await asyncio.gather(*[cache.close() for cache in self._all_caches])
 
     # jsonrpc related methods
     #
@@ -139,8 +163,7 @@ class CacheGroup(object):
             logger.error('error while caching response', e=e)
 
     async def get_jsonrpc_response(self,
-                                   request: JrpcRequest) -> Optional[
-            JrpcResponse]:
+                                   request: JrpcRequest) -> Optional[JrpcResponse]:
         if not isinstance(request, list):
             return await self.get_single_jsonrpc_response(request)
         else:
@@ -151,17 +174,19 @@ class CacheGroup(object):
         if request.upstream.ttl == TTL.NO_CACHE:
             return None
         key = jsonrpc_cache_key(request)
+        cached_response = self._memory_cache.gets(key)
+        if cached_response is not None:
+            return merge_cached_response(request, cached_response)
         cached_response = await self.get(key)
-        if cached_response is None:
-            return None
-        return merge_cached_response(request, cached_response)
+        if cached_response is not None:
+            return merge_cached_response(request, cached_response)
+        return None
 
     async def get_batch_jsonrpc_responses(self,
                                           requests: BatchJrpcRequest) -> \
             Optional[BatchJrpcResponse]:
         keys = [jsonrpc_cache_key(request) for request in requests]
         cached_responses = await self.multi_get(keys)
-
         return merge_cached_responses(requests, cached_responses)
 
     async def cache_single_jsonrpc_response(self,
@@ -182,7 +207,7 @@ class CacheGroup(object):
         if isinstance(ttl, TTL):
             ttl = ttl.value
         value = self.prepare_response_for_cache(request, response)
-        await self.set(key, value, ttl=ttl)
+        await self.set(key, value, ex=ttl)
 
     async def cache_batch_jsonrpc_response(self,
                                            requests: BatchJrpcRequest = None,
@@ -209,6 +234,7 @@ class CacheGroup(object):
             triplets.append((key, value, ttl))
             await self.multi_set(triplets)
 
+    # pylint: disable=no-self-use
     def prepare_response_for_cache(self,
                                    request: SingleJrpcRequest,
                                    response: SingleJrpcResponse) -> \
@@ -225,6 +251,7 @@ class CacheGroup(object):
                                           jrpc_request=request,
                                           jrpc_response=response)
         return response
+    # pylint: enable=no-self-use
 
     @staticmethod
     def is_complete_response(request: JrpcRequest,

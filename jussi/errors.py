@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import logging
-import structlog
 import uuid
+from typing import Optional
+from typing import Union
+
+import structlog
 from funcy.decorators import decorator
 from sanic import response
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
-from typing import Optional
-from typing import Union
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse

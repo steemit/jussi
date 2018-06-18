@@ -2236,15 +2236,23 @@ def test_cli(app, loop, test_client):
 
 @pytest.fixture
 def mocked_app_test_cli(app, loop, test_client):
-    with asynctest.patch('jussi.ws.pool.connect') as mocked_connect:
-
+    with asynctest.patch('jussi.ws.pool.Pool._get_new_connection') as mocked_connect:
         mocked_ws_conn = asynctest.CoroutineMock()
+
         mocked_ws_conn.send = asynctest.CoroutineMock()
         mocked_ws_conn.send.return_value = None
+
         mocked_ws_conn.recv = asynctest.CoroutineMock()
+
         mocked_ws_conn.close = asynctest.CoroutineMock()
+
         mocked_ws_conn.close_connection = asynctest.CoroutineMock()
+
+        mocked_ws_conn.fail_connection = asynctest.MagicMock()
+        mocked_ws_conn.fail_connection.return_value = None
+
         mocked_ws_conn.worker_task = asynctest.MagicMock()
+
         mocked_ws_conn.messages = asynctest.MagicMock()
         mocked_ws_conn.messages.qsize.return_value = 0
         mocked_ws_conn.messages.maxsize.return_value = 1
@@ -2254,31 +2262,6 @@ def mocked_app_test_cli(app, loop, test_client):
         mocked_connect.return_value = mocked_ws_conn
 
         yield mocked_ws_conn, loop.run_until_complete(test_client(app))
-
-
-@pytest.fixture(scope='function')
-def caches(loop):
-    aiocaches.set_config({
-        'default': {
-            'cache': "aiocache.SimpleMemoryCache",
-            'serializer': {
-                'class': 'aiocache.serializers.NullSerializer'
-            }
-        },
-        'redis': {
-            'cache': "aiocache.SimpleMemoryCache",
-            'serializer': {
-                'class': 'aiocache.serializers.NullSerializer'
-            }
-        }
-    })
-    active_caches = [
-        aiocaches.create(**aiocaches.get_alias_config('default')),
-        aiocaches.create(**aiocaches.get_alias_config('redis'))
-    ]
-    yield active_caches
-    loop.run_until_complete(aiocaches.get('default').clear())
-    loop.run_until_complete(aiocaches.get('redis').clear())
 
 
 @pytest.fixture(

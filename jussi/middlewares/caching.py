@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-from time import perf_counter as perf
-from ujson import loads
-
 import asyncio
+from time import perf_counter as perf
+
 import structlog
-from async_timeout import timeout
 from sanic import response
 
+from ujson import loads
+
+from ..cache.cache_group import UncacheableResponse
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 from ..utils import async_nowait_middleware
-from ..cache.cache_group import UncacheableResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -22,23 +22,31 @@ async def get_response(request: HTTPRequest) -> None:
     request.timings.append((perf(), 'get_cached_response.enter'))
     cache_group = request.app.config.cache_group
     cache_read_timeout = request.app.config.cache_read_timeout
+
     try:
-        async with timeout(cache_read_timeout):
+        cached_response = None
+        if request.is_single_jrpc:
+            # async with timeout(cache_read_timeout):
             request.timings.append((perf(), 'get_cached_response.await'))
-            cached_response = await cache_group.get_jsonrpc_response(request.jsonrpc)
+            cached_response = await cache_group.get_single_jsonrpc_response(request.jsonrpc)
             request.timings.append((perf(), 'get_cached_response.response'))
-        if cache_group.is_complete_response(request.jsonrpc, cached_response):
+        elif request.is_batch_jrpc:
+            request.timings.append((perf(), 'get_cached_response.await'))
+            cached_response = await cache_group.get_batch_jsonrpc_responses(
+                request.jsonrpc)
+            request.timings.append((perf(), 'get_cached_response.response'))
+        if cached_response and cache_group.is_complete_response(request.jsonrpc, cached_response):
             jussi_cache_key = cache_group.x_jussi_cache_key(request.jsonrpc)
             request.timings.append((perf(), 'get_cached_response.exit'))
             return response.json(cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
     except ConnectionRefusedError as e:
         logger.error('error connecting to redis cache', e=e)
     except asyncio.TimeoutError:
-        logger.info('cache read timeout',
-                    timeout=cache_read_timeout,
-                    request_id=request.jussi_request_id)
+        logger.error('cache read timeout',
+                     timeout=cache_read_timeout,
+                     request_id=request.jussi_request_id)
     except Exception as e:
-        logger.error('error querying cache for response', e=e)
+        logger.error('error querying cache for response', e=e, exc_info=e)
     request.timings.append((perf(), 'get_cached_response.exit'))
 
 

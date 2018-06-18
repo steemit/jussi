@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
 import asyncio
+from collections import deque
+from random import random
 from typing import List
 from typing import Tuple
-from asyncio import DatagramProtocol
-from typing import Optional
-from collections import deque
-
-from random import random
-from time import perf_counter
-from cytoolz import sliding_window
 
 import structlog
+from cytoolz import sliding_window
+
 logger = structlog.get_logger('stats')
 
 

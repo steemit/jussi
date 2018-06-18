@@ -1,22 +1,18 @@
 # -*- coding: utf-8 -*-
+from random import getrandbits
 from time import perf_counter
-from typing import Optional
-from typing import Union
-from typing import List
 from typing import Dict
-from typing import Tuple
+from typing import List
+from typing import Optional
 from typing import TypeVar
-from cytoolz import sliding_window
-
+from typing import Union
+from urllib.parse import urlunparse
 
 from httptools import parse_url
-from urllib.parse import parse_qs, urlunparse
-from ujson import loads as json_loads
-from random import getrandbits
 
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 from jussi.request.jsonrpc import JSONRPCRequest
-
+from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from ujson import loads as json_loads
 
 # HTTP/1.1: https://www.w3.org/Protocols/rfc2616/rfc2616-sec7.html#sec7.2.1
 # > If the media type remains unknown, the recipient SHOULD treat it

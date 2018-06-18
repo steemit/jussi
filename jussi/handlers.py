@@ -2,16 +2,16 @@
 
 import asyncio
 import datetime
-from time import perf_counter as perf
+from asyncio.tasks import Task
 from concurrent.futures import CancelledError
 from concurrent.futures import TimeoutError
-from asyncio.tasks import Task
-from async_timeout import timeout
+from time import perf_counter as perf
+
 import structlog
 from sanic import response
+from websockets.exceptions import ConnectionClosed
 
 from ujson import loads
-from websockets.exceptions import ConnectionClosed
 
 from .errors import InvalidUpstreamURL
 from .errors import RequestTimeoutError
@@ -20,7 +20,6 @@ from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import SingleJrpcRequest
 from .typedefs import SingleJrpcResponse
-
 
 logger = structlog.get_logger(__name__)
 
@@ -31,6 +30,7 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
     # retreive parsed jsonrpc_requests after request middleware processing
     http_request.timings.append((perf(), 'handle_jsonrpc.enter'))
     # make upstream requests
+    assert http_request.jsonrpc is not None
     if http_request.is_single_jrpc:
         jsonrpc_response = await dispatch_single(http_request,
                                                  http_request.jsonrpc)
@@ -43,6 +43,8 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
 
 
 async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
+    pools = http_request.app.config.websocket_pools
+    pool = list(pools.values())[0]
     return response.json({
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat(),
@@ -61,16 +63,16 @@ async def fetch_ws(http_request: HTTPRequest,
     pool = pools[jrpc_request.upstream.url]
     upstream_request = jrpc_request.to_upstream_request()
     try:
-        async with timeout(jrpc_request.upstream.timeout):
-            conn = await pool.acquire()
-            jrpc_request.timings.append((perf(), 'fetch_ws.acquire'))
-            await conn.send(upstream_request)
-            jrpc_request.timings.append((perf(), 'fetch_ws.send'))
-            upstream_response_json = await conn.recv()
-            jrpc_request.timings.append((perf(), 'fetch_ws.response'))
-        await pool.release(conn)
+        # async with timeout(jrpc_request.upstream.timeout):
+        conn = await pool.acquire()
+        jrpc_request.timings.append((perf(), 'fetch_ws.acquire'))
+        await conn.send(upstream_request)
+        jrpc_request.timings.append((perf(), 'fetch_ws.send'))
+        upstream_response_json = await conn.recv()
+        jrpc_request.timings.append((perf(), 'fetch_ws.response'))
         upstream_response = loads(upstream_response_json)
-        assert int(upstream_response.get('id')) == jrpc_request.upstream_id
+        await pool.release(conn)
+        #assert int(upstream_response.get('id')) == jrpc_request.upstream_id
         upstream_response['id'] = jrpc_request.id
         jrpc_request.timings.append((perf(), 'fetch_ws.exit'))
         return upstream_response
