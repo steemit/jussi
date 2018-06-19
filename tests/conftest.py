@@ -10,7 +10,6 @@ import requests
 import requests.exceptions
 import sanic
 import sanic.response
-from aiocache import caches as aiocaches
 from funcy.funcs import rpartial
 
 import jussi.errors
