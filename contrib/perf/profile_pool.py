@@ -1,52 +1,31 @@
 # -*- coding: utf-8 -*-
-from sanic import Sanic
-from sanic.response import json
-import ujson
-app = Sanic()
+import asyncio
+import cProfile
+import uvloop
 
-resp = {
-    "id": 1,
-    "jsonrpc": "2.0",
-    "result": {
-        "block_id": "000003e8b922f4906a45af8e99d86b3511acd7a5",
-        "extensions": [],
-        "previous": "000003e7c4fd3221cf407efcf7c1730e2ca54b05",
-        "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
-        "timestamp": "2016-03-24T16:55:30",
-        "transaction_ids": [],
-        "transaction_merkle_root": "0000000000000000000000000000000000000000",
-        "transactions": [],
-        "witness": "initminer",
-        "witness_signature": "207f15578cac20ac0e8af1ebb8f463106b8849577e21cca9fc60da146d1d95df88072dedc6ffb7f7f44a9185bbf9bf8139a5b4285c9f423843720296a44d428856"
-    }
-}
-resp_json = ujson.dumps(resp).encode('utf8')
+from jussi.ws.pool2 import Pool
+# asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+pr = cProfile.Profile()
 
 
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
+async def run(pool, count):
+    pr.enable()
+    for i in range(count):
+        conn = await pool.acquire()
+        await pool.release(conn)
+    pr.disable()
 
-
-FakeWSConn = AttrDict()
-FakeWSConn.closed = False
-FakeWSConn.open = False
-FakeWSConn.fail_connection = lambda: None
-FakeWSConn.close = lambda: None
-FakeWSConn.send = lambda x: None
-FakeWSConn.recv = lambda: None
-
-
-@app.route("/hello")
-async def test(request):
-    return json({"hello": "world"})
-
-
-@app.websocket('/')
-async def feed(request, ws):
-    while True:
-        await ws.send(resp_json)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=80)
+    loop = asyncio.get_event_loop()
+    pool = loop.run_until_complete(Pool(
+        1,  # minsize of pool
+        2,  # maxsize of pool
+        0,  # max queries per conn (0 means unlimited)
+        loop,  # event_loop
+        'ws://127.0.0.1',  # connection url
+        # all kwargs are passed to websocket connection
+    ))
+    loop.run_until_complete(run(pool, 10000))
+    pr.print_stats(sort='time')

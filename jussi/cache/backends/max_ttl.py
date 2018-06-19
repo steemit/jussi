@@ -58,7 +58,6 @@ class SimplerMaxTTLMemoryCache:
         return [self.gets(k) for k in keys]
 
     def sets(self, key: CacheKey, value: CacheValue, expire_time: CacheTTLValue) -> NoReturn:
-        print(f'key:{key} ex:{expire_time}')
         if expire_time is None or expire_time > self._max_ttl:
             expire_time = self._max_ttl
         self.prune()

@@ -232,6 +232,8 @@ class CacheGroup:
 
         futures = []
         for ttl, grouped_triplets in cytoolz.groupby(itemgetter(0), triplets).items():
+            if isinstance(ttl, TTL):
+                ttl = ttl.value
             pairs = {jsonrpc_cache_key(req): resp for ttl, req, resp in grouped_triplets}
             self._memory_cache.set_manys(pairs, expire_time=ttl)
             futures.append(self.set_many(pairs, expire_time=ttl))
