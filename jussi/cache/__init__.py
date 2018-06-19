@@ -44,7 +44,8 @@ def setup_caches(app: WebApp, loop) -> Any:
         except Exception as e:
             logger.error('failed to add redis cache to caches', exception=e)
         if args.redis_read_replica_urls:
-            for url in urlparse(args.redis_read_replica_urls):
+            for url_string in args.redis_read_replica_urls:
+                url = urlparse(url_string)
                 logger.info('Adding redis read replicas',
                             read_replica=url,
                             host=url.hostname,
