@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import asyncio
+from operator import itemgetter
 from typing import Any
 from typing import List
 from typing import Tuple
 from typing import TypeVar
 from typing import NoReturn
 from typing import Optional
+from typing import Dict
 
+import cytoolz
 import structlog
 
 from jussi.errors import JussiInteralError
@@ -30,13 +33,16 @@ from .backends.max_ttl import SimplerMaxTTLMemoryCache
 
 logger = structlog.getLogger(__name__)
 
-CacheTTL = Optional[int]
+BATCH_IRREVERSIBLE_TTL_SET = frozenset([TTL.NO_EXPIRE_IF_IRREVERSIBLE])
+
+# types
+CacheTTLValue = TypeVar('CacheTTL', int, float, type(None))
+CacheTTL = TTL
 CacheKey = str
 CacheKeys = List[CacheKey]
 CacheValue = TypeVar('CacheValue', int, float, str, dict)
 CachePair = Tuple[CacheKey, CacheValue]
-CacheTriplet = Tuple[CacheKey, CacheValue, CacheTTL]
-CacheTriplets = List[CacheTriplet]
+CachePairs = Dict[CacheKey, CacheValue]
 CacheResultValue = TypeVar('CacheValue', int, float, str, dict)
 CacheResult = Optional[CacheResultValue]
 CacheResults = List[CacheResult]
@@ -97,12 +103,12 @@ class CacheGroup:
             if result is not None:
                 return result
 
-    async def multi_get(self, keys: CacheKeys) -> CacheResults:
+    async def mget(self, keys: CacheKeys) -> CacheResults:
         # set blank results object
         results = [None for key in keys]
 
         # check memory cache first, preserving cache hits if not all hits
-        memory_cache_results = self._memory_cache.multi_gets(keys)
+        memory_cache_results = self._memory_cache.mgets(keys)
         cache_iter = iter(memory_cache_results)
         results = [existing or next(cache_iter) for existing in results]
         if all(results):
@@ -113,29 +119,28 @@ class CacheGroup:
             missing = [
                 key for key, response in zip(
                     keys, results) if not response]
-            cache_results = await cache.multi_get(missing)
+            cache_results = await cache.mget(missing)
             cache_iter = iter(cache_results)
             results = [existing or next(cache_iter) for existing in results]
             if all(results):
                 return results
         return results
 
-    async def set(self, key: CacheKey, value: CacheValue, expire_time: CacheTTL=None) -> NoReturn:
+    async def set(self, key: CacheKey, value: CacheValue, expire_time: CacheTTL) -> NoReturn:
+        if isinstance(expire_time, TTL):
+            expire_time = expire_time.value
         self._memory_cache.sets(key, value, expire_time=expire_time)
         await asyncio.gather(*[cache.set(key, value, expire_time=expire_time) for cache
                                in self._write_caches], return_exceptions=False)
 
-    async def multi_set(self, triplets: CacheTriplets) -> NoReturn:
+    async def set_many(self, data: CachePairs, expire_time: CacheTTL) -> NoReturn:
         # pylint: disable=no-member
         # set memory cache
-        self._memory_cache.multi_sets(triplets)
+        if isinstance(expire_time, TTL):
+            expire_time = expire_time.value
+        self._memory_cache.set_manys(data, expire_time)
 
-        # FIXME with pipeline
-        futures = []
-        ttl = triplets[0][2]
-        pairs = {k: v for k, v, t in triplets}
-        for cache in self._write_caches:
-            futures.extend([cache.set_many(pairs, expire_time=ttl)])
+        futures = [cache.set_many(data, expire_time=expire_time) for cache in self._write_caches]
         if futures:
             await asyncio.gather(*futures, return_exceptions=False)
 
@@ -150,26 +155,6 @@ class CacheGroup:
     # jsonrpc related methods
     #
 
-    async def cache_jsonrpc_response(self,
-                                     request: JrpcRequest = None,
-                                     response: JrpcResponse = None,
-                                     last_irreversible_block_num: int = None) -> NoReturn:
-        """Don't cache error responses
-        """
-        try:
-            if isinstance(request, list):
-                await self.cache_batch_jsonrpc_response(requests=request,
-                                                        responses=response,
-                                                        last_irreversible_block_num=last_irreversible_block_num)
-            else:
-                await self.cache_single_jsonrpc_response(request=request,
-                                                         response=response,
-                                                         last_irreversible_block_num=last_irreversible_block_num)
-        except UncacheableResponse:
-            pass
-        except Exception as e:
-            logger.error('error while caching response', e=e)
-
     async def get_jsonrpc_response(self,
                                    request: JrpcRequest) -> Optional[JrpcResponse]:
         if not isinstance(request, list):
@@ -182,9 +167,13 @@ class CacheGroup:
         if request.upstream.ttl == TTL.NO_CACHE:
             return None
         key = jsonrpc_cache_key(request)
+
+        # try sync memory cache get first
         cached_response = self._memory_cache.gets(key)
         if cached_response is not None:
             return merge_cached_response(request, cached_response)
+
+        # try async redis cache get
         cached_response = await self.get(key)
         if cached_response is not None:
             return merge_cached_response(request, cached_response)
@@ -194,7 +183,8 @@ class CacheGroup:
                                           requests: BatchJrpcRequest) -> \
             Optional[BatchJrpcResponse]:
         keys = [jsonrpc_cache_key(request) for request in requests]
-        cached_responses = await self.multi_get(keys)
+        # try async mget which include sync memory-cache mget
+        cached_responses = await self.mget(keys)
         return merge_cached_responses(requests, cached_responses)
 
     async def cache_single_jsonrpc_response(self,
@@ -207,13 +197,13 @@ class CacheGroup:
         ttl = ttl or request.upstream.ttl
         if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
             last_irreversible_block_num = last_irreversible_block_num or \
+                self._memory_cache.gets('last_irreversible_block_num') or \
                 await self.get('last_irreversible_block_num')
+
             ttl = irreversible_ttl(jsonrpc_response=response,
                                    last_irreversible_block_num=last_irreversible_block_num)
         elif ttl == TTL.NO_CACHE:
             return
-        if isinstance(ttl, TTL):
-            ttl = ttl.value
         value = self.prepare_response_for_cache(request, response)
         await self.set(key, value, expire_time=ttl)
 
@@ -221,26 +211,32 @@ class CacheGroup:
                                            requests: BatchJrpcRequest = None,
                                            responses: BatchJrpcResponse = None,
                                            last_irreversible_block_num: int = None) -> None:
-        triplets = []
-        ttls = set(r.upstream.ttl for r in requests)
-        if TTL.NO_EXPIRE_IF_IRREVERSIBLE in ttls:
-            last_irreversible_block_num = last_irreversible_block_num or \
-                await self.get(
-                    'last_irreversible_block_num')
-        for i, response in enumerate(responses):
-            key = jsonrpc_cache_key(requests[i])
-            ttl = requests[i].upstream.ttl
-            if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
-                ttl = irreversible_ttl(response,
-                                       last_irreversible_block_num)
-            elif ttl == TTL.NO_CACHE:
-                continue
-            if isinstance(ttl, TTL):
-                ttl = ttl.value
-            value = self.prepare_response_for_cache(requests[i],
-                                                    response)
-            triplets.append((key, value, ttl))
-            await self.multi_set(triplets)
+
+        last_irreversible_block_num = last_irreversible_block_num or \
+            self._memory_cache.gets('last_irreversible_block_num') or \
+            await self.get('last_irreversible_block_num')
+
+        ttls = [r.upstream.ttl for r in requests]
+
+        # common case all TTLs equal, eg batch of get_block reqs
+        if set(ttls) == BATCH_IRREVERSIBLE_TTL_SET:
+            ttls = [irreversible_ttl(resp, last_irreversible_block_num) for resp in responses]
+            triplets = filter(lambda p: p[0] != TTL.NO_CACHE, zip(ttls, requests, responses))
+        else:
+            new_ttls = []
+            for i, ttl in enumerate(ttls):
+                if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
+                    ttl = irreversible_ttl(responses[i], last_irreversible_block_num)
+                new_ttls.append(ttl)
+            triplets = filter(lambda p: p[0] != TTL.NO_CACHE, zip(ttls, requests, responses))
+
+        futures = []
+        for ttl, grouped_triplets in cytoolz.groupby(itemgetter(0), triplets).items():
+            pairs = {jsonrpc_cache_key(req): resp for ttl, req, resp in grouped_triplets}
+            self._memory_cache.set_manys(pairs, expire_time=ttl)
+            futures.append(self.set_many(pairs, expire_time=ttl))
+        if futures:
+            await asyncio.gather(*futures, return_exceptions=True)
 
     # pylint: disable=no-self-use
     def prepare_response_for_cache(self,

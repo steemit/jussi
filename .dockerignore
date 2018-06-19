@@ -54,3 +54,4 @@ perf/
 upstream_traffic.json
 Untitled.ipynb
 .pytest_cache
+*.ipynb
