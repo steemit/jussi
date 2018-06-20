@@ -9,6 +9,7 @@ from funcy.decorators import decorator
 from sanic import response
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
+from sanic.exceptions import InvalidUsage
 
 from .typedefs import WebApp
 from .typedefs import HTTPRequest
@@ -54,6 +55,11 @@ def setup_error_handlers(app: WebApp) -> WebApp:
     def handle_errors(request: HTTPRequest,
                       exception: Exception) -> HTTPResponse:
         """handles all errors"""
+        if isinstance(exception, InvalidRequest):
+            return InvalidRequest(http_request=request,
+                                  exception=exception,
+                                  reason=exception.message
+                                  ).to_sanic_response()
         return JsonRpcError(http_request=request,
                             exception=exception,
                             log_traceback=True).to_sanic_response()
@@ -63,7 +69,7 @@ def setup_error_handlers(app: WebApp) -> WebApp:
 
 @decorator
 async def handle_middleware_exceptions(call):
-    """Return response when exceptions happend in middleware
+    """Return response when exceptions happened in middleware
     """
     try:
         return await call()

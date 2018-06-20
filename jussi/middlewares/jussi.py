@@ -17,9 +17,8 @@ async def finalize_jussi_response(request: HTTPRequest,
     # pylint: disable=bare-except
     try:
         response.headers['x-jussi-request-id'] = request.jussi_request_id
-        response.headers['x-amzn-trace-id'] = request.amzn_trace_id
-        now = perf()
-        response.headers['x-jussi-response-time'] = str(now - request.timings[0][0])
+        #response.headers['x-amzn-trace-id'] = request.amzn_trace_id
+        response.headers['x-jussi-response-time'] = str(perf() - request.timings[0][0])
         if request.is_single_jrpc:
             response.headers['x-jussi-namespace'] = request.jsonrpc.urn.namespace
             response.headers['x-jussi-api'] = request.jsonrpc.urn.api

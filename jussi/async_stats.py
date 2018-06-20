@@ -106,18 +106,25 @@ class AsyncStatsClient:
             f'{self._prefix}{t2[1]}:{((t2[0] - t1[0]) * 1000):0.6f}|ms' for t1, t2 in sliding_window(2, timings)
         )
 
+    def serialize_timings(self, timings: List[Tuple[float, str]]) -> List:
+        return [f'{self._prefix}{t2[1]}:{((t2[0] - t1[0]) * 1000):0.6f}|ms' for t1,
+                t2 in sliding_window(2, timings)]
+
     def _sendbatch(self, stats: deque = None):
-        stats = stats or self._stats
-        data = stats.popleft()
-        while stats:
-            # Use popleft to preserve the order of the stats.
-            stat = stats.popleft()
-            if len(stat) + len(data) + 1 >= self._maxudpsize:
-                self._transport.sendto(data.encode('ascii'))
-                data = stat
-            else:
-                data += '\n' + stat
-        self._transport.sendto(data.encode('ascii'))
+        try:
+            stats = stats or self._stats
+            data = stats.popleft()
+            while stats:
+                # Use popleft to preserve the order of the stats.
+                stat = stats.popleft()
+                if len(stat) + len(data) + 1 >= self._maxudpsize:
+                    self._transport.sendto(data.encode('ascii'))
+                    data = stat
+                else:
+                    data += '\n' + stat
+            self._transport.sendto(data.encode('ascii'))
+        except Exception as e:
+            logger.error('statsd error', exc_info=e)
 
     def __bool__(self):
         return self._transport is not None

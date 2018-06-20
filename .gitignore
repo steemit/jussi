@@ -125,3 +125,5 @@ api_signatures.json
 Untitled.ipynb
 .pytest_cache
 *.ipynb
+.ipynb_checkpoints
+build

@@ -45,7 +45,7 @@ async def send_stats(request: HTTPRequest,
             statsd_client.decr('jrpc.inflight')
             statsd_client.gauge('tasks', len(Task.all_tasks()))
             statsd_client._sendbatch()
-        elif request.is_batch_jrpc and statsd_client:
+        elif request.is_batch_jrpc:
             statsd_client.from_timings(request.timings)
             for r in request.jsonrpc:
                 statsd_client.from_timings(r.timings)
