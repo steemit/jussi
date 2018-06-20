@@ -55,7 +55,8 @@ def setup_error_handlers(app: WebApp) -> WebApp:
                       exception: Exception) -> HTTPResponse:
         """handles all errors"""
         return JsonRpcError(http_request=request,
-                            exception=exception).to_sanic_response()
+                            exception=exception,
+                            log_traceback=True).to_sanic_response()
 
     return app
 

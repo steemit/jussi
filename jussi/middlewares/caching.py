@@ -25,19 +25,26 @@ async def get_response(request: HTTPRequest) -> None:
     try:
         cached_response = None
         if request.is_single_jrpc:
-            # async with timeout(cache_read_timeout):
-            request.timings.append((perf(), 'get_cached_response.await'))
-            cached_response = await cache_group.get_single_jsonrpc_response(request.jsonrpc)
-            request.timings.append((perf(), 'get_cached_response.response'))
+            cached_response_future =  \
+                cache_group.get_single_jsonrpc_response(request.jsonrpc)
         elif request.is_batch_jrpc:
-            request.timings.append((perf(), 'get_cached_response.await'))
-            cached_response = await cache_group.get_batch_jsonrpc_responses(
-                request.jsonrpc)
-            request.timings.append((perf(), 'get_cached_response.response'))
-        if cached_response and cache_group.is_complete_response(request.jsonrpc, cached_response):
+            cached_response_future = \
+                cache_group.get_batch_jsonrpc_responses(request.jsonrpc)
+        else:
+            request.timings.append((perf(), 'get_cached_response.exit'))
+            return
+        request.timings.append((perf(), 'get_cached_response.await'))
+        cached_response = await asyncio.wait_for(cached_response_future,
+                                                 timeout=cache_read_timeout)
+        request.timings.append((perf(), 'get_cached_response.response'))
+
+        if cached_response and \
+                cache_group.is_complete_response(request.jsonrpc, cached_response):
             jussi_cache_key = cache_group.x_jussi_cache_key(request.jsonrpc)
             request.timings.append((perf(), 'get_cached_response.exit'))
-            return response.json(cached_response, headers={'x-jussi-cache-hit': jussi_cache_key})
+            return response.json(cached_response,
+                                 headers={'x-jussi-cache-hit': jussi_cache_key})
+
     except ConnectionRefusedError as e:
         logger.error('error connecting to redis cache', e=e)
     except asyncio.TimeoutError:

@@ -81,10 +81,6 @@ def merge_cached_response(request: SingleJrpcRequest,
                           ) -> Optional[SingleJrpcResponse]:
     if not cached_response:
         return None
-    # FIXME
-    # if isinstance(cached_response, str):
-    #    cached_response = ujson.loads(cached_response)
-
     return {'id': request.id, 'jsonrpc': '2.0', 'result': cached_response['result']}
 
 

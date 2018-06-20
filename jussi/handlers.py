@@ -2,7 +2,7 @@
 import asyncio
 import datetime
 import concurrent.futures
-import inspect
+from typing import Coroutine
 
 from time import perf_counter as perf
 
@@ -54,8 +54,6 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
 
 async def debug(http_request: HTTPRequest) -> HTTPResponse:
     app = http_request.app
-    cache_group = app.config.cache_group
-    pools = pools = http_request.app.config.websocket_pools
     import inspect
 
     cache_data = []
@@ -98,6 +96,7 @@ async def debug(http_request: HTTPRequest) -> HTTPResponse:
         logger.error('error adding cache info', e=e)
 
     ws_pools = []
+    pools = http_request.app.config.websocket_pools
     try:
         for url, pool in pools.items():
             data = {
@@ -143,12 +142,11 @@ async def fetch_ws(http_request: HTTPRequest,
     pool = pools[jrpc_request.upstream.url]
     upstream_request = jrpc_request.to_upstream_request()
     try:
-        # async with timeout(jrpc_request.upstream.timeout):
         conn = await pool.acquire()
         jrpc_request.timings.append((perf(), 'fetch_ws.acquire'))
         await conn.send(upstream_request)
         jrpc_request.timings.append((perf(), 'fetch_ws.send'))
-        upstream_response_json = await conn.recv()
+        upstream_response_json = await asyncio.wait_for(conn.recv(), jrpc_request.upstream.timeout)
         jrpc_request.timings.append((perf(), 'fetch_ws.response'))
         upstream_response = loads(upstream_response_json)
         await pool.release(conn)
@@ -158,7 +156,8 @@ async def fetch_ws(http_request: HTTPRequest,
         return upstream_response
 
     except (concurrent.futures.TimeoutError,
-            concurrent.futures.CancelledError) as e:
+            concurrent.futures.CancelledError,
+            asyncio.TimeoutError) as e:
 
         raise RequestTimeoutError(http_request=http_request,
                                   jrpc_request=jrpc_request,
@@ -224,13 +223,13 @@ async def fetch_http(http_request: HTTPRequest,
 # pylint: enable=no-value-for-parameter
 
 
-async def dispatch_single(http_request: HTTPRequest,
-                          jrpc_request) -> SingleJrpcResponse:
+def dispatch_single(http_request: HTTPRequest,
+                    jrpc_request) -> Coroutine:
     # pylint: disable=unexpected-keyword-arg
     if jrpc_request.upstream.url.startswith('ws'):
-        response = await fetch_ws(http_request, jrpc_request)
+        response = fetch_ws(http_request, jrpc_request)
     elif jrpc_request.upstream.url.startswith('http'):
-        response = await fetch_http(http_request, jrpc_request)
+        response = fetch_http(http_request, jrpc_request)
     else:
         raise InvalidUpstreamURL(url=jrpc_request.upstream.url, reason='scheme')
     return response

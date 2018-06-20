@@ -3,7 +3,7 @@ ROOT_DIR := $(shell pwd)
 
 PROJECT_NAME := $(notdir $(ROOT_DIR))
 PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
-PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env -v $(shell pwd)/ALT_config.json:/app/ALT_config.json
+PROJECT_DOCKER_RUN_ARGS := -p8080:8080  -p7777:7777 --env-file .env -v $(shell pwd)/ALT_config.json:/app/ALT_config.json
 
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
