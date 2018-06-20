@@ -51,6 +51,15 @@ async def test_cache_mget(cache_cls):
 
 
 @pytest.mark.parametrize('cache_cls', [SimplerMaxTTLMemoryCache])
+async def test_cache_client_mget(cache_cls):
+    cache = cache_cls()
+    await cache.clear()
+    await cache.set('key', 'value', None)
+    await cache.set('key2', 'value2', None)
+    assert await cache.client.mget(['key', 'key2']) == ['value', 'value2']
+
+
+@pytest.mark.parametrize('cache_cls', [SimplerMaxTTLMemoryCache])
 def test_cache_set_manys(cache_cls):
     cache = cache_cls()
     cache.set_manys({'key1': 'value1', 'key2': 'value2'}, None)

@@ -119,7 +119,7 @@ class CacheGroup:
             missing = [
                 key for key, response in zip(
                     keys, results) if not response]
-            cache_results = await cache.mget(missing)
+            cache_results = await cache.client.mget(missing)
             cache_iter = iter(cache_results)
             results = [existing or next(cache_iter) for existing in results]
             if all(results):

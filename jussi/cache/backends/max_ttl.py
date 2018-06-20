@@ -35,7 +35,7 @@ class SimplerMaxTTLMemoryCache:
         self._keys = self._cache.keys()
         self._values = self._cache.values()
         self._items = self._cache.items()
-
+        self.client = self  # hack to allow compat with aredis cache
         self._max_ttl = max_ttl or MEMORY_CACHE_MAX_TTL
         self._max_size = max_size or MEMORY_CACHE_MAX_SIZE
 

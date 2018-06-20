@@ -86,13 +86,15 @@ def setup_listeners(app: WebApp) -> WebApp:
         args = app.config.args
         cache_group = setup_caches(app, loop)
         app.config.cache_group = cache_group
-        lirb = 20_000_000
+        app.config.last_irreversible_block_num = 20_000_000
         try:
             lirb = await cache_group.get('last_irreversible_block_num')
+            if lirb is not None:
+                app.config.last_irreversible_block_num = lirb
         except Exception as e:
             logger.exception('setup_caching error', e=e)
-        app.config.last_irreversible_block_num = lirb
-        logger.info('setup_caching', lirb=lirb)
+        logger.info('setup_caching',
+                    lirb=app.config.last_irreversible_block_num)
         app.config.cache_read_timeout = args.cache_read_timeout
 
     @app.listener('before_server_start')

@@ -25,8 +25,10 @@ async def update_last_irreversible_block_num(request: HTTPRequest, response: HTT
             cache_group = request.app.config.cache_group
             request.app.config.last_irreversible_block_num = last_irreversible_block_num
             await asyncio.shield(cache_group.set('last_irreversible_block_num',
-                                                 last_irreversible_block_num))
-    except Exception:
+                                                 last_irreversible_block_num,
+                                                 expire_time=180))
+    except Exception as e:
         logger.error('skipping update of last_irreversible_block_num',
-                     request=request.jussi_request_id)
+                     request=request.jussi_request_id,
+                     e=e, response_body=response.body)
         request.timings.append((perf_counter(), 'update_last_irreversible_block_num.exit'))

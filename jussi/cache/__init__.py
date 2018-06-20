@@ -50,7 +50,7 @@ def setup_caches(app: WebApp, loop) -> Any:
                             read_replica=url,
                             host=url.hostname,
                             port=url.port)
-                redis_client = StrictRedis().from_url(args.redis_url)
+                redis_client = StrictRedis().from_url(url_string)
                 redis_cache = Cache(redis_client)
                 if redis_cache:
                     caches.append(
