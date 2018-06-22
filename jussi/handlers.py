@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import datetime
 import concurrent.futures
-from typing import Coroutine
-
+import datetime
 from time import perf_counter as perf
+from typing import Coroutine
 
 import cytoolz
 import structlog
-
 from sanic import response
 from ujson import loads
 from websockets.exceptions import ConnectionClosed
@@ -50,6 +48,8 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
         'jussi_num': http_request.app.config.last_irreversible_block_num
     })
 
+# pylint: disable=protected-access, too-many-locals, no-member, unused-variable
+
 
 async def debug(http_request: HTTPRequest) -> HTTPResponse:
     app = http_request.app
@@ -60,7 +60,7 @@ async def debug(http_request: HTTPRequest) -> HTTPResponse:
         cache_group = app.config.cache_group
         cache_data.append({
             'cache.memory_cache': {
-                'keys': cache_group._memory_cache._keys
+                'keys': len(cache_group._memory_cache._keys)
             }
         })
         for i, cache in enumerate(cache_group._read_caches):
@@ -131,9 +131,11 @@ async def debug(http_request: HTTPRequest) -> HTTPResponse:
 
     }
     return response.json(data)
-
+# pylint: enable=protected-access, too-many-locals, no-member, unused-variable
 
 # pylint: disable=no-value-for-parameter, too-many-locals
+
+
 async def fetch_ws(http_request: HTTPRequest,
                    jrpc_request: SingleJrpcRequest) -> SingleJrpcResponse:
     jrpc_request.timings.append((perf(), 'fetch_ws.enter'))

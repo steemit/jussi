@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
-from time import perf_counter
 from random import getrandbits
+from time import perf_counter
 from typing import Dict
 from typing import List
-from typing import Union
-from typing import TypeVar
 from typing import Optional
+from typing import TypeVar
+from typing import Union
 from urllib.parse import urlunparse
 
-from ujson import loads as json_loads
 # pylint: disable=no-name-in-module
 from httptools import parse_url
+from ujson import loads as json_loads
 
+from jussi.empty import _empty
 from jussi.request.jsonrpc import JSONRPCRequest
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 
@@ -23,13 +24,6 @@ from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 # > as type "application/octet-stream"
 DEFAULT_HTTP_CONTENT_TYPE = "application/json"
 
-
-class Empty:
-    def __bool__(self):
-        return False
-
-
-_empty = Empty()
 
 RawRequestDict = Dict[str, Union[str, float, int, list, dict, bool, type(None)]]
 RawRequestList = List[RawRequestDict]
@@ -138,7 +132,7 @@ class HTTPRequest:
             self._socket = (self.transport.get_extra_info('peername') or
                             (None, None))
             self._ip, self._port = self._socket
-        except Exception as e:
+        except Exception:
             self._ip, self._port = None, None
 
     @property

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import asyncio
+from collections import deque
 from random import random
 from typing import List
 from typing import Tuple
-from collections import deque
 
 import structlog
 # pylint: disable=no-name-in-module

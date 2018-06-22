@@ -25,11 +25,10 @@ import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
 from jussi.urn import URN
-from jussi.urn import _empty
+from jussi.empty import _empty
 from jussi.upstream import _Upstreams
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 from jussi.request.http import HTTPRequest
-from jussi.request.jsonrpc import JSONRPCRequest
 
 
 TEST_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -144,13 +143,11 @@ def combined_requests_and_responses():
 
 
 def batch_combined_requests(chunk_size=15):
-    requests = chunks(
-        [req for req, resp in combined_requests_and_responses()],
-        chunk_size)
-    responses = chunks(
-        [resp for req, resp in combined_requests_and_responses()],
-        chunk_size)
-    return list(zip(requests, responses))
+    return list(
+        chunks(
+            [req for req, resp in combined_requests_and_responses()],
+            chunk_size)
+    )
 
 
 @pytest.fixture
@@ -1851,9 +1848,6 @@ def appbase_request_and_response(request):
     ids=lambda reqresp: str(URN(*reqresp[0])))
 def appbase_request_and_response_single_and_batch(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
-
-
-batched_appbase_requests_and_responses
 
 
 @pytest.fixture(params=translatable_steemd_requests_and_responses())

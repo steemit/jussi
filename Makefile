@@ -82,7 +82,7 @@ remove-unused-imports: ## remove unused imports from python files
 
 .PHONY: sort-imports
 sort-imports: ## sorts python imports using isort with settings from .editorconfig
-	pipenv run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $(PROJECT_NAME)
+	pipenv run isort --verbose --recursive --atomic --settings-path  .isort.cfg --virtual-env .venv $(PROJECT_NAME)
 
 .PHONY: pipenv-check
 pipenv-check:

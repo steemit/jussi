@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
-import uuid
 import logging
-from typing import Union
+import uuid
 from typing import Optional
+from typing import Union
 
 import structlog
 from funcy.decorators import decorator
 from sanic import response
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
-from sanic.exceptions import InvalidUsage
 
-from .typedefs import WebApp
 from .typedefs import HTTPRequest
-from .typedefs import JrpcRequest
 from .typedefs import HTTPResponse
+from .typedefs import JrpcRequest
 from .typedefs import JrpcResponse
+from .typedefs import WebApp
 
 logger = structlog.get_logger(__name__)
 
@@ -144,6 +143,7 @@ class JussiInteralError(Exception):
         except BaseException:
             pass
         try:
+            # pylint: disable=protected-access
             return self.http_request._parsed_json['id']
         except BaseException:
             pass

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from time import perf_counter as perf
 from reprlib import repr as _repr
+from time import perf_counter as perf
 
 import structlog
 

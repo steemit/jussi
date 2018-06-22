@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
+from typing import Optional
+
 from ..errors import JsonRpcBatchSizeError
 from ..errors import JsonRpcError
-from ..errors import handle_middleware_exceptions
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from typing import Optional
 from ..validators import limit_broadcast_transaction_request
 
 

@@ -2,12 +2,12 @@
 import asyncio
 from operator import itemgetter
 from typing import Any
+from typing import Dict
 from typing import List
-from typing import Tuple
-from typing import TypeVar
 from typing import NoReturn
 from typing import Optional
-from typing import Dict
+from typing import Tuple
+from typing import TypeVar
 
 import cytoolz
 import structlog
@@ -16,20 +16,20 @@ from jussi.errors import JussiInteralError
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
 
-from .ttl import TTL
-from .utils import irreversible_ttl
-from .utils import jsonrpc_cache_key
-from .utils import merge_cached_response
-from .utils import merge_cached_responses
-from ..typedefs import JrpcRequest
-from ..typedefs import JrpcResponse
 from ..typedefs import BatchJrpcRequest
 from ..typedefs import BatchJrpcResponse
+from ..typedefs import JrpcRequest
+from ..typedefs import JrpcResponse
 from ..typedefs import SingleJrpcRequest
 from ..typedefs import SingleJrpcResponse
 from ..validators import is_valid_non_error_jussi_response
 from ..validators import is_valid_non_error_single_jsonrpc_response
 from .backends.max_ttl import SimplerMaxTTLMemoryCache
+from .ttl import TTL
+from .utils import irreversible_ttl
+from .utils import jsonrpc_cache_key
+from .utils import merge_cached_response
+from .utils import merge_cached_responses
 
 logger = structlog.getLogger(__name__)
 
@@ -231,6 +231,7 @@ class CacheGroup:
             triplets = filter(lambda p: p[0] != TTL.NO_CACHE, zip(ttls, requests, responses))
 
         futures = []
+        # pylint: disable=no-member
         for ttl, grouped_triplets in cytoolz.groupby(itemgetter(0), triplets).items():
             if isinstance(ttl, TTL):
                 ttl = ttl.value

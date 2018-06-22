@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-import sys
 import json
+import sys
 from urllib.parse import urlparse
 
-import ujson
 import aiohttp
+import ujson
 
 from jussi.ws.pool import Pool
 

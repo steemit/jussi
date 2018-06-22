@@ -3,31 +3,29 @@ from time import perf_counter
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Tuple
-from typing import Union
-from typing import TypeVar
 from typing import Optional
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 from ujson import dumps
 
+from jussi.empty import _empty
 
-class Empty:
-    def __bool__(self):
-        return False
+# JSONRPC Request/Response fields
+JrpcRequestIdField = TypeVar('JRPCIdField', str, int, float, type(None))
+JrpcRequestParamsField = TypeVar('JRPCParamsField', type(None), list, dict)
+JrpcRequestVersionField = str
+JrpcRequestMethodField = str
+JrpcField = TypeVar('JrpcField',
+                    JrpcRequestIdField,
+                    JrpcRequestParamsField,
+                    JrpcRequestVersionField,
+                    JrpcRequestMethodField)
 
-    def __repr__(self):
-        return '<Empty>'
 
-    def __str__(self):
-        return '<Empty>'
-
-
-_empty = Empty()
-
-JsonRpcRequestIdField = TypeVar('JRPCIdField', str, int, float, Empty)
-JsonRpcRequestParamsField = TypeVar('JRPCParamsField', Empty, list, dict)
-JsonRpcRequestVersionField = str
-JsonRpcRequestMethodField = str
+# JSONRPC Requests
+SingleRawRequest = Dict[str, JrpcField]
 
 # pylint: disable=too-many-instance-attributes
 
@@ -47,16 +45,16 @@ class JSONRPCRequest:
 
     # pylint: disable=too-many-arguments
     def __init__(self,
-                 _id: JsonRpcRequestIdField,
-                 jsonrpc: JsonRpcRequestVersionField,
-                 method: JsonRpcRequestMethodField,
-                 params: JsonRpcRequestParamsField,
+                 _id: JrpcRequestIdField,
+                 jsonrpc: JrpcRequestVersionField,
+                 method: JrpcRequestMethodField,
+                 params: JrpcRequestParamsField,
                  urn,
                  upstream,
                  amzn_trace_id: str,
                  jussi_request_id: str,
                  batch_index: int,
-                 original_request,
+                 original_request: SingleRawRequest,
                  timings: List[Tuple[float, str]]) -> None:
         self.id = _id
         self.jsonrpc = jsonrpc
@@ -121,7 +119,7 @@ class JSONRPCRequest:
         return hash(self.urn)
 
     @staticmethod
-    def translate_to_appbase(request, urn) -> dict:
+    def translate_to_appbase(request: SingleRawRequest, urn) -> dict:
         params = urn.params
         if params is _empty:
             params = []
@@ -135,7 +133,7 @@ class JSONRPCRequest:
 
 # pylint: disable=no-member
 
-def from_request(http_request, batch_index: int, request: Dict[str, any]):
+def from_request(http_request, batch_index: int, request: SingleRawRequest):
     from ..urn import from_request as urn_from_request
     from ..upstream import Upstream
 

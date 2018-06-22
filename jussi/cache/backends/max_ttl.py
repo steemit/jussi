@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from time import perf_counter
+from typing import Dict
 from typing import List
-from typing import Tuple
-from typing import TypeVar
 from typing import NoReturn
 from typing import Optional
-from typing import Dict
+from typing import Tuple
+from typing import TypeVar
 
 import structlog
 

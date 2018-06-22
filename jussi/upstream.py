@@ -1,38 +1,38 @@
 # -*- coding: utf-8 -*-
-import os
-import re
-import json
-import socket
 import functools
 import itertools as it
+import json
+import os
+import re
+import socket
 from typing import NamedTuple
 from urllib.parse import urlparse
 
-import ujson
+import jsonschema
 import pygtrie
 import structlog
-import jsonschema
+import ujson
 
-from .errors import InvalidUpstreamURL
 from .errors import InvalidUpstreamHost
+from .errors import InvalidUpstreamURL
 
 logger = structlog.get_logger(__name__)
 
 ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?@([^\/\s]+)/transfers$')
 
 
-#-------------------
+# -------------------
 # TTLS
 # NO EXPIRE: 0
 # NO CACHE: -1
 # NO EXPIRE IF IRREVERSIBLE: -2
-#-------------------
+# -------------------
 #  TIMEOUTS
 #  NO TIMEOUT: 0
-#-------------------
+# -------------------
 #  RETRIES
 #  NO RETRIES: 0
-#-------------------
+# -------------------
 
 
 UPSTREAM_SCHEMA_FILE = 'upstreams_schema.json'

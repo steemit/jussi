@@ -4,7 +4,7 @@ from copy import deepcopy
 import ujson
 
 from jussi.upstream import _Upstreams
-from jussi.request import JSONRPCRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 
 from .conftest import TEST_UPSTREAM_CONFIG
 from .conftest import AttrDict

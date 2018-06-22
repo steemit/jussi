@@ -7,7 +7,7 @@ from jussi.cache import CacheGroupItem
 from jussi.cache import SpeedTier
 from jussi.cache.cache_group import CacheGroup
 from jussi.cache.utils import jsonrpc_cache_key
-from jussi.request import JSONRPCRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 
 from .conftest import make_request
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request

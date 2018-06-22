@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import asyncio
-import datetime
 
 from urllib.parse import urlparse
 from collections import namedtuple

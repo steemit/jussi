@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
 import asyncio
+import os
 
-import uvloop
 import configargparse
+import uvloop
 from sanic import Sanic
 
 import jussi.errors
 import jussi.handlers
 import jussi.listeners
+import jussi.logging_config
 import jussi.middlewares
 import jussi.sanic_config
-import jussi.logging_config
 from jussi.request.http import HTTPRequest
 from jussi.typedefs import WebApp
 

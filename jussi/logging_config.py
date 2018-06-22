@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
+import logging
 import os
 import sys
 import time
-import logging
 
-import ujson
 import structlog
+import ujson
 from pythonjsonlogger.jsonlogger import JsonFormatter
 
 # pylint: disable=c-extension-no-member

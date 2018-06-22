@@ -6,10 +6,10 @@ import structlog
 from sanic import response
 from ujson import loads
 
-from ..utils import async_nowait_middleware
+from ..cache.cache_group import UncacheableResponse
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
-from ..cache.cache_group import UncacheableResponse
+from ..utils import async_nowait_middleware
 
 logger = structlog.get_logger(__name__)
 

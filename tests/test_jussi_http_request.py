@@ -4,7 +4,7 @@ import pytest
 import ujson
 
 from jussi.upstream import _Upstreams
-from jussi.request import JSONRPCRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 
 from jussi.errors import ParseError
 from jussi.errors import InvalidRequest

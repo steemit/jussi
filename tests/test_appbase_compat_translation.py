@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from jussi.request import JSONRPCRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 
 
 def test_id_translation(steemd_jussi_request_and_dict):

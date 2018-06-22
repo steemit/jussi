@@ -3,9 +3,9 @@ from asyncio.tasks import Task
 
 import structlog
 
-from ..utils import async_nowait_middleware
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
+from ..utils import async_nowait_middleware
 
 logger = structlog.get_logger(__name__)
 

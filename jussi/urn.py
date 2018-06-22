@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
+import functools
 import re
 import reprlib
-import functools
 from typing import Dict
-from typing import Union
 from typing import TypeVar
+from typing import Union
 
 import structlog
 
-from .errors import InvalidNamespaceError
+from .empty import Empty
+from .empty import _empty
 from .errors import InvalidNamespaceAPIError
+from .errors import InvalidNamespaceError
 
 logger = structlog.get_logger(__name__)
 
@@ -19,25 +21,6 @@ JRPC_METHOD_REGEX = re.compile(JRPC_METHOD_PATTERN)
 
 STEEMD_NUMERIC_API_MAPPING = ('database_api', 'login_api')
 
-
-class Empty:
-    def __bool__(self):
-        return False
-
-    def __repr__(self):
-        return '<Empty>'
-
-    def __str__(self):
-        return '<Empty>'
-
-    def __len__(self):
-        return 0
-
-    def __eq__(self, other):
-        return isinstance(other, Empty)
-
-
-_empty = Empty()
 
 RawRequestDict = Dict[str, Union[str, float, int, list, dict]]
 APIType = TypeVar('URNAPIType', Empty, str)

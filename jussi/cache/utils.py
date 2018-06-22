@@ -4,14 +4,13 @@ from typing import Optional
 
 import cytoolz
 import structlog
-import ujson
 
-from .ttl import TTL
 from ..typedefs import BatchJrpcRequest
-from ..typedefs import SingleJrpcRequest
-from ..typedefs import SingleJrpcResponse
 from ..typedefs import CachedBatchResponse
 from ..typedefs import CachedSingleResponse
+from ..typedefs import SingleJrpcRequest
+from ..typedefs import SingleJrpcResponse
+from .ttl import TTL
 
 logger = structlog.get_logger(__name__)
 
