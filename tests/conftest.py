@@ -24,10 +24,13 @@ import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
+from jussi.cache.backends.max_ttl import SimplerMaxTTLMemoryCache
+from jussi.cache.backends.redis import Cache
+from jussi.cache.backends.redis import MockClient
 from jussi.urn import URN
 from jussi.empty import _empty
 from jussi.upstream import _Upstreams
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 from jussi.request.http import HTTPRequest
 
 
@@ -1681,6 +1684,11 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
+def build_mocked_cache():
+    mock_client = MockClient(cache=SimplerMaxTTLMemoryCache())
+    return Cache(client=mock_client)
+
+
 def make_request(headers: dict=None, body=None, app=None, method: str='POST',
                  url_bytes: bytes=b'/', upstreams=TEST_UPSTREAM_CONFIG) -> HTTPRequest:
     headers = headers or {'x-amzn-trace-id': '123', 'x-jussi-request-id': '123'}
@@ -1700,6 +1708,13 @@ def make_request(headers: dict=None, body=None, app=None, method: str='POST',
 @pytest.fixture(scope='session')
 def upstreams():
     yield copy.deepcopy(_Upstreams(TEST_UPSTREAM_CONFIG, validate=False))
+
+
+@pytest.fixture(scope='session')
+def translate_to_appbase_upstreams():
+    upstreams = copy.deepcopy(_Upstreams(TEST_UPSTREAM_CONFIG, validate=False))
+    upstreams[0]['translate_to_appbbase'] = True
+    yield upstreams
 
 
 @pytest.fixture(scope='function')

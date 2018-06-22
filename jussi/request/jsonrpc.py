@@ -97,24 +97,6 @@ class JSONRPCRequest:
     def translated(self) -> bool:
         return self.original_request is not None
 
-    def log_extra(self, **kwargs) -> Optional[Dict[str, Any]]:
-        try:
-            base_extra = {
-                'x-amzn-trace-id': self.amzn_trace_id,
-                'jussi_request_id': self.jussi_request_id,
-                'jsonrpc_id': self.id,
-                'batch_index': self.batch_index,
-                'upstream_request_id': self.upstream_id,
-                'translated': self.translated,
-                **self.urn.to_dict(),
-                **self.upstream._asdict(),
-            }
-            base_extra.update(**kwargs)
-            return base_extra
-
-        except Exception:
-            return None
-
     def __hash__(self) -> int:
         return hash(self.urn)
 
@@ -133,7 +115,7 @@ class JSONRPCRequest:
 
 # pylint: disable=no-member
 
-def from_request(http_request, batch_index: int, request: SingleRawRequest):
+def from_http_request(http_request, batch_index: int, request: SingleRawRequest):
     from ..urn import from_request as urn_from_request
     from ..upstream import Upstream
 

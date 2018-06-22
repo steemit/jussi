@@ -8,10 +8,11 @@ from enum import IntEnum
 import structlog
 
 from aredis import StrictRedis
-from aredis.cache import Cache
+
 
 from .cache_group import CacheGroup
 from ..typedefs import WebApp
+from .backends.redis import Cache
 
 logger = structlog.get_logger(__name__)
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
+from .jussi import initialize_jussi_request
 from .jussi import finalize_jussi_response
 from .limits import check_limits
 from .caching import get_response
@@ -15,6 +15,7 @@ def setup_middlewares(app):
     logger.info('setup_middlewares', when='before_server_start')
 
     # request middleware
+    app.request_middleware.append(initialize_jussi_request)
     app.request_middleware.append(init_stats)
     app.request_middleware.append(check_limits)
     app.request_middleware.append(get_response)

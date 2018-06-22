@@ -119,7 +119,7 @@ class CacheGroup:
             missing = [
                 key for key, response in zip(
                     keys, results) if not response]
-            cache_results = await cache.client.mget(missing)
+            cache_results = await cache.mget(missing)
             cache_iter = iter(cache_results)
             results = [existing or next(cache_iter) for existing in results]
             if all(results):
@@ -150,17 +150,10 @@ class CacheGroup:
 
     async def close(self) -> NoReturn:
         for cache in self._all_caches:
-            cache.client.connection_pool.disconnect()
+            cache.close()
 
     # jsonrpc related methods
     #
-
-    async def get_jsonrpc_response(self,
-                                   request: JrpcRequest) -> Optional[JrpcResponse]:
-        if not isinstance(request, list):
-            return await self.get_single_jsonrpc_response(request)
-        else:
-            return await self.get_batch_jsonrpc_responses(request)
 
     async def get_single_jsonrpc_response(self,
                                           request: SingleJrpcRequest) -> Optional[SingleJrpcResponse]:

@@ -10,7 +10,7 @@ from .conftest import TEST_UPSTREAM_CONFIG
 from .conftest import AttrDict
 from .conftest import make_request
 from jussi.request.jsonrpc import _empty
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 
 
 def test_request_id(urn_test_request_dict):

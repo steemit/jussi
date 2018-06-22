@@ -2,11 +2,19 @@
 import asyncio
 import cProfile
 import uvloop
-
-from jussi.ws.pool2 import Pool
+from tests.conftest import AttrDict
+from jussi.ws.pool import Pool
 # asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 pr = cProfile.Profile()
+
+
+def patch_pool(Pool):
+    MockedWSConn = AttrDict()
+    MockedWSConn.send = lambda x: None
+    MockedWSConn.recv = lambda x: None
+    Pool._get_new_connection = lambda s: MockedWSConn
+    return Pool
 
 
 async def run(pool, count):

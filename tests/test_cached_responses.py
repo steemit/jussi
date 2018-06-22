@@ -6,7 +6,7 @@ import pytest
 from jussi.cache.utils import jsonrpc_cache_key
 from jussi.request.jsonrpc import JSONRPCRequest
 from .conftest import make_request
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 
 
 jrpc_req_1 = jsonrpc_from_request(make_request(), 0, {"id": "1", "jsonrpc": "2.0",

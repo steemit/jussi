@@ -7,7 +7,7 @@ from jussi.errors import JussiLimitsError
 from jussi.errors import JussiCustomJsonOpLengthError
 from jussi.errors import InvalidRequest
 from jussi.request.jsonrpc import JSONRPCRequest
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 from jussi.validators import is_get_block_header_request
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response

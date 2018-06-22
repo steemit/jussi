@@ -7,10 +7,11 @@ from jussi.cache import CacheGroupItem
 from jussi.cache import SpeedTier
 from jussi.cache.cache_group import CacheGroup
 from jussi.cache.utils import jsonrpc_cache_key
-from jussi.request.jsonrpc import JSONRPCRequest
+
 
 from .conftest import make_request
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from .conftest import build_mocked_cache
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 dummy_request = make_request()
 
 
@@ -115,12 +116,10 @@ bad_response2 = {
 
 async def test_cache_group_clear():
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
     cache_group = CacheGroup(caches)
 
     for cache_item in caches:
@@ -135,12 +134,10 @@ async def test_cache_group_clear():
 
 async def test_cache_group_get():
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
     cache_group = CacheGroup(caches)
     assert caches[0] is not caches[1]
 
@@ -169,12 +166,10 @@ async def test_cache_group_get():
 
 async def test_cache_group_set():
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
     cache_group = CacheGroup(caches)
 
     await cache_group.set('key', 1, 180)
@@ -184,12 +179,10 @@ async def test_cache_group_set():
 
 async def test_cache_group_mget():
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
     cache_group = CacheGroup(caches)
 
     keys = [str(i) for i in range(len(caches))]
@@ -229,13 +222,10 @@ async def test_cache_group_mget():
 
 async def test_cache_group_set_many():
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
-
     cache_group = CacheGroup(caches)
 
     keys = [str(i) for i in range(len(caches))]
@@ -253,12 +243,11 @@ async def test_cache_group_set_many():
 async def test_cache_group_get_single_jsonrpc_response(
         steemd_request_and_response):
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
+    cache_group = CacheGroup(caches)
 
     cache_group = CacheGroup(caches)
     req, resp = steemd_request_and_response
@@ -298,13 +287,10 @@ async def test_cache_group_get_batch_jsonrpc_responses():
         }
     } for _id in range(1, 10)]
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
-
     cache_group = CacheGroup(caches)
     await cache_group.set('last_irreversible_block_num', 15_000_000, 180)
     await cache_group.cache_batch_jsonrpc_response(batch_req, batch_resp)
@@ -336,13 +322,10 @@ async def test_cache_group_cache_batch_jsonrpc_responses():
         "transaction_ids": []}} for _id in range(1, 10)]
 
     caches = [
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST),
-        CacheGroupItem(SimplerMaxTTLMemoryCache(), True, True, SpeedTier.FAST)
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST),
+        CacheGroupItem(build_mocked_cache(), True, True, SpeedTier.FAST)
     ]
-    for cache_item in caches:
-        await cache_item.cache.clear()
-
     cache_group = CacheGroup(caches)
 
     keys = [jsonrpc_cache_key(req) for req in batch_req]

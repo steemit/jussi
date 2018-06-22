@@ -1,19 +1,12 @@
 # -*- coding: utf-8 -*-
 from urllib.parse import urlunparse
+
 import pytest
-import ujson
 
-from jussi.upstream import _Upstreams
-from jussi.request.jsonrpc import JSONRPCRequest
-
-from jussi.errors import ParseError
 from jussi.errors import InvalidRequest
-from .conftest import TEST_UPSTREAM_CONFIG
-from .conftest import AttrDict
-from .conftest import make_request
-from jussi.request.http import HTTPRequest
+from jussi.errors import ParseError
 from jussi.request.http import _empty
-#from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from .conftest import make_request
 
 
 def test_json_lazy_parsing():

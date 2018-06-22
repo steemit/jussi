@@ -13,18 +13,14 @@ logger = structlog.get_logger(__name__)
 
 
 async def init_stats(request: HTTPRequest) -> None:
-
     try:
         statsd_client = getattr(request.app.config, 'statsd_client', None)
         if not statsd_client:
             return
-        _ = request.jsonrpc
-        # statsd_client.gauge('tasks',len(Task.all_tasks()))
         if request.is_single_jrpc:
             statsd_client.incr('jrpc.inflight')
         elif request.is_batch_jrpc and statsd_client:
-            _ = [statsd_client.incr('jrpc.inflight') for r in range(len(request.jsonrpc))]
-
+            _ = [statsd_client.incr('jrpc.inflight') for r in request.jsonrpc]
     except BaseException as e:
         logger.warning('send_stats', e=e)
 

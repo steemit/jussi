@@ -4,7 +4,7 @@ import pytest
 from jussi.cache.ttl import TTL
 from jussi.cache.utils import irreversible_ttl
 from jussi.request.jsonrpc import JSONRPCRequest
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 from .conftest import make_request
 dummy_request = make_request()
 

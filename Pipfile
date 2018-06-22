@@ -38,6 +38,7 @@ python-rapidjson = "*"
 requests = "*"
 yapf = "*"
 funcy = "*"
+vprof = "*"
 
 [packages]
 aiodns = "*"

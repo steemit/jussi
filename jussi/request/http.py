@@ -14,7 +14,7 @@ from ujson import loads as json_loads
 
 from jussi.empty import _empty
 from jussi.request.jsonrpc import JSONRPCRequest
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 
 # pylint: enable=no-name-in-module
 

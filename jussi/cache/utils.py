@@ -69,12 +69,6 @@ def block_num_from_jsonrpc_response(
     return None
 
 
-def block_num_from_id(block_hash: str) -> int:
-    """return the first 4 bytes (8 hex digits) of the block ID (the block_num)
-    """
-    return int(str(block_hash)[:8], base=16)
-
-
 def merge_cached_response(request: SingleJrpcRequest,
                           cached_response: CachedSingleResponse,
                           ) -> Optional[SingleJrpcResponse]:
