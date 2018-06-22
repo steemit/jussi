@@ -48,10 +48,10 @@ class HTTPRequest:
 
     __slots__ = (
         'app', 'headers', 'version', 'method', 'transport',
-        'body', 'parsed_json', 'parsed_jsonrpc',
+        'body', '_parsed_json', '_parsed_jsonrpc',
         '_ip', '_parsed_url', 'uri_template', 'stream',
         '_socket', '_port', 'timings', '_log', 'is_batch_jrpc',
-        'is_single_jrpc', 'validator'
+        'is_single_jrpc'
     )
 
     def __init__(self, url_bytes: bytes, headers: dict,
@@ -66,8 +66,8 @@ class HTTPRequest:
 
         # Init but do not inhale
         self.body = []
-        self.parsed_json = _empty
-        self.parsed_jsonrpc = _empty
+        self._parsed_json = _empty
+        self._parsed_jsonrpc = _empty
         self.uri_template = None
         self.stream = None
         self.is_batch_jrpc = False
@@ -75,45 +75,47 @@ class HTTPRequest:
 
         self.timings = [(perf_counter(), 'http_create')]
         self._log = _empty
-        from jussi.validators import validate_jsonrpc_request
-        self.validator = validate_jsonrpc_request
-
-    @property
-    def json(self) -> Optional[RawRequest]:
-        if self.parsed_json is _empty:
-            self.parsed_json = None
-            try:
-                if not self.body:
-                    return self.parsed_json
-                self.parsed_json = json_loads(self.body)
-            except Exception as e:
-                from jussi.errors import ParseError
-                raise ParseError(http_request=self, exception=e)
-        return self.parsed_json
 
     @property
     def jsonrpc(self) -> Optional[JrpcRequest]:
-        if self.parsed_jsonrpc is _empty:
-            self.parsed_jsonrpc = None
+        # ignore body and json if HTTP methos is not POST
+        if self.method != 'POST':
+            return None
+
+        if self._parsed_jsonrpc is _empty:
+            self._parsed_jsonrpc = None
+            from jussi.errors import ParseError
+            from jussi.errors import InvalidRequest
+            from jussi.validators import validate_jsonrpc_request
             try:
-                if self.method != 'POST':
-                    return self.parsed_jsonrpc
-                jsonrpc_request = self.json
-                self.validator(jsonrpc_request)
+                # raise ParseError for blank/empty body
+                if self.body is _empty:
+                    raise ParseError(http_request=self)
+                # raise ParseError if parsing fails
+                try:
+                    self._parsed_json = json_loads(self.body)
+                except Exception as e:
+                    raise ParseError(http_request=self, exception=e)
+
+                # validate jsonrpc
+                jsonrpc_request = self._parsed_json
+                validate_jsonrpc_request(jsonrpc_request)
+
                 if isinstance(jsonrpc_request, dict):
-                    self.parsed_jsonrpc = jsonrpc_from_request(self, 0,
-                                                               jsonrpc_request)
+                    self._parsed_jsonrpc = jsonrpc_from_request(self, 0,
+                                                                jsonrpc_request)
                     self.is_single_jrpc = True
                 elif isinstance(jsonrpc_request, list):
-                    self.parsed_jsonrpc = [
+                    self._parsed_jsonrpc = [
                         jsonrpc_from_request(self, batch_index, req)
                         for batch_index, req in enumerate(jsonrpc_request)
                     ]
                     self.is_batch_jrpc = True
+            except ParseError as e:
+                raise e
             except Exception as e:
-                from jussi.errors import InvalidRequest
                 raise InvalidRequest(http_request=self, exception=e)
-        return self.parsed_jsonrpc
+        return self._parsed_jsonrpc
 
     @property
     def ip(self):
@@ -132,15 +134,21 @@ class HTTPRequest:
         return None
 
     def _get_address(self):
-        self._socket = (self.transport.get_extra_info('peername') or
-                        (None, None))
-        self._ip, self._port = self._socket
+        try:
+            self._socket = (self.transport.get_extra_info('peername') or
+                            (None, None))
+            self._ip, self._port = self._socket
+        except Exception as e:
+            self._ip, self._port = None, None
 
     @property
     def scheme(self):
         scheme = 'http'
-        if self.transport.get_extra_info('sslcontext'):
-            scheme += 's'
+        try:
+            if self.transport.get_extra_info('sslcontext'):
+                scheme += 's'
+        except Exception:
+            pass
         return scheme
 
     @property

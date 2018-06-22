@@ -10,8 +10,8 @@ from jussi.urn import from_request
 from jussi.urn import _parse_jrpc_method
 
 
-def test_urns(urn_test_request_dicts):
-    jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dicts
+def test_urns(urn_test_request_dict):
+    jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dict
     result = str(from_request(jsonrpc_request))
     assert result == urn
 

@@ -33,6 +33,9 @@ class Empty:
     def __len__(self):
         return 0
 
+    def __eq__(self, other):
+        return isinstance(other, Empty)
+
 
 _empty = Empty()
 

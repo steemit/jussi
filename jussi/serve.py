@@ -13,7 +13,7 @@ import jussi.listeners
 import jussi.middlewares
 import jussi.sanic_config
 import jussi.logging_config
-from jussi.request import HTTPRequest
+from jussi.request.http import HTTPRequest
 from jussi.typedefs import WebApp
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())

@@ -12,6 +12,12 @@ import sanic
 import sanic.response
 from funcy.funcs import rpartial
 
+from typing import Union
+from typing import Sequence
+from typing import List
+
+import tests.data.jsonrpc.invalid
+
 import jussi.errors
 import jussi.handlers
 import jussi.listeners
@@ -19,10 +25,34 @@ import jussi.logging_config
 import jussi.middlewares
 import jussi.serve
 from jussi.urn import URN
+from jussi.urn import _empty
 from jussi.upstream import _Upstreams
 from jussi.request.jsonrpc import from_request as jsonrpc_from_request
 from jussi.request.http import HTTPRequest
 from jussi.request.jsonrpc import JSONRPCRequest
+
+
+TEST_DIR = os.path.abspath(os.path.dirname(__file__))
+TEST_DATA_DIR = os.path.join(TEST_DIR, 'data')
+SCHEMA_DIR = os.path.join(TEST_DATA_DIR, 'schema')
+REQS_AND_RESPS_DIR = os.path.join(TEST_DATA_DIR, 'jsonrpc')
+CONFIGS_DIR = os.path.join(TEST_DATA_DIR, 'configs')
+
+
+def chunks(l: Sequence, n: int) -> List[List]:
+    """Yield successive n-sized chunks from l."""
+    chunk = []
+    for item in l:
+        while len(chunk) < n:
+            chunk.append(item)
+        yield chunk
+        chunk = []
+    if len(chunk) > 0:
+        yield chunk
+
+# ------------------------
+# pytest config functions
+# ------------------------
 
 
 def pytest_addoption(parser):
@@ -53,401 +83,189 @@ def jussi_url(request):
         return request.config.getoption("--jussiurl")
 
 
-TEST_DIR = os.path.abspath(os.path.dirname(__file__))
+# ------------------------
+# schema loading fixtures
+# ------------------------
 
-with open(os.path.join(TEST_DIR, 'request-schema.json')) as f:
-    REQUEST_SCHEMA = ujson.load(f)
+@pytest.fixture
+def jrpc_request_schema():
+    with open(os.path.join(SCHEMA_DIR, 'request-schema.json')) as f:
+        return ujson.load(f)
 
-with open(os.path.join(TEST_DIR, 'response-schema.json')) as f:
-    RESPONSE_SCHEMA = ujson.load(f)
 
-with open(os.path.join(TEST_DIR, 'steemd-response-schema.json')) as f:
-    STEEMD_RESPONSE_SCHEMA = ujson.load(f)
+@pytest.fixture
+def jrpc_response_schema():
+    with open(os.path.join(SCHEMA_DIR, 'response-schema.json')) as f:
+        return ujson.load(f)
 
-with open(os.path.join(TEST_DIR, 'jrpc_requests_and_responses.json')) as f:
-    JRPC_REQUESTS_AND_RESPONSES = ujson.load(f)
 
-with open(os.path.join(TEST_DIR, 'appbase_jrpc_requests_and_responses.json')) as f:
-    APPBASE_REQUESTS_AND_RESPONSES = ujson.load(f)
+@pytest.fixture
+def steemd_response_schema():
+    with open(os.path.join(SCHEMA_DIR, 'steemd-response-schema.json')) as f:
+        return ujson.load(f)
 
-with open(os.path.join(TEST_DIR, 'TEST_UPSTREAM_CONFIG.json')) as f:
+
+with open(os.path.join(CONFIGS_DIR, 'TEST_UPSTREAM_CONFIG.json')) as f:
     TEST_UPSTREAM_CONFIG = ujson.load(f)
 
 
-APPBASE_REQUESTS = [p[0] for p in APPBASE_REQUESTS_AND_RESPONSES]
+# ------------------------
+# request/response loading fixtures
+# ------------------------
 
-APPBASE_CONDENSER_API_METHODS = {
-    'broadcast_block',
-    'broadcast_transaction',
-    'broadcast_transaction_synchronous',
-    'get_account_bandwidth',
-    'get_account_count',
-    'get_account_history',
-    'get_account_references',
-    'get_account_reputations',
-    'get_account_votes',
-    'get_accounts',
-    'get_active_votes',
-    'get_active_witnesses',
-    'get_block',
-    'get_block_header',
-    'get_blog',
-    'get_blog_authors',
-    'get_blog_entries',
-    'get_chain_properties',
-    'get_comment_discussions_by_payout',
-    'get_config',
-    'get_content',
-    'get_content_replies',
-    'get_conversion_requests',
-    'get_current_median_history_price',
-    'get_discussions_by_active',
-    'get_discussions_by_author_before_date',
-    'get_discussions_by_blog',
-    'get_discussions_by_cashout',
-    'get_discussions_by_children',
-    'get_discussions_by_comments',
-    'get_discussions_by_created',
-    'get_discussions_by_feed',
-    'get_discussions_by_hot',
-    'get_discussions_by_promoted',
-    'get_discussions_by_trending',
-    'get_discussions_by_votes',
-    'get_dynamic_global_properties',
-    'get_escrow',
-    'get_expiring_vesting_delegations',
-    'get_feed',
-    'get_feed_entries',
-    'get_feed_history',
-    'get_follow_count',
-    'get_followers',
-    'get_following',
-    'get_hardfork_version',
-    'get_key_references',
-    'get_market_history',
-    'get_market_history_buckets',
-    'get_next_scheduled_hardfork',
-    'get_open_orders',
-    'get_ops_in_block',
-    'get_order_book',
-    'get_owner_history',
-    'get_post_discussions_by_payout',
-    'get_potential_signatures',
-    'get_reblogged_by',
-    'get_recent_trades',
-    'get_recovery_request',
-    'get_replies_by_last_update',
-    'get_required_signatures',
-    'get_reward_fund',
-    'get_savings_withdraw_from',
-    'get_savings_withdraw_to',
-    'get_state',
-    'get_tags_used_by_author',
-    'get_ticker',
-    'get_trade_history',
-    'get_transaction',
-    'get_transaction_hex',
-    'get_trending_tags',
-    'get_version',
-    'get_vesting_delegations',
-    'get_volume',
-    'get_withdraw_routes',
-    'get_witness_by_account',
-    'get_witness_count',
-    'get_witness_schedule',
-    'get_witnesses',
-    'get_witnesses_by_vote',
-    'lookup_account_names',
-    'lookup_accounts',
-    'lookup_witness_accounts',
-    'verify_account_authority',
-    'verify_authority'
-}
+def steemd_requests_and_responses():
+    with open(os.path.join(REQS_AND_RESPS_DIR, 'steemd.json')) as f:
+        return ujson.load(f)
 
 
-def build_translatable_steemd_requests_and_responses():
-    from jussi.urn import from_request
-    for req, resp in JRPC_REQUESTS_AND_RESPONSES:
-        urn = from_request(req)
-        if urn.method not in ('get_liquidity_queue', 'get_miner_queue',
-                              'get_discussions_by_payout'):
-            yield req, resp
+def batched_steemd_requests_and_responses(chunk_size=15):
+    requests = chunks(
+        [req for req, resp in steemd_requests_and_responses()], chunk_size)
+    responses = chunks(
+        [resp for req, resp in steemd_requests_and_responses()], chunk_size)
+    return list(zip(requests, responses))
 
 
-TRANSLATABLE_STEEMD_REQUESTS_AND_RESPONSES = list(
-    build_translatable_steemd_requests_and_responses())
+def appbase_requests_and_responses():
+    with open(os.path.join(REQS_AND_RESPS_DIR, 'appbase.json')) as f:
+        return ujson.load(f)
 
-INVALID_JRPC_REQUESTS = [
-    # bad/missing jsonrpc
-    {
-        'id': 1,
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'id': 1,
-        'jsonrpc': 2.0,
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'id': 1,
-        'json-rpc': '2.0',
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'id': 1,
-        'json_rpc': ['2.0'],
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'id': 1,
-        'jsonrpc': None,
-        'method': 'get_block',
-        'params': [1000]
-    },
 
-    # bad/missing id
-    {
-        'id': None,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'ID': 1,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'Id': 1,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'id': [1],
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': [1000]
-    },
-    {
-        'id': None,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': [1000]
-    },
+def batched_appbase_requests_and_responses(chunk_size=15):
+    requests = chunks(
+        [req for req, resp in appbase_requests_and_responses()], chunk_size)
+    responses = chunks(
+        [resp for req, resp in appbase_requests_and_responses()], chunk_size)
+    return list(zip(requests, responses))
 
-    # bad params
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': 1000
-    },
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': '1000'
-    },
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'method': 'get_block',
-        'params': None
-    },
 
-    # bad/missing method
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'params': [1000]
-    },
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'METHOD': 'get_block',
-        'params': '1000'
-    },
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'method': ['get_block'],
-        'params': '1000'
-    },
-    {
-        'id': 1,
-        'json_rpc': '2.0',
-        'method': None,
-        'params': '1000'
-    },
+def combined_requests_and_responses():
+    return steemd_requests_and_responses() + appbase_requests_and_responses()
 
-    # malformed
-    [],
-    dict(),
-    '',
-    b'',
-    None,
-    False
-]
 
-INVALID_JRPC_BATCH_REQUESTS = [
-    [],
-    [{'Id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]}],
-    [{'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': 1000}, {}],
-    [{'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
-        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'jsonrpc': None, 'method': 'get_block', 'params': [1000]}],
-    [{'METHOD': 'get_block', 'id': 1, 'json_rpc': '2.0', 'params': '1000'},
-        {'id': 1, 'json_rpc': ['2.0'], 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]}],
-    [None,
-        {'METHOD': 'get_block', 'id': 1, 'json_rpc': '2.0', 'params': '1000'},
-        b'',
-        {},
-        {'id': 1, 'method': 'get_block', 'params': [1000]}],
-    ['',
-        {'ID': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
-        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        ''],
-    [{'METHOD': 'get_block', 'id': 1, 'json_rpc': '2.0', 'params': '1000'},
-        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
-        [],
-        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': 1000},
-        {'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': None},
-        {'id': [1], 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        False],
-    [{'id': 1, 'jsonrpc': None, 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'jsonrpc': None, 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'jsonrpc': 2.0, 'method': 'get_block', 'params': [1000]},
-        {'Id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': [1], 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json-rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': None, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]}],
-    [{'id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': 1000},
-        {'Id': 1, 'json_rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
-        {'id': 1, 'json_rpc': '2.0', 'method': ['get_block'], 'params': '1000'},
-        {'id': 1, 'json-rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        b'',
-        {'id': 1, 'json_rpc': ['2.0'], 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json-rpc': '2.0', 'method': 'get_block', 'params': [1000]},
-        {'id': 1, 'json_rpc': ['2.0'], 'method': 'get_block', 'params': [1000]}]
-]
+def batch_combined_requests(chunk_size=15):
+    requests = chunks(
+        [req for req, resp in combined_requests_and_responses()],
+        chunk_size)
+    responses = chunks(
+        [resp for req, resp in combined_requests_and_responses()],
+        chunk_size)
+    return list(zip(requests, responses))
 
-INVALID_JRPC_RESPONSES = [
-    None,
-    {},
-    [],
-    '',
-    b'',
-    "{'id':1}"
-]
 
-STEEMD_JSON_RPC_CALLS = [{
-    'id': 0,
-    'jsonrpc': '2.0',
-    'method': 'call',
-    'params': ['database_api', 'get_account_count',
-               []]
-},
+@pytest.fixture
+def translatable_steemd_requests_and_responses():
+    import jussi.urn
+    untranslateable = frozenset(['get_liquidity_queue', 'get_miner_queue',
+                                 'get_discussions_by_payout'])
+    return [(req, resp) for req, resp in steemd_requests_and_responses()
+            if jussi.urn.from_request(req).method not in untranslateable]
+
+
+def batch_translatable_requests_and_responses(chunk_size=15):
+    requests = chunks(
+        [req for req, resp in translatable_steemd_requests_and_responses()], chunk_size)
+    responses = chunks(
+        [resp for req, resp in translatable_steemd_requests_and_responses()], chunk_size)
+    return list(zip(requests, responses))
+
+
+@pytest.fixture
+def appbase_requests(appbase_requests_and_responses):
+    return [p[0] for p in appbase_requests_and_responses]
+
+
+STEEMD_JSON_RPC_CALLS = [
+    {
+        'id': 0,
+        'jsonrpc': '2.0',
+        'method': 'call',
+        'params': ['database_api', 'get_account_count',
+                   []]
+    },
     {
         'id': 1,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_account_history',
                    ['steemit', 20, 10]]
-},
+    },
     {
         'id': 2,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_account_votes',
                    ['steemit', 'test']]
-},
+    },
     {
         'id': 3,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_accounts',
                    [['steemit']]]
-},
+    },
     {
         'id': 4,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_active_votes',
                    ['smooth', 'test']]
-},
+    },
     {
         'id': 5,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_active_witnesses',
                    []]
-},
+    },
     {
         'id': 6,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_block_header',
                    [1000]]
-},
+    },
     {
         'id': 7,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_chain_properties',
                    []]
-},
+    },
     {
         'id': 8,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_config', []]
-},
+    },
     {
         'id': 9,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_content',
                    ['steemit', 'test']]
-},
+    },
     {
         'id': 10,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_content_replies',
                    ['steemit', 'test']]
-},
+    },
     {
         'id': 11,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api',
                    'get_conversion_requests', ['steemit']]
-},
+    },
     {
         'id': 12,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api',
                    'get_current_median_history_price', []]
-},
+    },
     {
         'id': 13,
         'jsonrpc': '2.0',
@@ -455,7 +273,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_active',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 14,
         'jsonrpc': '2.0',
@@ -464,7 +282,7 @@ STEEMD_JSON_RPC_CALLS = [{
                    'get_discussions_by_author_before_date',
                    ['smooth', 'test',
                     '2016-07-23T22:00:06', '1']]
-},
+    },
     {
         'id': 15,
         'jsonrpc': '2.0',
@@ -472,7 +290,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_cashout',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 16,
         'jsonrpc': '2.0',
@@ -480,7 +298,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_children',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 17,
         'jsonrpc': '2.0',
@@ -488,7 +306,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_created',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 18,
         'jsonrpc': '2.0',
@@ -496,7 +314,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_feed',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 19,
         'jsonrpc': '2.0',
@@ -504,7 +322,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_hot',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 20,
         'jsonrpc': '2.0',
@@ -512,7 +330,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_payout',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 21,
         'jsonrpc': '2.0',
@@ -520,7 +338,7 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_trending',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 22,
         'jsonrpc': '2.0',
@@ -528,40 +346,40 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_discussions_by_votes',
                    [{'limit': '1', 'tag': 'steem'}]]
-},
+    },
     {
         'id': 23,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api',
                    'get_dynamic_global_properties', []]
-},
+    },
     {
         'id': 24,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_feed_history', []]
-},
+    },
     {
         'id': 25,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_hardfork_version',
                    []]
-},
+    },
     {
         'id': 26,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_liquidity_queue',
                    ['steemit', 10]]
-},
+    },
     {
         'id': 27,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_miner_queue', []]
-},
+    },
     {
         'id': 28,
         'jsonrpc': '2.0',
@@ -569,34 +387,34 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_next_scheduled_hardfork',
                    ['steemit', 10]]
-},
+    },
     {
         'id': 29,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_open_orders',
                    ['steemit']]
-},
+    },
     {
         'id': 30,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_order_book', [10]]
-},
+    },
     {
         'id': 31,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_owner_history',
                    ['steemit']]
-},
+    },
     {
         'id': 32,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_recovery_request',
                    ['steemit']]
-},
+    },
     {
         'id': 33,
         'jsonrpc': '2.0',
@@ -604,21 +422,21 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_replies_by_last_update',
                    ['smooth', 'test', 10]]
-},
+    },
     {
         'id': 34,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_state',
                    ['/@layz3r']]
-},
+    },
     {
         'id': 35,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_trending_tags',
                    ['steemit', 10]]
-},
+    },
     {
         'id': 36,
         'jsonrpc': '2.0',
@@ -626,35 +444,35 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'get_witness_by_account',
                    ['smooth.witness']]
-},
+    },
     {
         'id': 37,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_witness_count',
                    []]
-},
+    },
     {
         'id': 38,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'get_witness_schedule',
                    []]
-},
+    },
     {
         'id': 39,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'lookup_account_names',
                    [['steemit']]]
-},
+    },
     {
         'id': 40,
         'jsonrpc': '2.0',
         'method': 'call',
         'params': ['database_api', 'lookup_accounts',
                    ['steemit', 10]]
-},
+    },
     {
         'id': 41,
         'jsonrpc': '2.0',
@@ -662,535 +480,238 @@ STEEMD_JSON_RPC_CALLS = [{
         'params': ['database_api',
                    'lookup_witness_accounts',
                    ['steemit', 10]]
-},
+    },
     {
         'id': 42, 'jsonrpc': '2.0',
         'method': 'get_account_count', 'params': []
-},
+    },
     {
         'id': 43,
         'jsonrpc': '2.0',
         'method': 'get_account_history',
         'params': ['steemit', 20, 10]
-},
+    },
     {
         'id': 44,
         'jsonrpc': '2.0',
         'method': 'get_account_votes',
         'params': ['steemit', 'test']
-},
+    },
     {
         'id': 45,
         'jsonrpc': '2.0',
         'method': 'get_accounts',
         'params': [['steemit']]
-},
+    },
     {
         'id': 46,
         'jsonrpc': '2.0',
         'method': 'get_active_votes',
         'params': ['smooth', 'test']
-},
+    },
     {
         'id': 47, 'jsonrpc': '2.0',
         'method': 'get_active_witnesses', 'params': []
-},
+    },
     {
         'id': 48, 'jsonrpc': '2.0',
         'method': 'get_block_header', 'params': [1000]
-},
+    },
     {
         'id': 49, 'jsonrpc': '2.0',
         'method': 'get_chain_properties', 'params': []
-},
+    },
     {
         'id': 50, 'jsonrpc': '2.0',
         'method': 'get_config', 'params': []
-},
+    },
     {
         'id': 51,
         'jsonrpc': '2.0',
         'method': 'get_content',
         'params': ['steemit', 'test']
-},
+    },
     {
         'id': 52,
         'jsonrpc': '2.0',
         'method': 'get_content_replies',
         'params': ['steemit', 'test']
-},
+    },
     {
         'id': 53,
         'jsonrpc': '2.0',
         'method': 'get_conversion_requests',
         'params': ['steemit']
-},
+    },
     {
         'id': 54,
         'jsonrpc': '2.0',
         'method': 'get_current_median_history_price',
         'params': []
-},
+    },
     {
         'id': 55,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_active',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 56,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_author_before_date',
         'params': ['smooth', 'test',
                    '2016-07-23T22:00:06', '1']
-},
+    },
     {
         'id': 57,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_cashout',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 58,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_children',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 59,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_created',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 60,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_feed',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 61,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_hot',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 62,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_payout',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 63,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_trending',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 64,
         'jsonrpc': '2.0',
         'method': 'get_discussions_by_votes',
         'params': [{'limit': '1', 'tag': 'steem'}]
-},
+    },
     {
         'id': 65,
         'jsonrpc': '2.0',
         'method': 'get_dynamic_global_properties',
         'params': []
-},
+    },
     {
         'id': 66, 'jsonrpc': '2.0',
         'method': 'get_feed_history', 'params': []
-},
+    },
     {
         'id': 67, 'jsonrpc': '2.0',
         'method': 'get_hardfork_version', 'params': []
-},
+    },
     {
         'id': 68,
         'jsonrpc': '2.0',
         'method': 'get_liquidity_queue',
         'params': ['steemit', 10]
-},
+    },
     {
         'id': 69, 'jsonrpc': '2.0',
         'method': 'get_miner_queue', 'params': []
-},
+    },
     {
         'id': 70,
         'jsonrpc': '2.0',
         'method': 'get_next_scheduled_hardfork',
         'params': ['steemit', 10]
-},
+    },
     {
         'id': 71,
         'jsonrpc': '2.0',
         'method': 'get_open_orders',
         'params': ['steemit']
-},
+    },
     {
         'id': 72, 'jsonrpc': '2.0',
         'method': 'get_order_book', 'params': [10]
-},
+    },
     {
         'id': 73,
         'jsonrpc': '2.0',
         'method': 'get_owner_history',
         'params': ['steemit']
-},
+    },
     {
         'id': 74,
         'jsonrpc': '2.0',
         'method': 'get_recovery_request',
         'params': ['steemit']
-},
+    },
     {
         'id': 75,
         'jsonrpc': '2.0',
         'method': 'get_replies_by_last_update',
         'params': ['smooth', 'test', 10]
-},
+    },
     {
         'id': 76, 'jsonrpc': '2.0',
         'method': 'get_state', 'params': ['/@layz3r']
-},
+    },
     {
         'id': 77,
         'jsonrpc': '2.0',
         'method': 'get_trending_tags',
         'params': ['steemit', 10]
-},
+    },
     {
         'id': 78,
         'jsonrpc': '2.0',
         'method': 'get_witness_by_account',
         'params': ['smooth.witness']
-},
+    },
     {
         'id': 79, 'jsonrpc': '2.0',
         'method': 'get_witness_count', 'params': []
-},
+    },
     {
         'id': 80, 'jsonrpc': '2.0',
         'method': 'get_witness_schedule', 'params': []
-},
+    },
     {
         'id': 81,
         'jsonrpc': '2.0',
         'method': 'lookup_account_names',
         'params': [['steemit']]
-},
+    },
     {
         'id': 82,
         'jsonrpc': '2.0',
         'method': 'lookup_accounts',
         'params': ['steemit', 10]
-},
+    },
     {
         'id': 83,
         'jsonrpc': '2.0',
         'method': 'lookup_witness_accounts',
         'params': ['steemit', 10]
-}
-
-
-]
-
-COMBINED_STEEMD_APPBASE_JSONRPC_CALLS = STEEMD_JSON_RPC_CALLS + APPBASE_REQUESTS
-
-BATCHED_COMBINED_APPBASE_JSONRPC_CALLS = [
-    [
-        {
-            'id': 27,
-            'jsonrpc': '2.0',
-            'method': 'call',
-            'params': ['database_api', 'get_miner_queue', []]
-        },
-        {'id': 66, 'jsonrpc': '2.0', 'method': 'get_feed_history', 'params': []},
-        {
-            'id': 23,
-            'jsonrpc': '2.0',
-            'method': 'call',
-            'params': ['database_api', 'get_dynamic_global_properties', []]
-        },
-        {
-            'id': 12,
-            'jsonrpc': '2.0',
-            'method': 'call',
-            'params': ['condenser_api', 'get_current_median_history_price', []]
-        },
-        {
-            'id': 26,
-            'jsonrpc': '2.0',
-            'method': 'call',
-            'params': ['database_api', 'get_liquidity_queue', ['steemit', 10]]
-        }],
-    [{
-        'id': 56,
-        'jsonrpc': '2.0',
-        'method': 'tags_api.get_discussions_by_author_before_date',
-        'params': {
-            'author': 'smooth',
-            'before_data': '2016-07-23T22:00:06',
-            'limit': 1,
-            'permlink': 'test'
-        }
-    },
-        {
-        'id': 60,
-        'jsonrpc': '2.0',
-        'method': 'get_discussions_by_feed',
-        'params': [{'limit': '1', 'tag': 'steem'}]
-    },
-        {'id': 76, 'jsonrpc': '2.0', 'method': 'get_state',
-         'params': ['/@layz3r']
-         },
-        {
-        'id': 73,
-        'jsonrpc': '2.0',
-        'method': 'get_owner_history',
-        'params': ['steemit']
-    },
-        {
-        'id': 67,
-        'jsonrpc': '2.0',
-        'method': 'get_hardfork_version',
-        'params': []
-    }],
-    [{
-        'id': 74,
-        'jsonrpc': '2.0',
-        'method': 'get_recovery_request',
-        'params': ['steemit']
-    },
-        {
-        'id': 4,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'get_active_votes', ['smooth', 'test']]
-    },
-        {
-        'id': 77,
-        'jsonrpc': '2.0',
-        'method': 'get_trending_tags',
-        'params': ['steemit', 10]
-    },
-        {
-        'id': 7,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['database_api', 'get_chain_properties', []]
-    },
-        {'id': 66, 'jsonrpc': '2.0', 'method': 'get_feed_history', 'params': []}],
-    [{
-        'id': 53,
-        'jsonrpc': '2.0',
-        'method': 'get_conversion_requests',
-        'params': ['steemit']
-    },
-        {
-        'id': 22,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api',
-                   'get_discussions_by_votes',
-                   [{'limit': '1', 'tag': 'steem'}]]
-    },
-        {
-        'id': 72,
-        'jsonrpc': '2.0',
-        'method': 'market_history_api.get_order_book',
-        'params': {'limit': 10}
-    },
-        {
-        'id': 71,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.get_open_orders',
-        'params': ['steemit']
-    },
-        {
-        'id': 52,
-        'jsonrpc': '2.0',
-        'method': 'get_content_replies',
-        'params': ['steemit', 'test']
-    }],
-    [{
-        'id': 23,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['database_api', 'get_dynamic_global_properties', []]
-    },
-        {
-        'id': 2,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['database_api', 'get_account_votes', ['steemit', 'test']]
-    },
-        {
-        'id': 58,
-        'jsonrpc': '2.0',
-        'method': 'get_discussions_by_children',
-        'params': [{'limit': '1', 'tag': 'steem'}]
-    },
-        {
-        'id': 41,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'lookup_witness_accounts',
-                   ['steemit', 10]]
-    },
-        {
-        'id': 56,
-        'jsonrpc': '2.0',
-        'method': 'get_discussions_by_author_before_date',
-        'params': ['smooth', 'test', '2016-07-23T22:00:06', '1']
-    }],
-    [{
-        'id': 78,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.get_witness_by_account',
-        'params': ['smooth.witness']
-    },
-        {
-        'id': 30,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'get_order_book', [10]]
-    },
-        {
-        'id': 83,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.lookup_witness_accounts',
-        'params': ['steemit', 10]
-    },
-        {'id': 47, 'jsonrpc': '2.0', 'method': 'get_active_witnesses',
-         'params': []
-         },
-        {
-        'id': 48,
-        'jsonrpc': '2.0',
-        'method': 'get_block_header',
-        'params': [1000]
-    }],
-    [{
-        'id': 8,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'get_config', []]
-    },
-        {
-        'id': 44,
-        'jsonrpc': '2.0',
-        'method': 'get_account_votes',
-        'params': ['steemit', 'test']
-    },
-        {
-        'id': 73,
-        'jsonrpc': '2.0',
-        'method': 'get_owner_history',
-        'params': ['steemit']
-    },
-        {
-        'id': 71,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.get_open_orders',
-        'params': ['steemit']
-    },
-        {
-        'id': 54,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.get_current_median_history_price',
-        'params': []
-    }],
-    [{
-        'id': 0,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'get_account_count', []]
-    },
-        {
-        'id': 53,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.get_conversion_requests',
-        'params': ['steemit']
-    },
-        {
-        'id': 44,
-        'jsonrpc': '2.0',
-        'method': 'get_account_votes',
-        'params': ['steemit', 'test']
-    },
-        {
-        'id': 83,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.lookup_witness_accounts',
-        'params': ['steemit', 10]
-    },
-        {
-        'id': 32,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['database_api', 'get_recovery_request', ['steemit']]
-    }],
-    [{'id': 66, 'jsonrpc': '2.0', 'method': 'database_api.get_feed_history'},
-     {
-        'id': 41,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['database_api', 'lookup_witness_accounts',
-                   ['steemit', 10]]
-    },
-        {
-        'id': 7,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['database_api', 'get_chain_properties', []]
-    },
-        {
-        'id': 59,
-        'jsonrpc': '2.0',
-        'method': 'tags_api.get_discussions_by_created',
-        'params': {'limit': '1', 'tag': 'steem'}
-    },
-        {
-        'id': 47,
-        'jsonrpc': '2.0',
-        'method': 'get_active_witnesses',
-        'params': []
-    }],
-    [{
-        'id': 78,
-        'jsonrpc': '2.0',
-        'method': 'condenser_api.get_witness_by_account',
-        'params': ['smooth.witness']
-    },
-        {
-        'id': 57,
-        'jsonrpc': '2.0',
-        'method': 'tags_api.get_discussions_by_cashout',
-        'params': {'limit': '1', 'tag': 'steem'}
-    },
-        {
-        'id': 37,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'get_witness_count', []]
-    },
-        {
-        'id': 4,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'get_active_votes', ['smooth', 'test']]
-    },
-        {
-        'id': 38,
-        'jsonrpc': '2.0',
-        'method': 'call',
-        'params': ['condenser_api', 'get_witness_schedule', []]
     }
-    ]
-]
 
+]
 
 STEEMD_JSONRPC_CALL_PAIRS = []
 for c in STEEMD_JSON_RPC_CALLS:
@@ -1199,6 +720,7 @@ for c in STEEMD_JSON_RPC_CALLS:
         new_method = [
             m for m in STEEMD_JSON_RPC_CALLS if m['method'] == method]
         STEEMD_JSONRPC_CALL_PAIRS.append((c, new_method[0]))
+
 
 LONG_REQUESTS = [
     {
@@ -1210,7 +732,7 @@ LONG_REQUESTS = [
 ]
 
 # pylint:  disable=unused-variable,unused-argument,attribute-defined-outside-init
-from jussi.urn import _empty
+
 URN_TEST_REQUEST_DICTS = [
     # --------APPBASE METHOD=CALL, CONDENSER----------------------
     # appbase, method=call, condenser api, params empty list
@@ -2162,32 +1684,32 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-def make_request(headers=None, body=None, app=None, method='POST',
-                 url_bytes=b'/', upstreams=TEST_UPSTREAM_CONFIG):
+def make_request(headers: dict=None, body=None, app=None, method: str='POST',
+                 url_bytes: bytes=b'/', upstreams=TEST_UPSTREAM_CONFIG) -> HTTPRequest:
     headers = headers or {'x-amzn-trace-id': '123', 'x-jussi-request-id': '123'}
     if not app:
         app = sanic.Sanic('testApp')
         app.config.upstreams = _Upstreams(upstreams, validate=False)
     req = HTTPRequest(url_bytes, headers, '1.1', method, 'tcp')
     req.app = app
-    if body:
-        if isinstance(body, dict):
-            req.body = ujson.dumps(body, ensure_ascii=False).encode('utf8')
-        if isinstance(body, bytes):
-            req.body = body
+
+    if isinstance(body, dict):
+        req.body = ujson.dumps(body, ensure_ascii=False).encode('utf8')
+    else:
+        req.body = body
     return req
 
 
 @pytest.fixture(scope='session')
 def upstreams():
-    yield _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
+    yield copy.deepcopy(_Upstreams(TEST_UPSTREAM_CONFIG, validate=False))
 
 
 @pytest.fixture(scope='function')
 def app(loop):
     args = jussi.serve.parse_args(args=[])
     upstream_config_path = os.path.abspath(
-        os.path.join(TEST_DIR, 'TEST_UPSTREAM_CONFIG.json'))
+        os.path.join(CONFIGS_DIR, 'TEST_UPSTREAM_CONFIG.json'))
     args.upstream_config_file = upstream_config_path
     args.test_upstream_urls = False
     # run app
@@ -2276,55 +1798,31 @@ def healthcheck_url(jussi_url, healthcheck_path):
 
 
 @pytest.fixture
-def jrpc_response_validator():
-    return rpartial(jsonschema.validate, RESPONSE_SCHEMA)
+def jrpc_request_validator(jrpc_request_schema):
+    return rpartial(jsonschema.validate, jrpc_request_schema)
 
 
 @pytest.fixture
-def jrpc_request_validator():
-    return rpartial(jsonschema.validate, REQUEST_SCHEMA)
+def jrpc_response_validator(jrpc_response_schema):
+    return rpartial(jsonschema.validate, jrpc_response_schema)
 
 
 @pytest.fixture
-def steemd_jrpc_response_validator():
-    return rpartial(jsonschema.validate, STEEMD_RESPONSE_SCHEMA)
+def steemd_jrpc_response_validator(steemd_response_schema):
+    return rpartial(jsonschema.validate, steemd_response_schema)
 
 
-@pytest.fixture(params=INVALID_JRPC_REQUESTS)
-def invalid_jrpc_single_requests(request):
-    yield request.param
+@pytest.fixture(params=it.chain(tests.data.jsonrpc.invalid.requests,
+                                tests.data.jsonrpc.invalid.batch))
+def invalid_jrpc_single_and_batch_request(request):
+    yield copy.deepcopy(request.param)
 
 
-@pytest.fixture(params=INVALID_JRPC_BATCH_REQUESTS)
-def invalid_jrpc_batch_requests(request):
-    yield request.param
-
-
-@pytest.fixture(params=it.chain(INVALID_JRPC_BATCH_REQUESTS, INVALID_JRPC_REQUESTS))
-def invalid_jrpc_single_and_batch_requests(request):
-    yield request.param
-
-
-@pytest.fixture(scope='session', params=INVALID_JRPC_REQUESTS)
-def invalid_jussi_jsonrpc_requests(request, dummy_request):
-    invalid_request = request.param
-    invalid_jussijsonrpc_request = JSONRPCRequest(dummy_request, 0, invalid_request)
-    yield invalid_jussijsonrpc_request
-
-
-@pytest.fixture(params=INVALID_JRPC_RESPONSES)
-def invalid_jrpc_responses(request):
-    yield request.param
-
-
-@pytest.fixture(params=COMBINED_STEEMD_APPBASE_JSONRPC_CALLS, ids=lambda c: c['method'])
-def all_steemd_jrpc_calls(request):
-    yield request.param
-
-
-@pytest.fixture(params=BATCHED_COMBINED_APPBASE_JSONRPC_CALLS, ids=lambda c: c['method'])
-def batched_steemd_jrpc_calls(request):
-    yield request.param
+@pytest.fixture(
+    scope='function', params=combined_requests_and_responses(),
+    ids=lambda reqresp: str(URN(*reqresp[0])))
+def combined_request_and_response(request):
+    yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
 
 
 @pytest.fixture(params=STEEMD_JSONRPC_CALL_PAIRS)
@@ -2333,58 +1831,65 @@ def steemd_method_pairs(request):
 
 
 @pytest.fixture(
-    scope='function', params=APPBASE_REQUESTS_AND_RESPONSES + JRPC_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: URN(reqresp[0]))
-def steemd_requests_and_responses(request):
+    scope='function', params=steemd_requests_and_responses(),
+    ids=lambda reqresp: str(URN(*reqresp[0])))
+def steemd_request_and_response(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
 
 
 @pytest.fixture(
-    scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: URN(reqresp[0]))
-def just_steemd_requests_and_responses(request):
+    scope='function', params=appbase_requests_and_responses(),
+    ids=lambda reqresp: str(URN(*reqresp[0])))
+def appbase_request_and_response(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
 
 
 @pytest.fixture(
-    scope='function', params=APPBASE_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: URN(reqresp[0]))
-def appbase_requests_and_responses(request):
+    scope='function',
+    params=it.chain(appbase_requests_and_responses(),
+                    batched_appbase_requests_and_responses()),
+    ids=lambda reqresp: str(URN(*reqresp[0])))
+def appbase_request_and_response_single_and_batch(request):
     yield copy.deepcopy(request.param[0]), copy.deepcopy(request.param[1])
 
 
-@pytest.fixture(params=TRANSLATABLE_STEEMD_REQUESTS_AND_RESPONSES)
-def translatable_steemd_requests_and_responses(request):
+batched_appbase_requests_and_responses
+
+
+@pytest.fixture(params=translatable_steemd_requests_and_responses())
+def translatable_steemd_request_and_response(request):
+    yield copy.deepcopy(request.param)
+
+
+@pytest.fixture(params=LONG_REQUESTS)
+def long_request(request):
     yield request.param
 
 
-@pytest.fixture(
-    scope='function', params=JRPC_REQUESTS_AND_RESPONSES,
-    ids=lambda reqresp: URN(reqresp[0]))
-def steemd_requests_and_responses_without_resp_id(request):
-    req, resp = copy.deepcopy(
-        request.param[0]), copy.deepcopy(request.param[1])
-    if 'id' in resp:
-        del resp['id']
-    yield req, resp
+@pytest.fixture(params=batch_translatable_requests_and_responses(15))
+def batch_translatable_request_and_response(request):
+    yield request.param
 
 
-@pytest.fixture(params=URN_TEST_REQUEST_DICTS)
-def full_urn_test_request_dicts(request):
-    #jsonrpc_request, urn_parsed, urn, url, ttl, timeout = request.param
+@pytest.fixture(params=batch_combined_requests(15))
+def batch_combined_request(request):
     yield request.param
 
 
 @pytest.fixture(params=URN_TEST_REQUEST_DICTS)
-def urn_test_request_dicts(request):
+def full_urn_test_request_dict(request):
+    yield copy.deepcopy(request.param)
+
+
+@pytest.fixture(params=URN_TEST_REQUEST_DICTS)
+def urn_test_request_dict(request):
     jsonrpc_request, urn_parsed, urn, url, ttl, timeout = request.param
     yield jsonrpc_request, urn, url, ttl, timeout
 
 
 @pytest.fixture()
-def urn_test_requests(urn_test_request_dicts):
-    jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dicts
-
+def urn_test_requests(urn_test_request_dict):
+    jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dict
     dummy_request = make_request()
     jussi_request = jsonrpc_from_request(dummy_request, 0, jsonrpc_request)
     yield (jsonrpc_request,
@@ -2397,18 +1902,8 @@ def urn_test_requests(urn_test_request_dicts):
 
 
 @pytest.fixture
-def steemd_jussi_requests(just_steemd_requests_and_responses):
-    jsonrpc_request, _ = just_steemd_requests_and_responses
-    dummy_request = make_request()
-
-    jussi_request = jsonrpc_from_request(dummy_request, 0,
-                                         jsonrpc_request)
-    yield jussi_request
-
-
-@pytest.fixture
-def steemd_jussi_requests_and_dicts(just_steemd_requests_and_responses):
-    jsonrpc_request, _ = just_steemd_requests_and_responses
+def steemd_jussi_request_and_dict(steemd_request_and_response):
+    jsonrpc_request, _ = steemd_request_and_response
     dummy_request = make_request()
 
     jussi_request = jsonrpc_from_request(dummy_request, 0,
@@ -2416,19 +1911,14 @@ def steemd_jussi_requests_and_dicts(just_steemd_requests_and_responses):
     yield (jussi_request, jsonrpc_request)
 
 
-@pytest.fixture(params=JRPC_REQUESTS_AND_RESPONSES)
-def jrpc_response(request):
-    yield request.param[1]
-
-
 @pytest.fixture(params=VALID_BROADCAST_TRANSACTIONS)
-def valid_broadcast_transactions(request):
-    yield request.param
+def valid_broadcast_transaction(request):
+    yield copy.deepcopy(request.param)
 
 
 @pytest.fixture(params=INVALID_BROADCAST_TRANSACTIONS)
-def invalid_broadcast_transactions(request):
-    yield request.param
+def invalid_broadcast_transaction(request):
+    yield copy.deepcopy(request.param)
 
 # ---------------- DOCKER ------------------
 
@@ -2469,8 +1959,3 @@ def prod_url():
 @pytest.fixture
 def sanic_server(loop, app, test_server):
     return loop.run_until_complete(test_server(app))
-
-
-@pytest.fixture(params=LONG_REQUESTS)
-def long_request(request):
-    yield request.param

@@ -21,10 +21,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger.info('setup_debug', debug=app.config.args.debug,
                     debug_route=app.config.args.debug_route,
                     when='before_server_start')
-        if app.config.args.debug_route is True:
-            from jussi.handlers import debug
-            app.add_route(debug, '/debug', methods=['GET'])
-        if app.config.args.debug is True:
+        if app.config.args.debug_route is True or app.config.args.debug is True:
             from jussi.handlers import debug
             app.add_route(debug, '/debug', methods=['GET'])
 

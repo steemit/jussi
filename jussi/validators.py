@@ -74,14 +74,6 @@ def validate_jsonrpc_request(request: RawRequest) -> NoReturn:
 #
 
 
-def is_valid_jsonrpc_request(request: JrpcRequest) -> bool:
-    try:
-        validate_jsonrpc_request(request)
-        return True
-    except Exception:
-        return False
-
-
 def is_valid_single_jsonrpc_response(response: SingleJrpcResponse) -> bool:
     # response.get('jsonrpc')  == '2.0' and \
     return isinstance(response, dict) and \

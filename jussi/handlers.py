@@ -30,7 +30,6 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
     # retreive parsed jsonrpc_requests after request middleware processing
     http_request.timings.append((perf(), 'handle_jsonrpc.enter'))
     # make upstream requests
-    assert http_request.jsonrpc is not None
     if http_request.is_single_jrpc:
         jsonrpc_response = await dispatch_single(http_request,
                                                  http_request.jsonrpc)

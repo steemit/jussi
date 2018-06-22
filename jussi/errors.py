@@ -144,7 +144,7 @@ class JussiInteralError(Exception):
         except BaseException:
             pass
         try:
-            return self.http_request.json['id']
+            return self.http_request._parsed_json['id']
         except BaseException:
             pass
 
