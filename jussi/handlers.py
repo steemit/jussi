@@ -164,7 +164,7 @@ async def fetch_ws(http_request: HTTPRequest,
                                   jrpc_request=jrpc_request,
                                   exception=e,
                                   upstream_request=upstream_request,
-                                  tasks_count=asyncio.tasks.Task.all_tasks())
+                                  tasks_count=len(asyncio.tasks.Task.all_tasks()))
     except AssertionError as e:
         raise UpstreamResponseError(http_request=http_request,
                                     jrpc_request=jrpc_request,
