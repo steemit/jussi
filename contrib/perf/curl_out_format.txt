@@ -6,7 +6,7 @@
 "speed_upload":%{speed_upload},
 "time_appconnect":%{time_appconnect},
 "time_connect":%{time_connect},
-"time_nameloolup":%{time_namelookup},
+"time_namelookup":%{time_namelookup},
 "time_pretransfer":%{time_pretransfer},
 "time_redirect":%{time_redirect},
 "time_starttransfer":%{time_starttransfer},

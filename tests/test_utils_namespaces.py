@@ -6,11 +6,13 @@ from jussi.upstream import _Upstreams
 from .conftest import TEST_UPSTREAM_CONFIG
 upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
 namespaces = upstreams.namespaces
+from jussi.urn import from_request
+from jussi.urn import _parse_jrpc_method
 
 
-def test_urns(urn_test_request_dicts):
-    jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dicts
-    result = str(URN.from_request(jsonrpc_request))
+def test_urns(urn_test_request_dict):
+    jsonrpc_request, urn, url, ttl, timeout = urn_test_request_dict
+    result = str(from_request(jsonrpc_request))
     assert result == urn
 
 
@@ -75,7 +77,7 @@ def test_urns(urn_test_request_dicts):
     ),
 ])
 def test_urn_params_empty_list(jsonrpc_request, expected):
-    result = str(URN.from_request(jsonrpc_request))
+    result = str(from_request(jsonrpc_request))
     assert result == expected
 
 
@@ -100,7 +102,7 @@ def test_urn_params_empty_list(jsonrpc_request, expected):
     ),
 ])
 def test_urn_params_empty_dict(jsonrpc_request, expected):
-    result = str(URN.from_request(jsonrpc_request))
+    result = str(from_request(jsonrpc_request))
     assert result == expected
 
 
@@ -125,8 +127,8 @@ def test_urn_params_empty_dict(jsonrpc_request, expected):
     ),
 ])
 def test_urn_params_no_params(jsonrpc_request, expected):
-    URN._parse_jrpc_method.cache_clear()
-    result = str(URN.from_request(jsonrpc_request))
+    _parse_jrpc_method.cache_clear()
+    result = str(from_request(jsonrpc_request))
     assert result == expected
 
 
@@ -138,12 +140,12 @@ def test_invalid_numeric_steemd_api():
         'params': [2, "login", ["", ""]]
     }
     with pytest.raises(InvalidNamespaceAPIError):
-        result = str(URN.from_request(jsonrpc_request))
+        result = str(from_request(jsonrpc_request))
 
 
 def test_urn_pairs(steemd_method_pairs):
     old, new = steemd_method_pairs
-    old_urn = str(URN.from_request(old))
-    new_urn = str(URN.from_request(new))
+    old_urn = str(from_request(old))
+    new_urn = str(from_request(new))
     assert old_urn == new_urn
     assert old_urn.startswith('steemd.database_api')

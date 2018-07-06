@@ -1,45 +1,73 @@
 # -*- coding: utf-8 -*-
-from typing import Any
 from typing import Dict
 from typing import List
+from typing import TypeVar
 from typing import Union
 
 import pygtrie
 from sanic.app import Sanic
-from sanic.request import Request
 from sanic.response import HTTPResponse as SanicHTTPResponse
 
-from .request import JussiJSONRPCRequest
+from jussi.request.http import HTTPRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 
 WebApp = Sanic
-HTTPRequest = Request
+HTTPRequest = HTTPRequest
 HTTPResponse = SanicHTTPResponse
 
-# JSONRPC Request fields
-JsonRpcRequestIdField = Union[str, float, None]
-JsonRpcRequestParamsField = Union[str, int, float, None, list, dict]
-JsonRpcRequestVersionField = str
-JsonRpcRequestMethodField = str
+# JSONRPC Request/Response fields
+JrpcRequestIdField = TypeVar('JRPCIdField', str, int, float, type(None))
+JrpcRequestParamsField = TypeVar('JRPCParamsField', type(None), list, dict)
+JrpcRequestVersionField = str
+JrpcRequestMethodField = str
+JrpcField = TypeVar('JrpcField',
+                    JrpcRequestIdField,
+                    JrpcRequestParamsField,
+                    JrpcRequestVersionField,
+                    JrpcRequestMethodField)
+JrpcResponseField = TypeVar('JrpcResponseField', str, int, float, type(None), bool, list, dict)
 
 # JSONRPC Requests
-JsonRpcRequestDict = Dict[str, Any]
-SingleJsonRpcRequest = JussiJSONRPCRequest  # Dict[str, Any]
-BatchJsonRpcRequest = List[SingleJsonRpcRequest]
-JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
+SingleRawRequest = Dict[str, JrpcField]
+BatchRawRequest = List[SingleRawRequest]
+RawRequest = TypeVar('RawRequest', SingleRawRequest, BatchRawRequest)
+
+
+SingleJrpcRequest = JSONRPCRequest
+BatchJrpcRequest = List[SingleJrpcRequest]
+JrpcRequest = TypeVar('JrpcRequest', SingleJrpcRequest,
+                      BatchJrpcRequest)
 
 # JSONRPC Responses
-JsonRpcResponseDict = Dict[str, Any]
-SingleJsonRpcResponse = Dict[str, Any]
-BatchJsonRpcResponse = List[SingleJsonRpcResponse]
-JsonRpcResponse = Union[SingleJsonRpcResponse, BatchJsonRpcResponse]
-
-# JSONRPC Errors
-JsonRpcErrorObject = Dict[str, Union[int, str, dict]]
-JsonRpcErrorResponse = Dict[str, Any]
+SingleJrpcResponse = Dict[str, JrpcResponseField]
+BatchJrpcResponse = List[SingleJrpcResponse]
+JrpcResponse = TypeVar('JrpcResponse', SingleJrpcResponse,
+                       BatchJrpcResponse)
 
 # Cached JSONRPC Responses
-CachedSingleResponse = SingleJsonRpcResponse
+CachedSingleResponse = SingleJrpcResponse
 CachedBatchResponse = List[Union[None, CachedSingleResponse]]
-CachedResponse = Union[CachedSingleResponse, CachedBatchResponse]
+CachedResponse = TypeVar('CachedResponse', CachedSingleResponse,
+                         CachedBatchResponse)
 
 StringTrie = pygtrie.StringTrie
+
+
+def urn_type():
+    from .urn import URN
+    return URN
+
+
+def upstreams_type():
+    from .upstream import _Upstreams
+    return _Upstreams
+
+
+def upstream_type():
+    from .upstream import Upstream
+    return Upstream
+
+
+#URN = urn_type()
+#Upstream = upstream_type()
+#Upstreams = upstreams_type()

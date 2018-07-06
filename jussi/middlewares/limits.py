@@ -1,26 +1,30 @@
 # -*- coding: utf-8 -*-
+from typing import Optional
+
 from ..errors import JsonRpcBatchSizeError
-from ..errors import handle_middleware_exceptions
-from ..request import JussiJSONRPCRequest
+from ..errors import JsonRpcError
 from ..typedefs import HTTPRequest
+from ..typedefs import HTTPResponse
 from ..validators import limit_broadcast_transaction_request
 
 
-@handle_middleware_exceptions
-async def check_limits(request: HTTPRequest) -> None:
+async def check_limits(request: HTTPRequest) -> Optional[HTTPResponse]:
     # pylint: disable=no-member
-
-    if request.method == 'POST':
-        jsonrpc_request = request.json
-        if isinstance(jsonrpc_request, JussiJSONRPCRequest):
-            limit_broadcast_transaction_request(jsonrpc_request,
+    try:
+        if request.is_single_jrpc:
+            limit_broadcast_transaction_request(request.jsonrpc,
                                                 limits=request.app.config.limits)
-
-        elif isinstance(jsonrpc_request, list):
-            if len(jsonrpc_request) > request.app.config.jsonrpc_batch_size_limit:
-                raise JsonRpcBatchSizeError(jrpc_batch_size=len(jsonrpc_request),
+        elif request.is_batch_jrpc:
+            if len(request.jsonrpc) > request.app.config.jsonrpc_batch_size_limit:
+                raise JsonRpcBatchSizeError(jrpc_batch_size=len(request.jsonrpc),
                                             jrpc_batch_size_limit=request.app.config.jsonrpc_batch_size_limit)
 
-            for single_jsonrpc_request in jsonrpc_request:
-                limit_broadcast_transaction_request(single_jsonrpc_request,
-                                                    limits=request.app.config.limits)
+            _ = [limit_broadcast_transaction_request(r, limits=request.app.config.limits)
+                 for r in request.jsonrpc
+                 ]
+    except JsonRpcError as e:
+        e.add_http_request(http_request=request)
+        return e.to_sanic_response()
+    except Exception as e:
+        return JsonRpcError(http_request=request,
+                            exception=e).to_sanic_response()

@@ -1,7 +1,10 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import asyncio
 import os
 
 import configargparse
+import uvloop
 from sanic import Sanic
 
 import jussi.errors
@@ -10,10 +13,10 @@ import jussi.listeners
 import jussi.logging_config
 import jussi.middlewares
 import jussi.sanic_config
+from jussi.request.http import HTTPRequest
 from jussi.typedefs import WebApp
 
-STEEMIT_MAX_BLOCK_SIZE = 393_216_000
-REQUEST_MAX_SIZE = STEEMIT_MAX_BLOCK_SIZE + 1000
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 def strtobool(val):
@@ -48,12 +51,18 @@ def parse_args(args: list = None):
                         type=lambda x: bool(strtobool(x)),
                         env_var='JUSSI_DEBUG',
                         default=False)
+    parser.add_argument('--debug_route',
+                        type=lambda x: bool(strtobool(x)),
+                        env_var='JUSSI_DEBUG_ROUTE',
+                        default=False)
     parser.add_argument('--server_host', type=str, env_var='JUSSI_SERVER_HOST',
                         default='0.0.0.0')
     parser.add_argument('--server_port', type=int, env_var='JUSSI_SERVER_PORT',
                         default=9000)
     parser.add_argument('--server_workers', type=int,
                         env_var='JUSSI_SERVER_WORKERS', default=os.cpu_count())
+    parser.add_argument('--server_tcp_backlog', type=int,
+                        env_var='JUSSI_SERVER_TCP_BACKLOG', default=1000)
 
     parser.add_argument('--jsonrpc_batch_size_limit', type=int,
                         env_var='JUSSI_JSONRPC_BATCH_SIZE_LIMIT', default=50)
@@ -66,9 +75,6 @@ def parse_args(args: list = None):
                         default=8)
     parser.add_argument('--websocket_queue_size',
                         env_var='JUSSI_WEBSOCKET_QUEUE', type=int, default=1)
-    parser.add_argument('--websocket_pool_recycle',
-                        env_var='JUSSI_WEBSOCKET_POOL_RECYCLE', type=int,
-                        default=-1)
 
     # server version
     parser.add_argument('--source_commit', env_var='SOURCE_COMMIT', type=str,
@@ -93,18 +99,20 @@ def parse_args(args: list = None):
                         env_var='JUSSI_CACHE_TEST_BEFORE_ADD', default=False)
 
     # redis config
-
-    parser.add_argument('--redis_host', type=str, env_var='JUSSI_REDIS_HOST',
+    # redis://[:password]@localhost:6379/0
+    parser.add_argument('--redis_url', type=str, env_var='JUSSI_REDIS_URL',
+                        help='redis://[:password]@localhost:6379/0',
                         default=None)
-    parser.add_argument('--redis_port', type=int, env_var='JUSSI_REDIS_PORT',
-                        default=6379)
-    parser.add_argument('--redis_pool_minsize', type=int,
-                        env_var='JUSSI_REDIS_POOL_MINSIZE', default=1)
-    parser.add_argument('--redis_pool_maxsize', type=int,
-                        env_var='JUSSI_REDIS_POOL_MAXSIZE', default=30)
-    parser.add_argument('--redis_read_replica_hosts', type=str,
-                        env_var='JUSSI_REDIS_READ_REPLICA_HOSTS', default=None,
+
+    parser.add_argument('--redis_read_replica_urls', type=str,
+                        env_var='JUSSI_REDIS_READ_REPLICA_URLS', default=None,
+                        help='redis://[:password]@localhost:6379/0',
                         nargs='*')
+
+    # statsd statsd://host:port
+    parser.add_argument('--statsd_url', type=str, env_var='JUSSI_STATSD_URL',
+                        help='statsd://host:port',
+                        default=None)
 
     return parser.parse_args(args=args)
 
@@ -112,7 +120,9 @@ def parse_args(args: list = None):
 def main():
     args = parse_args()
     # run app
-    app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
+    app = Sanic(__name__,
+                log_config=jussi.logging_config.LOGGING,
+                request_class=HTTPRequest)
     app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
@@ -126,7 +136,8 @@ def main():
         port=app.config.args.server_port,
         workers=app.config.args.server_workers,
         access_log=False,
-        debug=app.config.args.debug)
+        debug=app.config.args.debug,
+        backlog=app.config.args.server_tcp_backlog)
 
     app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)
@@ -136,7 +147,9 @@ def main():
 if __name__ == '__main__':
     args = parse_args()
     # run app
-    app = Sanic(__name__, log_config=jussi.logging_config.LOGGING,)
+    app = Sanic(__name__,
+                log_config=jussi.logging_config.LOGGING,
+                request_class=HTTPRequest)
     app.config.from_object(jussi.sanic_config)
     app.config.args = args
     app = jussi.logging_config.setup_logging(app)
@@ -150,7 +163,8 @@ if __name__ == '__main__':
         port=app.config.args.server_port,
         workers=app.config.args.server_workers,
         access_log=False,
-        debug=app.config.args.debug)
+        debug=app.config.args.debug,
+        backlog=app.config.args.server_tcp_backlog)
 
     app.config.logger.info('app.config', config=app.config)
     app.config.logger.info('app.run', config=run_config)

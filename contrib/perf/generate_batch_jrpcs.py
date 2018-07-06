@@ -4,6 +4,7 @@
 import json
 import os
 import sys
+import random
 
 count = int(sys.argv[1])
 batch_size = int(sys.argv[2])
@@ -25,7 +26,7 @@ def chunkify(iterable, chunksize=10000):
         yield chunk
 
 
-requests = [dict(id=i, jsonrpc='2.0', method='get_block', params=[i])
+requests = [dict(id=i, jsonrpc='2.0', method='get_block', params=[random.randint(1, 20_000_000)])
             for i in range(count)]
 if batch_size > 1:
     requests = list(chunkify(requests, batch_size))

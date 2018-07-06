@@ -3,7 +3,7 @@ ROOT_DIR := $(shell pwd)
 
 PROJECT_NAME := $(notdir $(ROOT_DIR))
 PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
-PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env -v $(shell pwd)/ALT_config.json:/app/ALT_config.json
+PROJECT_DOCKER_RUN_ARGS := -p8080:8080  -p7777:7777 --env-file .env -v $(shell pwd)/ALT_config.json:/app/ALT_config.json
 
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
@@ -82,7 +82,7 @@ remove-unused-imports: ## remove unused imports from python files
 
 .PHONY: sort-imports
 sort-imports: ## sorts python imports using isort with settings from .editorconfig
-	pipenv run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $(PROJECT_NAME)
+	pipenv run isort --verbose --recursive --atomic --settings-path  .isort.cfg --virtual-env .venv $(PROJECT_NAME)
 
 .PHONY: pipenv-check
 pipenv-check:
@@ -134,31 +134,34 @@ mypy: ## run mypy type checking on python files
 
 .PHONY: test-local-steemd-calls
 test-local-steemd-calls:
-	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl http://localhost:9000
+	pipenv run pytest -vv tests/test_responses.py::test_steemd_responses --jussiurl http://localhost:9000
+
+.PHONY: test-local-appbase-calls
+test-local-appbase-calls:
+	pipenv run pytest -vv tests/test_responses.py::test_appbase_responses --jussiurl http://localhost:9000
 
 .PHONY: test-local-appbase-translation-calls
 test-local-appbase-translation-calls:
 	pipenv run pytest -vv tests/test_responses.py::test_appbase_translation_responses --jussiurl http://localhost:9000
 
-.PHONY: test-live-dev-steemd-calls
-test-live-dev-steemd-calls:
-	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitdev.com
+.PHONY: test-live-dev-appbase-calls
+test-live-dev-appbase-calls:
+	pipenv run pytest -vv tests/test_responses.py::test_appbase_responses --jussiurl https://api.steemitdev.com
 
-.PHONY: test-live-staging-steemd-calls
-test-live-staging-steemd-calls:
-	pipenv run pytest -vv tests/test_responses.py::test_response_results_type --jussiurl https://api.steemitstage.com
+.PHONY: test-live-staging-appbase-calls
+test-live-staging-appbase-calls:
+	pipenv run pytest -vv tests/test_responses.py::test_appbase_responses --jussiurl https://api.steemitstage.com
 
-
-.PHONY: test-live-prod-steemd-calls
-test-live-prod-steemd-calls:
-	pipenv run pytest --maxfail=1 tests/test_responses.py::test_response_results_type --jussiurl https://api.steemit.com
+.PHONY: test-live-prod-appbase-calls
+test-live-prod-appbase-calls:
+	pipenv run pytest --maxfail=1 tests/test_responses.py::test_appbase_responses --jussiurl https://api.steemit.com
 
 
 ./perf:
 	mkdir $@
 
 %.pstats: perf
-	-pipenv run python -m cProfile -o $*.pstats contrib/serve.py
+	-pipenv run python -m cProfile -o $*.pstats ./jussi/serve.py --server_workers=1 --upstream_config_file DEV_config.json
 
 %.png: %.pstats
 	-pipenv run gprof2dot -f pstats $< | dot -Tpng -o $@

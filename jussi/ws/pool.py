@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import collections
 
 import structlog
+# pylint: disable=no-name-in-module
+from websockets import WebSocketClientProtocol as WSConn
 from websockets import connect as websockets_connect
 
-from .utils import PY_35
-from .utils import _PoolAcquireContextManager
-from .utils import _PoolConnectionContextManager
-from .utils import create_future
-from .utils import ensure_future
-
+# pylint: enable=no-name-in-module
 logger = structlog.get_logger(__name__)
 
 '''
@@ -59,281 +55,312 @@ MAX_WEBSOCKET_RECV_SIZE = None  # no limit
 MAX_WEBSOCKET_READ_LIMIT = STEEMIT_MAX_BLOCK_SIZE + 1000
 
 
-async def connect(url=None, **kwargs):
-    return await websockets_connect(uri=url,
-                                    max_size=MAX_WEBSOCKET_RECV_SIZE,
-                                    read_limit=MAX_WEBSOCKET_READ_LIMIT,
-                                    **kwargs)
+# pylint: disable=protected-access
+class PoolConnectionProxy:
+    __slots__ = ('_con', '_holder')
+
+    def __init__(self, holder: 'PoolConnectionHolder',
+                 con: WSConn):
+        self._con = con
+        self._holder = holder
+
+    def __getattr__(self, attr):
+        # Proxy all unresolved attributes to the wrapped Connection object.
+        return getattr(self._con, attr)
+
+    def send(self, *args, **kwargs):
+        return self._con.send(*args, **kwargs)
+
+    def recv(self, *args, **kwargs):
+        return self._con.recv(*args, **kwargs)
 
 
-async def create_pool(url=None, *,
-                      minsize=1,  # min connections in pool
-                      maxsize=10,  # max connections in pool
-                      loop=None,
-                      timeout=1,  # timeout for closing handshake
-                      pool_recycle=-1,  # recycle connection after x messages
-                      **kwargs):
-    # pylint: disable=protected-access
-    if loop is None:
-        loop = asyncio.get_event_loop()
+class PoolConnectionHolder:
+    __slots__ = ('_con',
+                 '_pool',
+                 '_loop',
+                 '_proxy',
+                 '_max_queries',
+                 '_in_use',
+                 '_queries',
+                 '_timeout'
+                 )
 
-    pool = Pool(url=url, minsize=minsize, maxsize=maxsize, loop=loop,
-                timeout=timeout, pool_recycle=pool_recycle,
-                **kwargs)
-    if minsize > 0:
-        with (await pool._cond):
-            await pool._fill_free_pool(False)
-    return pool
+    def __init__(self, pool, *, max_queries: int):
+
+        self._pool = pool
+        self._con = None  # type: WSConn
+        self._max_queries = max_queries
+        self._in_use = None  # type: asyncio.Future
+        self._proxy = None
+        self._timeout = None
+        self._queries = 0
+
+    async def connect(self):
+        if self._con is not None:
+            raise ValueError(
+                'PoolConnectionHolder.connect() called while another '
+                'connection already exists')
+        self._con = await self._pool._get_new_connection()
+
+    async def acquire(self) -> PoolConnectionProxy:
+        if self._con is None or not self._con.open:
+            self._con = None
+            await self.connect()
+        self._in_use = self._pool._loop.create_future()
+        self._proxy = PoolConnectionProxy(self, self._con)
+        return self._proxy
+
+    async def release(self, timeout):
+        if self._in_use is None:
+            raise ValueError(
+                'PoolConnectionHolder.release() called on '
+                'a free connection holder')
+
+        if self._con.closed:
+            # When closing, pool connections perform the necessary
+            # cleanup, so we don't have to do anything else here.
+            return
+
+        self._timeout = None
+
+        if self._max_queries and self._queries >= self._max_queries:
+            # The connection has reached its maximum utilization limit,
+            # so close it.  Connection.close() will call _release().
+            await self._con.close(timeout=timeout)
+            return
+
+        # Free this connection holder and invalidate the
+        # connection proxy.
+        self._release()
+
+    async def wait_until_released(self):
+        if self._in_use is None:
+            return
+        else:
+            await self._in_use
+
+    async def close(self):
+        if self._con is not None:
+            # Connection.close() will call _release_on_close() to
+            # finish holder cleanup.
+            await self._con.close()
+
+    def terminate(self):
+        if self._con is not None:
+            # call _release_on_close() to
+            # finish holder cleanup.
+            self._con.fail_connection()
+            self._release_on_close()
+
+    def _release_on_close(self):
+        self._release()
+        self._con = None
+
+    def _release(self):
+        """Release this connection holder."""
+        if self._in_use is None:
+            # The holder is not checked out.
+            return
+
+        if not self._in_use.done():
+            self._in_use.set_result(None)
+        self._in_use = None
+
+        # Put ourselves back to the pool queue.
+        self._pool._queue.put_nowait(self)
+
+# pylint: disable=too-many-instance-attributes,too-many-arguments,protected-access
 
 
-class Pool(asyncio.AbstractServer):
-    """Connection pool"""
+class Pool:
+    """A connection pool.
+    Connection pool can be used to manage a set of connections to the database.
+    Connections are first acquired from the pool, then used, and then released
+    back to the pool.  Once a connection is released, it's reset to close all
+    open cursors and other resources *except* prepared statements.
+    Pools are created by calling :func:`~asyncpg.pool.create_pool`.
+    """
 
-    # pylint: disable=too-many-instance-attributes,too-many-arguments
+    __slots__ = ('_queue',
+                 '_loop',
+                 '_minsize',
+                 '_maxsize',
+                 '_connect_url',
+                 '_connect_kwargs',
+                 '_holders',
+                 '_initialized',
+                 '_closing',
+                 '_closed')
 
-    def __init__(self, url, minsize, maxsize, loop,
-                 timeout, *, pool_recycle, **kwargs):
-        if minsize < 0:
-            raise ValueError("minsize should be zero or greater")
-        if maxsize < minsize and maxsize != 0:
-            raise ValueError("maxsize should be not less than minsize")
-        self._url = url
-        self._minsize = minsize
+    def __init__(self,
+                 min_size: int,
+                 max_size: int,
+                 max_queries: int,
+                 loop,
+                 connect_url: str,
+                 **connect_kwargs):
+
+        if loop is None:
+            loop = asyncio.get_event_loop()
         self._loop = loop
-        self._timeout = timeout
-        self._recycle = pool_recycle
 
-        self._on_connect = None  # on_connect
-        self._conn_kwargs = kwargs
-        self._acquiring = 0
-        self._free = collections.deque(maxlen=maxsize or None)
-        self._cond = asyncio.Condition(loop=loop)
-        self._used = set()
-        self._terminated = set()
-        self._connect_message_counter = collections.Counter()
+        if max_size <= 0:
+            raise ValueError('max_size is expected to be greater than zero')
+
+        if min_size < 0:
+            raise ValueError(
+                'min_size is expected to be greater or equal to zero')
+
+        if min_size > max_size:
+            raise ValueError('min_size is greater than max_size')
+
+        if max_queries < 0:
+            raise ValueError('max_queries is expected to be greater than or equal zero')
+
+        self._minsize = min_size
+        self._maxsize = max_size
+
+        self._holders = []
+        self._initialized = False
+        self._queue = asyncio.LifoQueue(loop=self._loop)
+
         self._closing = False
         self._closed = False
 
-    @property
-    def minsize(self):
-        return self._minsize
+        self._connect_url = connect_url
+        self._connect_kwargs = connect_kwargs
 
-    @property
-    def maxsize(self):
-        return self._free.maxlen
+        for _ in range(max_size):
+            ch = PoolConnectionHolder(self, max_queries=max_queries)
+            self._holders.append(ch)
+            self._queue.put_nowait(ch)
 
-    @property
-    def size(self):
-        return self.freesize + len(self._used) + self._acquiring
+    async def _async__init__(self):
+        if self._initialized:
+            return
+        if self._closed:
+            raise ValueError('pool is closed')
 
-    @property
-    def freesize(self):
-        return len(self._free)
+        if self._minsize:
+            # Since we use a LIFO queue, the first items in the queue will be
+            # the last ones in `self._holders`.  We want to pre-connect the
+            # first few connections in the queue, therefore we want to walk
+            # `self._holders` in reverse.
 
-    @property
-    def timeout(self):
-        return self._timeout
+            if self._minsize > 1:
+                connect_tasks = []
+                for i, ch in enumerate(reversed(self._holders)):
+                    if i >= self._minsize:
+                        break
+                    connect_tasks.append(ch.connect())
+                await asyncio.gather(*connect_tasks, loop=self._loop)
+        self._initialized = True
+        return self
 
-    @asyncio.coroutine
-    def clear(self):
-        """Close all free connections in pool."""
-        with (yield from self._cond):
-            while self._free:
-                conn = self._free.popleft()
-                yield from conn.close()
-            self._cond.notify()
+    async def _get_new_connection(self) -> WSConn:
+        # First connection attempt on this pool.
+        return await websockets_connect(self._connect_url, loop=self._loop,
+                                        **self._connect_kwargs)
 
-    @property
-    def closed(self):
-        return self._closed
+    async def acquire(self, timeout: int=None) -> PoolConnectionProxy:
+        async def _acquire_impl(timeout=None) -> PoolConnectionProxy:
+            ch = await self._queue.get()  # type: PoolConnectionHolder
+            self._queue.task_done()
+            try:
+                proxy = await ch.acquire()  # type: # type: PoolConnectionProxy
+            except Exception:
+                self._queue.put_nowait(ch)
+                raise
+            else:
+                # Record the timeout, as we will apply it by default
+                # in release().
+                ch._timeout = timeout
+                return proxy
 
-    def close(self):
-        """Close pool.
+        if self._closing:
+            raise ValueError('pool is closing')
+        if not self._initialized:
+            raise ValueError('pool is not initialized')
+        if self._closed:
+            raise ValueError('pool is closed')
 
-        Mark all pool connections to be closed on getting back to pool.
-        Closed pool doesn't allow to acquire new connections.
+        if timeout is None:
+            return await _acquire_impl()
+        else:
+            return await asyncio.wait_for(
+                _acquire_impl(), timeout=timeout, loop=self._loop)
+
+    async def release(self, connection: PoolConnectionProxy, *, timeout: int=None):
+        """Release a database connection back to the pool.
+        """
+        if connection._con is None:
+            # Already released, do nothing.
+            return
+        if not self._initialized:
+            raise ValueError('pool is not initialized')
+        if self._closed:
+            raise ValueError('pool is closed')
+
+        ch = connection._holder
+        if timeout is None:
+            timeout = ch._timeout
+
+        # Use asyncio.shield() to guarantee that task cancellation
+        # does not prevent the connection from being returned to the
+        # pool properly.
+        return await asyncio.shield(ch.release(timeout), loop=self._loop)
+
+    async def close(self):
+        """Attempt to gracefully close all connections in the pool.
+        Wait until all pool connections are released, close them and
+        shut down the pool.  If any error (including cancellation) occurs
+        in ``close()`` the pool will terminate by calling
+        :meth:`Pool.terminate() <pool.Pool.terminate>`.
+        It is advisable to use :func:`python:asyncio.wait_for` to set
+        a timeout.
+        .. versionchanged:: 0.16.0
+            ``close()`` now waits until all pool connections are released
+            before closing them and the pool.  Errors raised in ``close()``
+            will cause immediate pool termination.
         """
         if self._closed:
             return
+        if not self._initialized:
+            raise ValueError('pool is not initialized')
+        if self._closed:
+            raise ValueError('pool is closed')
+
         self._closing = True
 
-    def terminate(self):
-        """Terminate pool.
-
-        Close pool with instantly closing all acquired connections also.
-        """
-        self.close()
-        for conn in list(self._used):
-            asyncio.run_coroutine_threadsafe(self.terminate_connection(conn), self._loop)
-        self._used.clear()
-
-    async def terminate_connection(self, conn):
         try:
-            logger.debug('terminating connection', conn=id(conn))
-            await conn.close()
-            self._terminated.add(conn)
-            self.release(conn)
-        except Exception as e:
-            logger.exception(e)
-            self._terminated.remove(conn)
+            release_coros = [
+                ch.wait_until_released() for ch in self._holders]
+            await asyncio.gather(*release_coros, loop=self._loop)
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        """Wait for closing all pool's connections."""
+            close_coros = [
+                ch.close() for ch in self._holders]
+            await asyncio.gather(*close_coros, loop=self._loop)
 
+        except Exception:
+            self.terminate()
+            raise
+
+        finally:
+            self._closed = True
+            self._closing = False
+
+    def terminate(self):
+        """Terminate all connections in the pool."""
         if self._closed:
             return
-        if not self._closing:
-            raise RuntimeError(".wait_closed() should be called "
-                               "after .close()")
-        while self._free:
-            conn = self._free.popleft()
-            logger.debug(f'closing free connection', conn=conn)
-            yield from conn.close_connection(after_handshake=False)
-            conn.transfer_data_task.cancel()
-
-        with (yield from self._cond):
-            while self.size > self.freesize:
-                yield from self._cond.wait()
-
+        if not self._initialized:
+            raise ValueError('pool is not initialized')
+        if self._closed:
+            raise ValueError('pool is closed')
+        for ch in self._holders:
+            ch.terminate()
         self._closed = True
 
-    def acquire(self):
-        """Acquire free connection from the pool."""
-        coro = self._acquire()
-        return _PoolAcquireContextManager(coro, self)
-
-    @asyncio.coroutine
-    def _acquire(self):
-        if self._closing:
-            raise RuntimeError("Cannot acquire connection after closing pool")
-        with (yield from self._cond):
-            while True:
-                yield from self._fill_free_pool(True)
-                if self._free:
-                    conn = self._free.popleft()
-                    logger.debug(
-                        'pool connections',
-                        free=self.freesize,
-                        used=len(self._used),
-                        acquiring=self._acquiring)
-
-                    assert conn.open, conn
-                    assert conn not in self._used, (conn, self._used)
-                    self._used.add(conn)
-                    # pylint: disable=not-callable
-                    if self._on_connect is not None:
-                        yield from self._on_connect(conn)
-                    if self._recycle > -1:
-                        self._connect_message_counter[id(conn)] += 1
-                    return conn
-                else:
-                    yield from self._cond.wait()
-
-    @asyncio.coroutine
-    def _fill_free_pool(self, override_min):
-        # pylint: disable=no-value-for-parameter
-        # iterate over free connections and remove timeouted ones
-        n, free = 0, len(self._free)
-        while n < free:
-            conn = self._free[-1]
-            if not conn.open:
-                self._free.pop()
-            elif self._recycle > -1 \
-                    and self._connect_message_counter[id(conn)] > self._recycle:
-                yield from self.terminate_connection(conn)
-                logger.debug('recycled connection', conn=id(conn))
-                self._connect_message_counter.clear()
-                self._free.pop()
-            else:
-                self._free.rotate()
-            n += 1
-
-        while self.size < self.minsize:
-            logger.debug('opening ws connection')
-            self._acquiring += 1
-            try:
-                conn = yield from connect(
-                    self._url, loop=self._loop, timeout=self._timeout,
-                    **self._conn_kwargs)
-                # raise exception if pool is closing
-                self._free.append(conn)
-                self._cond.notify()
-            finally:
-                self._acquiring -= 1
-        if self._free:
-            return
-
-        if override_min and self.size < self.maxsize:
-            self._acquiring += 1
-            try:
-                conn = yield from connect(
-                    self._url, loop=self._loop, timeout=self._timeout,
-                    **self._conn_kwargs)
-                # raise exception if pool is closing
-                self._free.append(conn)
-                self._cond.notify()
-            finally:
-                self._acquiring -= 1
-
-    @asyncio.coroutine
-    def _wakeup(self):
-        with (yield from self._cond):
-            self._cond.notify()
-
-    def release(self, conn):
-        """Release free connection back to the connection pool.
-        """
-        logger.debug('releasing conn', conn=id(conn))
-
-        fut = create_future(self._loop)
-        fut.set_result(None)
-        if conn in self._terminated:
-            assert not conn.open, conn
-            self._terminated.remove(conn)
-            return fut
-        assert conn in self._used, (conn, self._used)
-        assert conn.messages.empty() is True
-        self._used.remove(conn)
-        if conn.open:
-            if self._closing:
-                asyncio.ensure_future(conn.close())
-            else:
-                self._free.append(conn)
-            fut = ensure_future(self._wakeup(), loop=self._loop)
-        return fut
-
-    def __enter__(self):
-        raise RuntimeError(
-            '"yield from" should be used as context manager expression')
-
-    def __exit__(self, *args):
-        # This must exist because __enter__ exists, even though that
-        # always raises; that's how the with-statement works.
-        pass  # pragma: nocover
-
-    def __iter__(self):
-        # This is not a coroutine.  It is meant to enable the idiom:
-        #
-        #     with (yield from pool) as conn:
-        #         <block>
-        #
-        # as an alternative to:
-        #
-        #     conn = yield from pool.acquire()
-        #     try:
-        #         <block>
-        #     finally:
-        #         conn.release()
-        conn = yield from self.acquire()
-        return _PoolConnectionContextManager(self, conn)
-
-    if PY_35:  # pragma: no branch
-        @asyncio.coroutine
-        def __aenter__(self):
-            return self
-
-        @asyncio.coroutine
-        def __aexit__(self, exc_type, exc_val, exc_tb):
-            self.close()
-            yield from self.wait_closed()
+    def __await__(self):
+        return self._async__init__().__await__()

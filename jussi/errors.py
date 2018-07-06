@@ -1,29 +1,31 @@
 # -*- coding: utf-8 -*-
 import logging
 import uuid
-from typing import Dict
 from typing import Optional
 from typing import Union
 
 import structlog
-from funcy.decorators import Call
 from funcy.decorators import decorator
 from sanic import response
 from sanic.exceptions import RequestTimeout
 from sanic.exceptions import SanicException
-from sanic.request import Request as SanicRequest
-
-import ujson
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
-from .typedefs import JsonRpcErrorResponse
+from .typedefs import JrpcRequest
+from .typedefs import JrpcResponse
 from .typedefs import WebApp
 
 logger = structlog.get_logger(__name__)
 
 
 # pylint: disable=bare-except
+
+class Default(dict):
+    """helper for format strings in Exception messages"""
+
+    def __missing__(self, key):
+        return key
 
 
 def setup_error_handlers(app: WebApp) -> WebApp:
@@ -37,12 +39,14 @@ def setup_error_handlers(app: WebApp) -> WebApp:
         # pylint: disable=unused-argument
         if not request:
             return None
-        return RequestTimeourError(sanic_request=request).to_sanic_response()
+        return RequestTimeoutError(http_request=request).to_sanic_response()
 
     # pylint: disable=unused-argument
     @app.exception(JsonRpcError)
     def handle_jsonrpc_error(request: HTTPRequest,
                              exception: JsonRpcError) -> HTTPResponse:
+        if not exception.http_request:
+            exception.add_http_request(request)
         return exception.to_sanic_response()
     # pylint: enable=unused-argument
 
@@ -50,40 +54,33 @@ def setup_error_handlers(app: WebApp) -> WebApp:
     def handle_errors(request: HTTPRequest,
                       exception: Exception) -> HTTPResponse:
         """handles all errors"""
-        return JsonRpcError(sanic_request=request,
-                            exception=exception).to_sanic_response()
+        if isinstance(exception, InvalidRequest):
+            return InvalidRequest(http_request=request,
+                                  exception=exception,
+                                  reason=exception.message
+                                  ).to_sanic_response()
+        return JsonRpcError(http_request=request,
+                            exception=exception,
+                            log_traceback=True).to_sanic_response()
 
     return app
 
 
-def log_request_error(error_dict: dict, exception: Exception) -> None:
-    try:
-        logger.exception(str(error_dict), exc_info=exception)
-    except Exception as e:
-        logger.exception(f'Error while logging exception: {e}')
-
-
 @decorator
 async def handle_middleware_exceptions(call):
-    """Return response when exceptions happend in middleware
+    """Return response when exceptions happened in middleware
     """
     try:
         return await call()
     except Exception as e:
         # pylint: disable=no-member
         if isinstance(e, JsonRpcError):
+            if not e.http_request:
+                e.add_http_request(call.request)
             return e.to_sanic_response()
-        return JsonRpcError(sanic_request=call.request,
+        return JsonRpcError(http_request=call.request,
                             exception=e).to_sanic_response()
 
-
-@decorator
-async def ignore_errors_async(call: Call) -> Optional[dict]:
-    try:
-        return await call()
-    except Exception as e:
-        logger.exception('Error ignored %s', e)
-        return None
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments
 
@@ -96,9 +93,9 @@ class JussiInteralError(Exception):
     message = 'Jussi internal error'
 
     def __init__(self,
-                 sanic_request: SanicRequest = None,
-                 jrpc_request=None,
-                 jrpc_response=None,
+                 http_request: HTTPRequest = None,
+                 jrpc_request: JrpcRequest=None,
+                 jrpc_response: JrpcResponse=None,
                  exception: Exception = None,
                  log_traceback: bool = False,
                  error_logger: logging.Logger = None,
@@ -106,79 +103,93 @@ class JussiInteralError(Exception):
 
         self.kwargs = kwargs
         super().__init__(self.format_message())
-        self.logger = error_logger or logger
-        self.sanic_request = sanic_request
-        self.jussi_jsonrpc_request = jrpc_request
-        self.jussi_jsonrpc_response = jrpc_response
-        self.exception = exception
 
+        self.http_request = http_request
+        self.jsonrpc_request = jrpc_request
+        self.jsonrpc_response = jrpc_response
+        self.exception = exception
         self.log_traceback = log_traceback
+        self.logger = error_logger or logger
+        self.kwargs = kwargs
+
         self.error_id = str(uuid.uuid4())
 
-    def format_message(self):
+    def format_message(self, kwargs: dict=None) ->str:
+        kwargs = kwargs or self.kwargs
         try:
-            return self.message.format(**self.kwargs)
-        except Exception as e:
-            logger.error(e)
+            return self.message.format_map(Default(**kwargs))
+        except Exception:
             return self.message
 
     @property
-    def request_data(self):
-        if not isinstance(self.sanic_request, SanicRequest):
-            return dict()
-
-        request = self.sanic_request
-        request_data = {}
-
-        if request.headers:
-            request_data['amzn_trace_id'] = request.headers.get(
-                'X-Amzn-Trace-Id')
-            request_data['jussi_request_id'] = request.headers.get(
-                'x-jussi-request-id')
-        return request_data
+    def amzn_trace_id(self) -> Optional[str]:
+        try:
+            return self.jsonrpc_request.amzn_trace_id
+        except BaseException:
+            pass
+        try:
+            return self.http_request.headers['X-Amzn-Trace-Id']
+        except BaseException:
+            pass
 
     @property
     def jrpc_request_id(self) -> Optional[Union[str, int]]:
-        if self.jussi_jsonrpc_request:
-            try:
-                return self.jussi_jsonrpc_request.log_extra()['jsonrpc_id']
-            except BaseException:
-                pass
-        if self.sanic_request:
-            try:
-                return self.sanic_request.json['id']
-            except BaseException:
-                pass
+        try:
+            return self.jsonrpc_request.id
+        except BaseException:
+            pass
+        try:
+            return self.http_request.jsonrpc['id']
+        except BaseException:
+            pass
+        try:
+            # pylint: disable=protected-access
+            return self.http_request._parsed_json['id']
+        except BaseException:
+            pass
 
     @property
     def jussi_request_id(self) -> Optional[Union[str, int]]:
-        if self.jussi_jsonrpc_request:
-            try:
-                return self.jussi_jsonrpc_request.log_extra()['jussi_request_id']
-            except BaseException:
-                pass
-        if self.sanic_request:
-            try:
-                return self.request_data['jussi_request_id']
-            except BaseException:
-                pass
+        try:
+            return self.jsonrpc_request.jussi_request_id
+        except BaseException:
+            pass
+        try:
+            return self.http_request.jussi_request_id
+        except BaseException:
+            pass
+        try:
+            return self.http_request.headers['x-jussi-request-id']
+        except BaseException:
+            pass
+
+    def add_http_request(self, http_request: HTTPRequest) -> None:
+        self.http_request = http_request
+
+    def add_jsonrpc_request(self, jsonrpc_request: JrpcRequest) -> None:
+        self.jsonrpc_request = jsonrpc_request
+
+    def add_jsonrpc_response(self, jsonrpc_response: JrpcResponse) -> None:
+        self.jsonrpc_response = jsonrpc_response
 
     def to_dict(self) -> dict:
         base_error = {
+            'message': self.format_message(),
             'error_id': self.error_id,
             'jrpc_request_id': self.jrpc_request_id,
             'jussi_request_id': self.jussi_request_id
         }
-        if self.jussi_jsonrpc_request:
+        if self.jsonrpc_request:
             try:
-                base_error.update(self.jussi_jsonrpc_request.log_extra())
+                base_error.update(self.jsonrpc_request.log_extra())
             except Exception as e:
-                logger.warning(f'JussiInteralError jussi_jsonrpc_request serialization error: {e}')
-        if self.kwargs:
-            try:
-                base_error.update(**self.kwargs)
-            except Exception as e:
-                logger.warning(f'JussiInteralError kwargs serialization error: {e}')
+                logger.warning('JussiInteralError jsonrpc_request serialization error', e=e)
+
+        try:
+            base_error.update(**self.kwargs)
+        except Exception as e:
+            logger.warning('JussiInteralError kwargs serialization error', e=e)
+
         return base_error
 
     def log(self) -> None:
@@ -190,118 +201,28 @@ class JussiInteralError(Exception):
 # pylint: enable=too-many-instance-attributes,too-many-arguments
 
 
-class JsonRpcError(Exception):
+class JsonRpcError(JussiInteralError):
     """Base class for the JsonRpc other exceptions.
-
-    :param data: Extra info (optional).
     """
     message = 'Internal Error'
     code = -32603
     # pylint: disable=too-many-arguments
 
-    def __init__(self,
-                 sanic_request: SanicRequest = None,
-                 data: Dict[str, str] = None,
-                 exception: Exception = None,
-                 error_id: str = None,
-                 log_error: bool = True,
-                 error_logger: logging.Logger = None,
-                 **kwargs) -> None:
-        self.kwargs = kwargs
-        super().__init__(self.format_message())
-
-        self.logger = error_logger or logger
-        self.sanic_request = sanic_request
-        self.data = data
-        self.exception = exception
-        self.error_id = error_id or str(uuid.uuid4())
-        self._id = self.jrpc_request_id()
-        if log_error:
-            self.log()
-
-    def format_message(self):
-        try:
-            return self.message.format(**self.kwargs)
-        except Exception as e:
-            logger.error(e)
-            return self.message
-
-    def request_data(self):
-        if not isinstance(self.sanic_request, SanicRequest):
-            return None
-
-        request = self.sanic_request
-
-        request_data = {}
-
-        if request.headers:
-            request_data['amzn_trace_id'] = request.headers.get(
-                'X-Amzn-Trace-Id')
-            request_data['jussi_request_id'] = request.headers.get(
-                'x-jussi-request-id')
-
-        return request_data
-
-    def compose_error_data(self, include_exception=False):
-        error_data = {'error_id': self.error_id}
-        request = self.request_data()
-
-        if request:
-            error_data['request'] = request
-
-        if include_exception:
-            error_data['exception'] = self.exception
-
-        if self.data:
-            error_data['data'] = self.data
-
-        return error_data
-
-    def jrpc_request_id(self) -> Optional[Union[str, int]]:
-        try:
-            return self.sanic_request.json['id']
-        except Exception:
-            return None
-
-    def log(self) -> None:
-        data = self.to_dict(include_exception=True)
-        self.logger.error(str(data), exc_info=self.exception)
-
-    def to_dict(self, include_exception=False) -> JsonRpcErrorResponse:
-        try:
-            error = {
-                'jsonrpc': '2.0',
-                'error': {
-                    'code': self.code,
-                    'message': self.format_message(),
-                    'data': self.compose_error_data(
-                        include_exception=include_exception)
-                }
-            }  # type:  JsonRpcErrorResponse
-
-            if self._id:
-                error['id'] = self._id
-            return error
-
-        except Exception:
-            logger.exception('Error generating jsonrpc error response data')
-
-        return {
+    def to_sanic_response(self) -> HTTPResponse:
+        self.log()
+        error = {
             'jsonrpc': '2.0',
+            'id': self.jrpc_request_id,
             'error': {
                 'code': self.code,
-                'message': self.format_message()
+                'message': self.format_message(),
+                'data': {
+                    'error_id': self.error_id,
+                    'jussi_request_id': self.jussi_request_id
+                }
             }
         }
-
-    def to_sanic_response(self) -> HTTPResponse:
-        return response.json(self.to_dict())
-
-    def __str__(self) -> str:
-        return ujson.dumps(self.to_dict())
-
-    def __repr__(self) -> str:
-        return str(self.to_dict())
+        return response.json(error, headers={'x-jussi-error-id': self.error_id})
 
 
 class ParseError(JsonRpcError):
@@ -328,14 +249,14 @@ class ServerError(JsonRpcError):
     message = 'Server error'
 
 
-class RequestTimeourError(JsonRpcError):
+class RequestTimeoutError(JsonRpcError):
     code = 1000
     message = 'Request Timeout'
 
 
 class UpstreamResponseError(JsonRpcError):
     code = 1100
-    message = 'Bad or missing upstream response'
+    message = 'Upstream response error'
 
 
 class InvalidNamespaceError(JsonRpcError):
@@ -355,7 +276,7 @@ class InvalidUpstreamHost(JsonRpcError):
 
 class InvalidUpstreamURL(JsonRpcError):
     code = 1500
-    message = 'Invalid/unhealthy upstream {url} : {reason}'
+    message = 'Invalid/unhealthy upstream {url} {reason}'
 
 
 class JsonRpcBatchSizeError(JsonRpcError):

@@ -11,7 +11,6 @@ from urllib.parse import urlparse
 import jsonschema
 import pygtrie
 import structlog
-
 import ujson
 
 from .errors import InvalidUpstreamHost
@@ -22,18 +21,18 @@ logger = structlog.get_logger(__name__)
 ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?@([^\/\s]+)/transfers$')
 
 
-#-------------------
+# -------------------
 # TTLS
 # NO EXPIRE: 0
 # NO CACHE: -1
 # NO EXPIRE IF IRREVERSIBLE: -2
-#-------------------
+# -------------------
 #  TIMEOUTS
 #  NO TIMEOUT: 0
-#-------------------
+# -------------------
 #  RETRIES
 #  NO RETRIES: 0
-#-------------------
+# -------------------
 
 
 UPSTREAM_SCHEMA_FILE = 'upstreams_schema.json'
@@ -92,7 +91,6 @@ class _Upstreams(object):
         try:
             if (request_urn.api == 'database_api' or request_urn.api == 'condenser_api') and ACCOUNT_TRANSFER_PATTERN.match(
                     request_urn.params[0]):
-                logger.debug('matched')
                 url = os.environ.get('JUSSI_ACCOUNT_TRANSFER_STEEMD_URL')
                 if url:
                     return url
@@ -101,19 +99,18 @@ class _Upstreams(object):
         _, url = self.__URLS.longest_prefix(str(request_urn))
         if not url:
             raise InvalidUpstreamURL(
-                url=url, reason='No matching url found', data={
-                    'urn': str(request_urn)})
+                url=url, reason='No matching url found', urn=str(request_urn))
         elif url.startswith('ws') or url.startswith('http'):
             return url
-        raise InvalidUpstreamURL(url=url, reason='invalid format', data={'urn': str(request_urn)})
+        raise InvalidUpstreamURL(url=url, reason='invalid format', urn=str(request_urn))
 
     @functools.lru_cache(8192)
-    def ttl(self, request_urn: NamedTuple) -> int:
+    def ttl(self, request_urn) -> int:
         _, ttl = self.__TTLS.longest_prefix(str(request_urn))
         return ttl
 
     @functools.lru_cache(8192)
-    def timeout(self, request_urn: NamedTuple) -> int:
+    def timeout(self, request_urn) -> int:
         _, timeout = self.__TIMEOUTS.longest_prefix(str(request_urn))
         if timeout is 0:
             timeout = None
@@ -127,7 +124,7 @@ class _Upstreams(object):
     def namespaces(self)-> frozenset:
         return self.__NAMESPACES
 
-    def translate_to_appbase(self, request_urn: NamedTuple) -> bool:
+    def translate_to_appbase(self, request_urn) -> bool:
         return request_urn.namespace in self.__TRANSLATE_TO_APPBASE
 
     def validate_urls(self):
@@ -136,9 +133,9 @@ class _Upstreams(object):
             try:
                 parsed_url = urlparse(url)
                 host = urlparse(url).netloc
-                logger.info('attempting to add %s', parsed_url)
+                logger.info('attempting to add uptream url', url=parsed_url)
                 socket.gethostbyname(host)
-                logger.info('added %s', parsed_url)
+                logger.info('added upstream url', url=parsed_url)
             except socket.gaierror:
                 raise InvalidUpstreamHost(url=url)
             except Exception as e:

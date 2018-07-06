@@ -122,3 +122,9 @@ env
 ALT_config.json
 api_initial_schema.json
 api_signatures.json
+Untitled.ipynb
+.pytest_cache
+*.ipynb
+.ipynb_checkpoints
+build
+prof/

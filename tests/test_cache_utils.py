@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 import pytest
-from jussi.cache.ttl import TTL
+
 
 from jussi.cache.utils import block_num_from_jsonrpc_response
-from jussi.cache.utils import irreversible_ttl
 
-
-SBDS_DEFAULT_CACHE = 10
-
-
+# FIXME add all formats of get_block and get_block_header responses
 ttl_rpc_req = {"id": "1", "jsonrpc": "2.0",
                "method": "get_block", "params": [1000]}
 rpc_resp = {

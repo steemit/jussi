@@ -20,6 +20,7 @@ ENV APP_ROOT /app
 ENV APP_CMD jussi.serve
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
+ENV JUSSI_DEBUG_PORT 7777
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
 ENV NGINX_SERVER_PORT 8080
@@ -53,13 +54,13 @@ RUN \
 
 
 RUN \
-    wget https://www.python.org/ftp/python/3.6.2/Python-3.6.2.tar.xz && \
-    tar xvf Python-3.6.2.tar.xz && \
-    cd Python-3.6.2/ && \
+    wget https://www.python.org/ftp/python/3.6.5/Python-3.6.5.tar.xz && \
+    tar xvf Python-3.6.5.tar.xz && \
+    cd Python-3.6.5/ && \
     ./configure && \
     make altinstall && \
     cd .. && \
-    rm -rf Python-3.6.2.tar.xz Python-3.6.2/
+    rm -rf Python-3.6.5.tar.xz Python-3.6.5/
 
 # nginx
 RUN \
@@ -115,3 +116,4 @@ RUN chown -R www-data . && \
 RUN pipenv run pytest
 
 EXPOSE ${NGINX_SERVER_PORT}
+EXPOSE ${JUSSI_DEBUG_PORT}

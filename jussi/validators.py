@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
 import itertools as it
+from typing import NoReturn
 
 import structlog
-from funcy.decorators import Call
-from funcy.decorators import decorator
 
-from .errors import InvalidRequest
+from jussi.request.jsonrpc import JSONRPCRequest
+
+#from .errors import InvalidRequest
 from .errors import JussiCustomJsonOpLengthError
 from .errors import JussiLimitsError
-from .errors import ServerError
-from .errors import UpstreamResponseError
-from .typedefs import JsonRpcRequest
-from .typedefs import JsonRpcResponse
-from .typedefs import SingleJsonRpcRequest
-from .typedefs import SingleJsonRpcResponse
+from .typedefs import JrpcRequest
+from .typedefs import JrpcResponse
+from .typedefs import RawRequest
+from .typedefs import SingleJrpcResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -29,6 +28,11 @@ GET_BLOCK_RESULT_KEYS = {"previous",
                          "transaction_ids"}
 
 JSONRPC_REQUEST_KEYS = {'id', 'jsonrpc', 'method', 'params'}
+JSONRPC_RESPONSE_KEYS = {'id', 'jsonrpc', 'result', 'error'}
+
+NONE_TYPE = type(None)
+ID_TYPES = (int, str, float, NONE_TYPE)
+PARAMS_TYPES = (list, dict, NONE_TYPE)
 
 CUSTOM_JSON_SIZE_LIMIT = 2000
 CUSTOM_JSON_FOLLOW_RATE = 2
@@ -39,65 +43,30 @@ BROADCAST_TRANSACTION_METHODS = {
 }
 
 
-@decorator
-async def validate_response_decorator(call: Call) -> SingleJsonRpcResponse:
-    """Return response if valid
-    """
-    json_response = await call()
-    try:
-        if is_get_block_request(call.jsonrpc_request):
-            assert is_valid_get_block_response(
-                call.jsonrpc_request, json_response)
-        return json_response
-    except AssertionError as e:
-        raise ServerError(sanic_request=call.sanic_http_request,
-                          data={
-                              'message': 'Bad or missing upstream response',
-                              'upstream_response': json_response
-                          },
-                          exception=e)
-
-
 #
 # validate_* methods raise on invalid input
 #
 
 
-def validate_jsonrpc_request(jsonrpc_request: JsonRpcRequest) -> None:
-    if isinstance(jsonrpc_request, dict):
-        assert JSONRPC_REQUEST_KEYS.issuperset(jsonrpc_request.keys())
-        assert len(jsonrpc_request.keys()) >= 2
-        assert jsonrpc_request.get('jsonrpc') == '2.0', 'bad jsonrpc version'
-        assert isinstance(jsonrpc_request.get('method'), str), ''
-        assert isinstance(jsonrpc_request.get('id'),
-                          (int, str, float, type(None))), 'bad jsonrpc id'
-        assert isinstance(jsonrpc_request.get('params'),
-                          (list, dict, type(None))), 'bad jsonrpc params'
-    elif isinstance(jsonrpc_request, list):
-        # pylint: disable=expression-not-assigned
-        [validate_jsonrpc_request(r) for r in jsonrpc_request]
-        # pylint: enable=expression-not-assigned
-    elif isinstance(jsonrpc_request, SingleJsonRpcRequest):
+def validate_jsonrpc_request(request: RawRequest) -> NoReturn:
+    from .errors import InvalidRequest
+    if isinstance(request, dict):
+        assert JSONRPC_REQUEST_KEYS.issuperset(request.keys()) and \
+            request['jsonrpc'] == '2.0' and \
+            isinstance(request['method'], str) and \
+            isinstance(request.get('id', None), ID_TYPES) and \
+            isinstance(request.get('params', None), (list, dict, type(None)))
+    elif isinstance(request, list) and request:
+        for r in request:
+            assert JSONRPC_REQUEST_KEYS.issuperset(r.keys()) and \
+                r['jsonrpc'] == '2.0' and \
+                isinstance(r['method'], str) and \
+                isinstance(r.get('id'), ID_TYPES) and \
+                isinstance(r.get('params'), PARAMS_TYPES)
+    elif isinstance(request, JSONRPCRequest):
         pass  # already be validated
     else:
-        raise InvalidRequest(request=jsonrpc_request)
-
-
-def validate_jussi_response(jsonrpc_request: JsonRpcRequest,
-                            jsonrpc_response: JsonRpcResponse) -> None:
-    if isinstance(jsonrpc_request, list):
-        assert isinstance(jsonrpc_response, list)
-        assert len(jsonrpc_request) > 0 and (jsonrpc_request) == len(
-            jsonrpc_response)
-        assert all(validate_jussi_response(req, resp) for req, resp in
-                   zip(jsonrpc_request, jsonrpc_response))
-    elif isinstance(jsonrpc_request, SingleJsonRpcRequest):
-        assert is_valid_non_error_single_jsonrpc_response(jsonrpc_response)
-        if is_get_block_request(jsonrpc_request):
-            assert is_valid_get_block_response(
-                jsonrpc_request, jsonrpc_response)
-    else:
-        raise UpstreamResponseError(data=jsonrpc_request.log_extra())
+        raise InvalidRequest(request=request)
 
 
 #
@@ -105,168 +74,72 @@ def validate_jussi_response(jsonrpc_request: JsonRpcRequest,
 #
 
 
-def is_valid_jsonrpc_request(
-        jsonrpc_request: JsonRpcRequest = None) -> bool:
-    try:
-        validate_jsonrpc_request(jsonrpc_request)
-        return True
-    except Exception as e:
-        logger.error(f'{e}')
-    return False
+def is_valid_single_jsonrpc_response(response: SingleJrpcResponse) -> bool:
+    # response.get('jsonrpc')  == '2.0' and \
+    return isinstance(response, dict) and \
+        (bool('result' in response) ^ bool('error' in response)) and \
+        {'id', 'jsonrpc', 'result', 'error'}.issuperset(response.keys())
 
 
-def is_valid_single_jsonrpc_response(
-        jsonrpc_response: SingleJsonRpcResponse) -> bool:
-    return isinstance(
-        jsonrpc_response, dict) and len(
-        jsonrpc_response.keys()) >= 2 and {
-        'id', 'jsonrpc', 'result', 'error'}.issuperset(
-        jsonrpc_response.keys())
-
-
-def is_valid_non_error_single_jsonrpc_response(
-        jsonrpc_response: SingleJsonRpcResponse) -> bool:
-    return isinstance(
-        jsonrpc_response, dict) and len(
-        jsonrpc_response.keys()) >= 2 and {
-        'id', 'jsonrpc', 'result'}.issuperset(
-        jsonrpc_response.keys())
-
-
-def is_valid_jsonrpc_response(jsonrpc_request: JsonRpcRequest,
-                              jsonrpc_response: JsonRpcResponse) -> bool:
-    if not is_valid_jsonrpc_request(jsonrpc_request):
-        return False
-    if isinstance(jsonrpc_request, SingleJsonRpcRequest):
-        return isinstance(
-            jsonrpc_response, dict) and is_valid_single_jsonrpc_response(
-            jsonrpc_response)
-    if isinstance(jsonrpc_response, list):
-        return len(jsonrpc_request) > 0 and len(jsonrpc_request) == len(
-            jsonrpc_response) and all(is_valid_single_jsonrpc_response(r)
-                                      for r in jsonrpc_response)
-    else:
-        return False
-
-
-def is_valid_non_error_jsonrpc_response(jsonrpc_request: JsonRpcRequest,
-                                        jsonrpc_response: JsonRpcResponse) -> bool:
-    if not is_valid_jsonrpc_request(jsonrpc_request):
-        return False
-    if isinstance(jsonrpc_request, SingleJsonRpcRequest):
-        return isinstance(jsonrpc_response,
-                          dict) and is_valid_non_error_single_jsonrpc_response(
-            jsonrpc_response)
-    if isinstance(jsonrpc_response, list):
-        return len(jsonrpc_request) > 0 and len(jsonrpc_request) == len(
-            jsonrpc_response) and all(
-            is_valid_non_error_single_jsonrpc_response(r)
-            for r in jsonrpc_response)
-    else:
-        return False
-
-
-def is_valid_jussi_response(
-        jsonrpc_request: SingleJsonRpcRequest,
-        response: SingleJsonRpcResponse) -> bool:
-    try:
-        if not is_valid_jsonrpc_request(jsonrpc_request):
-            return False
-        if isinstance(jsonrpc_request, SingleJsonRpcRequest):
-            if not is_valid_jsonrpc_response(
-                    jsonrpc_request, response):
-                return False
-            if is_get_block_request(jsonrpc_request):
-                return is_valid_get_block_response(jsonrpc_request, response)
-            return True
-        if isinstance(jsonrpc_request, list):
-            return len(jsonrpc_request) > 0 and len(jsonrpc_request) == len(
-                response) and all(
-                is_valid_jussi_response(req, resp) for req,
-                resp in
-                zip(jsonrpc_request, response))
-        return False
-    except Exception as e:
-        logger.error('is_valid_jussi_response error', e=e,
-                     **jsonrpc_request.log_extra())
-    return False
+def is_valid_non_error_single_jsonrpc_response(response: SingleJrpcResponse) -> bool:
+    # response.get('jsonrpc') == '2.0' and
+    return isinstance(response, dict) and \
+        'result' in response and \
+        {'id', 'jsonrpc', 'result'}.issuperset(response.keys())
 
 
 def is_valid_non_error_jussi_response(
-        jsonrpc_request: SingleJsonRpcRequest,
-        response: SingleJsonRpcResponse) -> bool:
+        request: JrpcRequest,
+        response: JrpcResponse) -> bool:
     try:
-        if not is_valid_jsonrpc_request(jsonrpc_request):
-            return False
-        if isinstance(jsonrpc_request, SingleJsonRpcRequest):
-            if not is_valid_non_error_jsonrpc_response(
-                    jsonrpc_request, response):
+        if isinstance(request, JSONRPCRequest):
+            if not is_valid_non_error_single_jsonrpc_response(response):
                 return False
-            if is_get_block_request(jsonrpc_request):
-                return is_valid_get_block_response(jsonrpc_request, response)
+            if is_get_block_request(request):
+                return is_valid_get_block_response(request, response)
             return True
-        if isinstance(jsonrpc_request, list):
-            return len(jsonrpc_request) > 0 and len(jsonrpc_request) == len(
-                response) and all(
-                is_valid_jussi_response(req, resp) for req,
-                resp in
-                zip(jsonrpc_request, response))
+        if isinstance(request, list):
+            return len(response) > 0 and \
+                isinstance(response, list) and \
+                len(request) == len(response) and \
+                all(is_valid_non_error_jussi_response(req, resp)
+                    for req, resp in zip(request, response))
         return False
     except Exception as e:
         logger.error('is_valid_non_error_jussi_response error', e=e,
-                     **jsonrpc_request.log_extra())
+                     jid=request.jussi_request_id)
     return False
 
 
-def is_get_block_request(jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
-    try:
-        return jsonrpc_request.urn.namespace in (
-            'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_block'
-    except Exception as e:
-        logger.warning('is_get_block_request error', e=e,
-                       **jsonrpc_request.log_extra())
-        return False
+def is_get_block_request(request: JSONRPCRequest) -> bool:
+    return request.urn.namespace in ('steemd', 'appbase') and request.urn.method == 'get_block'
 
 
-def is_get_block_header_request(
-        jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
-    try:
-        return jsonrpc_request.urn.namespace in (
-            'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_block_header'
-    except Exception as e:
-
-        logger.warning('is_get_block_request error', e=e,
-                       **jsonrpc_request.log_extra())
-        return False
+def is_get_block_header_request(request: JSONRPCRequest) -> bool:
+    return request.urn.namespace in (
+        'steemd', 'appbase') and request.urn.method == 'get_block_header'
 
 
-def is_get_dynamic_global_properties_request(
-        jsonrpc_request: SingleJsonRpcRequest = None) -> bool:
-    try:
-        return jsonrpc_request.urn.namespace in (
-            'steemd', 'appbase') and jsonrpc_request.urn.method == 'get_dynamic_global_properties'
-    except Exception as e:
-        logger.warning('is_get_dynamic_global_properties_request failed', e=e,
-                       **jsonrpc_request.log_extra())
-        return False
+def is_get_dynamic_global_properties_request(request: JSONRPCRequest) -> bool:
+    return request.urn.namespace in (
+        'steemd', 'appbase') and request.urn.method == 'get_dynamic_global_properties'
 
 
 def is_valid_get_block_response(
-        jsonrpc_request: SingleJsonRpcRequest,
-        response: SingleJsonRpcResponse) -> bool:
-    if not is_get_block_request(
-            jsonrpc_request) and is_valid_non_error_single_jsonrpc_response(
-            response):
+        request: JSONRPCRequest,
+        response: SingleJrpcResponse) -> bool:
+    if not is_get_block_request(request) and \
+            is_valid_non_error_single_jsonrpc_response(response):
         return False
     request_block_num, response_block_num = 'nope', 'nope'
     try:
-        params = jsonrpc_request.urn.params
+        params = request.urn.params
         if isinstance(params, list):
             request_block_num = params[0]
         elif isinstance(params, dict):
             request_block_num = params['block_num']
         else:
-            raise ValueError(f'bad urn params from {jsonrpc_request}: {params} ')
+            raise ValueError(f'bad urn params from {request}: {params} ')
 
         if 'result' not in response:
             raise Exception('jsonrpc response did not contain result')
@@ -285,33 +158,32 @@ def is_valid_get_block_response(
     except KeyError as e:
         logger.error('is_valid_get_block_response key error',
                      e=e,
-                     response=response,
-                     **jsonrpc_request.log_extra())
+                     jid=request.jussi_request_id,
+                     response=response)
     except AssertionError:
         logger.error('request_block != response block_num',
+                     jid=request.jussi_request_id,
                      request_block_num=request_block_num,
                      response_block_num=response_block_num)
     except Exception as e:
         logger.error('is_valid_get_block_response error', e=e,
-                     **jsonrpc_request.log_extra())
+                     jid=request.jussi_request_id, )
     return False
 
 
-def is_broadcast_transaction_request(jsonrpc_request: SingleJsonRpcRequest) -> bool:
-    return jsonrpc_request.urn.method in BROADCAST_TRANSACTION_METHODS
+def is_broadcast_transaction_request(request: JSONRPCRequest) -> bool:
+    return request.urn.method in BROADCAST_TRANSACTION_METHODS
 
 
-def limit_broadcast_transaction_request(
-        jsonrpc_request: SingleJsonRpcRequest, limits=None):
-
-    if is_broadcast_transaction_request(jsonrpc_request):
-        if isinstance(jsonrpc_request.urn.params, list):
-            request_params = jsonrpc_request.urn.params[0]
-        elif isinstance(jsonrpc_request.urn.params, dict):
-            request_params = jsonrpc_request.urn.params['trx']
+def limit_broadcast_transaction_request(request: JSONRPCRequest, limits=None) -> NoReturn:
+    if is_broadcast_transaction_request(request):
+        if isinstance(request.urn.params, list):
+            request_params = request.urn.params[0]
+        elif isinstance(request.urn.params, dict):
+            request_params = request.urn.params['trx']
         else:
             raise ValueError(
-                f'Unknown request params type: {type(jsonrpc_request.urn.params)} urn:{jsonrpc_request.urn}')
+                f'Unknown request params type: {type(request.urn.params)} urn:{request.urn}')
         ops = [op for op in request_params['operations'] if op[0] == 'custom_json']
         if not ops:
             return
@@ -319,7 +191,8 @@ def limit_broadcast_transaction_request(
         try:
             blacklist_accounts = limits['accounts_blacklist']
         except Exception as e:
-            logger.warning('using empty accounts_blacklist: %s', e)
+            logger.warning('using empty accounts_blacklist', e=e,
+                           jid=request.jussi_request_id, )
 
         limit_custom_json_op_length(ops, size_limit=CUSTOM_JSON_SIZE_LIMIT)
         limit_custom_json_account(ops, blacklist_accounts=blacklist_accounts)
@@ -343,5 +216,5 @@ def block_num_from_id(block_hash: str) -> int:
     return int(str(block_hash)[:8], base=16)
 
 
-def jsonrpc_cache_key(single_jsonrpc_request: SingleJsonRpcRequest) -> str:
-    return str(single_jsonrpc_request.urn)
+def jsonrpc_cache_key(request: JSONRPCRequest) -> str:
+    return str(request.urn)

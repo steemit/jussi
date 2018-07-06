@@ -1,25 +1,16 @@
 # -*- coding: utf-8 -*-
 import pytest
-from .conftest import TEST_UPSTREAM_CONFIG
-from .conftest import AttrDict
 
 from jussi.cache.ttl import TTL
 from jussi.cache.utils import irreversible_ttl
-
-from jussi.request import JussiJSONRPCRequest
-from jussi.upstream import _Upstreams
-
-
-dummy_request = AttrDict()
-dummy_request.headers = dict()
-dummy_request['jussi_request_id'] = '123456789012345'
-dummy_request.app = AttrDict()
-dummy_request.app.config = AttrDict()
-dummy_request.app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
+from jussi.request.jsonrpc import JSONRPCRequest
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
+from .conftest import make_request
+dummy_request = make_request()
 
 
-ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
-                                                                  "method": "get_block", "params": [1000]})
+ttl_rpc_req = jsonrpc_from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
+                                                      "method": "get_block", "params": [1000]})
 rpc_resp = {
     "id": 1,
     "result": {
@@ -34,8 +25,8 @@ rpc_resp = {
         "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
         "transaction_ids": []}}
 
-non_ttl_rpc_req = JussiJSONRPCRequest.from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
-                                                                      "method": "sbds.method", "params": [1000]})
+non_ttl_rpc_req = jsonrpc_from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
+                                                          "method": "sbds.method", "params": [1000]})
 
 
 @pytest.mark.parametrize('rpc_req, rpc_resp, last_block_num, expected', [

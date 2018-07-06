@@ -3,47 +3,14 @@ import pytest
 import sanic
 import sanic.response
 import sanic.request
-import ujson
 from jussi.errors import InvalidRequest
 from jussi.errors import JsonRpcError
 from jussi.errors import ParseError
 from jussi.errors import ServerError
 from jussi.errors import handle_middleware_exceptions
+from .conftest import make_request
 
-
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-
-def make_fake_request(
-        body=None,
-        path=None,
-        headers=None,
-        version='1.1',
-        method='POST',
-        transport=None):
-
-    body = body or 'body'
-
-    path = path or '/path'
-
-    url = 'http://localhost' + path
-    url_bytes = url.encode()
-    if isinstance(body, dict):
-        body = ujson.dumps(body)
-
-    headers = headers or {
-        'X-Amzn-Trace-Id': 'amzn_trace_id',
-        'x-jussi-request-id': 'jussi_request_id'
-    }
-
-    req = sanic.request.Request(
-        url_bytes=url_bytes, headers=headers, version=version, method=method,
-        transport=transport)
-    req.body = body
-    return req
+from jussi.request.http import HTTPRequest
 
 
 jrpc_req = {
@@ -53,53 +20,54 @@ jrpc_req = {
     'params': [1, 2, 3]
 }
 
-fake_sanic_request = make_fake_request(body=jrpc_req)
+fake_http_request = make_request(body=jrpc_req)
 
-fake_minimal_sanic_request = make_fake_request(path='/', headers={})
+fake_minimal_http_request = make_request()
 
 
 default_error_message_data = {
     'error_id': '123',
-    'request': {
-        'amzn_trace_id': 'amzn_trace_id',
-        'jussi_request_id': 'jussi_request_id'
-    }
+    'jussi_request_id': '123'
 }
 
 minimal_error0 = {
+    'id': 1,
     'jsonrpc': '2.0',
     'error': {
         'code': -32603,
         'message': 'Internal Error',
         'data': {
             'error_id': '123',
-            'request': {
-                'amzn_trace_id': None,
+            'jussi_request_id': '123'
+        }
+    }
+}
 
-                'jussi_request_id': None}}},
-    'id': 1}
-
-minimal_error = {
+minimal_error_with_no_jsonrpc_id = {
+    'id': None,
     'jsonrpc': '2.0',
-    'error':
-    {'code': -32603, 'message': 'Internal Error',
-     'data':
-     {'error_id': '123',
-      'request':
-      {
-          'amzn_trace_id': None,
-          'jussi_request_id': None}}}}
+    'error': {
+        'code': -32603,
+        'message': 'Internal Error',
+        'data': {
+            'error_id': '123',
+            'jussi_request_id': '123'
+        }
+    }
+}
+
 minimal_error2 = {
+    'id': 1,
     'jsonrpc': '2.0',
-    'error':
-    {'code': -32603, 'message': 'Internal Error',
-     'data':
-     {'error_id': '123',
-      'request':
-      {
-          'amzn_trace_id': 'amzn_trace_id',
-          'jussi_request_id': 'jussi_request_id'}}},
-    'id': 1}
+    'error': {
+        'code': -32603,
+        'message': 'Internal Error',
+        'data': {
+            'error_id': '123',
+            'jussi_request_id': '123'
+        }
+    }
+}
 
 
 jrpc_error = {
@@ -107,9 +75,11 @@ jrpc_error = {
     'jsonrpc': '2.0',
     'error': {
         'code': -32603,
-        'message':
-        'Internal Error',
-        'data': default_error_message_data
+        'message': 'Internal Error',
+        'data': {
+            'error_id': '123',
+            'jussi_request_id': '123'
+        }
     }
 }
 
@@ -121,17 +91,11 @@ jrpc_error_with_data = {
     'jsonrpc': '2.0',
     'error': {
         'code': -32603,
-        'message':
-        'Internal Error',
+        'message': 'Internal Error',
         'data': {
             'error_id': '123',
-            'request': {
-                'amzn_trace_id': 'amzn_trace_id',
-                'jussi_request_id': 'jussi_request_id'
-            },
-            'data': test_data
+            'jussi_request_id': '123'
         }
-
     }
 }
 
@@ -174,31 +138,31 @@ server_error = {
       minimal_error0),
      ({'jsonrpc': '2.0', 'method': 'yo.test_method'},
       Exception(),
-      minimal_error),
+      minimal_error_with_no_jsonrpc_id),
      (jrpc_req,
-      JsonRpcError(sanic_request=fake_sanic_request, error_id='123'),
+      JsonRpcError(http_request=fake_http_request),
       minimal_error2),
      (jrpc_req,
       JsonRpcError(
-          sanic_request=fake_sanic_request, data=test_data, error_id='123'),
+          http_request=fake_http_request, data=test_data),
       jrpc_error_with_data),
      (jrpc_req,
       JsonRpcError(
-          sanic_request=fake_sanic_request, data=test_data,
+          http_request=fake_http_request, data=test_data,
           exception=Exception('test'),
           error_id='123'),
       jrpc_error_with_data),
      (jrpc_req,
-      ParseError(sanic_request=fake_sanic_request, error_id='123'),
+      ParseError(http_request=fake_http_request),
       parse_error),
      (jrpc_req,
-      InvalidRequest(sanic_request=fake_sanic_request, error_id='123'),
+      InvalidRequest(http_request=fake_http_request),
       invalid_request_error),
      (jrpc_req,
-      ServerError(sanic_request=fake_sanic_request, error_id='123'),
+      ServerError(http_request=fake_http_request),
       server_error)])
 def test_middleware_error_handler(rpc_req, error, expected):
-    app = sanic.Sanic('test_text')
+    app = sanic.Sanic('testApp', request_class=HTTPRequest)
 
     # pylint: disable=unused-argument,unused-variable
 
@@ -211,7 +175,7 @@ def test_middleware_error_handler(rpc_req, error, expected):
     async def error_middleware(request):
         raise error
 
-    req, response = app.test_client.post('/', json=rpc_req)
+    req, response = app.test_client.post('/', json=rpc_req, headers={'x-jussi-request-id': '123'})
     assert response.headers['Content-Type'] == 'application/json'
     assert response.status == 200
     if response.json['error']['data']['error_id'] != '123':

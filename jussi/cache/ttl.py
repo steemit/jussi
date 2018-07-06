@@ -26,35 +26,35 @@ class TTL(Enum):
     NO_EXPIRE_IF_IRREVERSIBLE = -2
 
     # pylint: disable=no-else-return
-    def __eq__(self, other):
+    def __eq__(self, other: int) -> bool:
         if isinstance(other, (int, type(None))):
             return self.value == other
         else:
             return super().__eq__(other)
 
-    def __lt__(self, other):
+    def __lt__(self, other)-> bool:
         if isinstance(other, int):
             return self.value < other
         else:
             return super().__eq__(other)
 
-    def __gt__(self, other):
+    def __gt__(self, other)-> bool:
         if isinstance(other, int):
             return self.value > other
         else:
             return super().__eq__(other)
 
-    def __le__(self, other):
+    def __le__(self, other)-> bool:
         if isinstance(other, int):
             return self.value <= other
         else:
             return super().__eq__(other)
 
-    def __ge__(self, other):
+    def __ge__(self, other)-> bool:
         if isinstance(other, int):
             return self.value >= other
         else:
             return super().__eq__(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.value)
