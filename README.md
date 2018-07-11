@@ -2,6 +2,9 @@
 
 A reverse proxy that only speaks json-rpc 2.0. Upstream routing is done using json-rpc method "namespaces".
 
+## Building & Running
+You can find instructions in the devportal: https://developers.steem.io/services/#services-jussi
+
 ## Namespaces
 A json-rpc method namespace is a json-rpc method prefix joined to the method name with a period, so a method in the "sbds" namespace begins with `sbds.` and will be forwarded to a sbds endpoint:
 ```
