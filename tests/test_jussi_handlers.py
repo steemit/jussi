@@ -81,7 +81,6 @@ utf8_request = {"jsonrpc": "2.0",
 ])
 async def test_upstream_error_responses(mocker, mocked_app_test_cli, jsonrpc_request,
                                         expected):
-
     mocked_ws_conn, test_cli = mocked_app_test_cli
     mocked_ws_conn.recv.return_value = json.dumps(expected)
     response = await test_cli.post('/', json=jsonrpc_request, headers={'x-jussi-request-id': str(jsonrpc_request['id'])})
@@ -96,8 +95,6 @@ async def test_upstream_error_responses(mocker, mocked_app_test_cli, jsonrpc_req
 ])
 async def test_content_encoding(mocker, mocked_app_test_cli, jsonrpc_request,
                                 expected):
-    mocked_ws_conn, test_cli = mocked_app_test_cli
-
     mocked_ws_conn, test_cli = mocked_app_test_cli
     mocked_ws_conn.recv.return_value = ujson.dumps(
         {'id': 1, 'jsonrpc': '2.0', 'result': 'ignore'}).encode()
