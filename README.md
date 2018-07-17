@@ -2,7 +2,7 @@
 
 A reverse proxy that only speaks json-rpc 2.0. Upstream routing is done using json-rpc method "namespaces".
 
-## Building & Running
+## Building & Running 
 You can find instructions in the devportal: https://developers.steem.io/services/#services-jussi
 
 ## Namespaces
