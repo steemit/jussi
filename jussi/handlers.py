@@ -159,6 +159,12 @@ async def fetch_ws(http_request: HTTPRequest,
     except (concurrent.futures.TimeoutError,
             concurrent.futures.CancelledError,
             asyncio.TimeoutError) as e:
+        try:
+            conn.terminate()
+        except NameError:
+            pass
+        except Exception as e:
+            logger.error('error while closing connection', e=e)
 
         raise RequestTimeoutError(http_request=http_request,
                                   jrpc_request=jrpc_request,
@@ -166,6 +172,12 @@ async def fetch_ws(http_request: HTTPRequest,
                                   upstream_request=upstream_request,
                                   tasks_count=len(asyncio.tasks.Task.all_tasks()))
     except AssertionError as e:
+        try:
+            conn.terminate()
+        except NameError:
+            pass
+        except Exception as e:
+            logger.error('error while closing connection', e=e)
         raise UpstreamResponseError(http_request=http_request,
                                     jrpc_request=jrpc_request,
                                     exception=e,
@@ -182,6 +194,8 @@ async def fetch_ws(http_request: HTTPRequest,
             conn.terminate()
         except NameError:
             pass
+        except Exception as e:
+            logger.error('error while closing connection', e=e)
         try:
             response = upstream_response
         except NameError:
@@ -200,7 +214,6 @@ async def fetch_http(http_request: HTTPRequest,
     session = http_request.app.config.aiohttp['session']
     upstream_request = jrpc_request.to_upstream_request(as_json=False)
     try:
-
         async with session.post(jrpc_request.upstream.url,
                                 json=upstream_request,
                                 headers=jrpc_request.upstream_headers,
