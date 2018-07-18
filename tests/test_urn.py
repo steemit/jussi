@@ -76,3 +76,21 @@ def test_urn_not_eq(full_urn_test_request_dict):
     jsonrpc_request, urn_parsed, urn, url, ttl, timeout = full_urn_test_request_dict
     result_urn = from_request(jsonrpc_request)
     assert result_urn != 'nope'
+
+
+@pytest.mark.parametrize('jsonrpc_request,expected', [
+    (
+        {
+            "jsonrpc": "2.0",
+            "id": 178,
+            "method": "tags_api.get_tags_used_by_author",
+            "params": {
+                "author": "ste emit"
+            }
+        },
+        'appbase.tags_api.get_tags_used_by_author.params={"author":"ste emit"}'
+    )
+])
+def test_urn_params_serialization(jsonrpc_request, expected):
+    result_urn = from_request(jsonrpc_request)
+    assert str(result_urn) == expected

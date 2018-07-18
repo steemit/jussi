@@ -784,7 +784,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'get_accounts',
         'params': [['init_miner']]
     },
-        "appbase.condenser_api.get_accounts.params=[['init_miner']]",
+        'appbase.condenser_api.get_accounts.params=[["init_miner"]]',
         'wss://appbase.steemitdev.com',
         3,
         3
@@ -876,7 +876,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'get_block',
         'params': {'block_num': 23}
     },
-        "appbase.block_api.get_block.params={'block_num':23}",
+        'appbase.block_api.get_block.params={"block_num":23}',
         'wss://appbase.steemitdev.com',
         3,
         3
@@ -952,7 +952,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'get_accounts',
         'params': [['init_miner']]
     },
-        "appbase.condenser_api.get_accounts.params=[['init_miner']]",
+        'appbase.condenser_api.get_accounts.params=[["init_miner"]]',
         'wss://appbase.steemitdev.com',
         3,
         3
@@ -1064,7 +1064,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'appbase_method',
         'params': {'accounts': ['init_miner']}
     },
-        "appbase.appbase_api.appbase_method.params={'accounts':['init_miner']}",
+        'appbase.appbase_api.appbase_method.params={"accounts":["init_miner"]}',
         'wss://appbase.steemitdev.com',
         3,
         3
@@ -1193,7 +1193,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'get_state',
         'params': ["/@justinw/transfers"]
     },
-        "steemd.database_api.get_state.params=['/@justinw/transfers']",
+        'steemd.database_api.get_state.params=["\/@justinw\/transfers"]',
         'account_transfer_url',
         1,
         3
@@ -1234,7 +1234,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'login',
         'params': ["", ""]
     },
-        "steemd.login_api.login.params=['','']",
+        'steemd.login_api.login.params=["",""]',
         'wss://steemd.steemitdev.com',
         -1,
         3
@@ -1269,7 +1269,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'get_state',
         'params': ["/@justinw/transfers"]
     },
-        "steemd.database_api.get_state.params=['/@justinw/transfers']",
+        'steemd.database_api.get_state.params=["\/@justinw\/transfers"]',
         'account_transfer_url',
         1,
         3
@@ -1291,7 +1291,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'method',
         'params': ['database_api', 'get_account_count', []]
     },
-        "namespace.method.params=['database_api','get_account_count',[]]",
+        'namespace.method.params=["database_api","get_account_count",[]]',
         'wss://namespace.method.steemitdev.com',
         4,
         4
@@ -1309,7 +1309,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'method',
         'params': {'z': 'val1', 'a': [], 'f': 1}
     },
-        "namespace.method.params={'a':[],'f':1,'z':'val1'}",
+        'namespace.method.params={"a":[],"f":1,"z":"val1"}',
         'wss://namespace.method.steemitdev.com',
         4,
         4
@@ -1398,7 +1398,7 @@ URN_TEST_REQUEST_DICTS = [
         'method': 'method',
         'params': {'key': 'value'}
     },
-        "namespace.method.params={'key':'value'}",
+        'namespace.method.params={"key":"value"}',
         'wss://namespace.method.steemitdev.com',
         4,
         4
@@ -1485,15 +1485,15 @@ URN_TEST_REQUEST_DICTS = [
         'id': 7037,
         'jsonrpc': '2.0',
         'method': 'namespace.api.method',
-        'params': {'key': '又遲到了分'}
+        'params': {'key': '又遲到 了分'}
     },
         {
         'namespace': 'namespace',
         'api': 'api',
         'method': 'method',
-        'params': {'key': '又遲到了分'}
+        'params': {'key': '又遲到 了分'}
     },
-        "namespace.api.method.params={'key':'又遲到了分'}",
+        'namespace.api.method.params={"key":"又遲到 了分"}',
         'wss://namespace.api.method.steemitdev.com',
         5,
         5
