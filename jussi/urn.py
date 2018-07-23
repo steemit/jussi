@@ -7,6 +7,7 @@ from typing import TypeVar
 from typing import Union
 
 import structlog
+import ujson
 
 from .empty import Empty
 from .empty import _empty
@@ -49,7 +50,7 @@ class URN:
             return self.__cached_str
         params = self.params
         if self.params is not _empty:
-            params = f'params={self.params}'.replace(' ', '')
+            params = f'params={ujson.dumps(self.params, ensure_ascii=False)}'
 
         api = self.api
         if api is not _empty:
