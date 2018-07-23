@@ -179,11 +179,6 @@ class JussiInteralError(Exception):
             'jrpc_request_id': self.jrpc_request_id,
             'jussi_request_id': self.jussi_request_id
         }
-        if self.jsonrpc_request:
-            try:
-                base_error.update(self.jsonrpc_request.log_extra())
-            except Exception as e:
-                logger.warning('JussiInteralError jsonrpc_request serialization error', e=e)
 
         try:
             base_error.update(**self.kwargs)

@@ -68,11 +68,14 @@ class PoolConnectionProxy:
         # Proxy all unresolved attributes to the wrapped Connection object.
         return getattr(self._con, attr)
 
-    def send(self, *args, **kwargs):
+    def send(self, *args, **kwargs) -> None:
         return self._con.send(*args, **kwargs)
 
-    def recv(self, *args, **kwargs):
+    def recv(self, *args, **kwargs) -> bytes:
         return self._con.recv(*args, **kwargs)
+
+    def terminate(self) -> None:
+        self._holder.terminate()
 
 
 class PoolConnectionHolder:
@@ -111,7 +114,7 @@ class PoolConnectionHolder:
         self._proxy = PoolConnectionProxy(self, self._con)
         return self._proxy
 
-    async def release(self, timeout):
+    async def release(self, timeout: int=None):
         if self._in_use is None:
             raise ValueError(
                 'PoolConnectionHolder.release() called on '
@@ -175,11 +178,9 @@ class PoolConnectionHolder:
 
 class Pool:
     """A connection pool.
-    Connection pool can be used to manage a set of connections to the database.
+    Connection pool can be used to manage a set of connections to an upstream.
     Connections are first acquired from the pool, then used, and then released
-    back to the pool.  Once a connection is released, it's reset to close all
-    open cursors and other resources *except* prepared statements.
-    Pools are created by calling :func:`~asyncpg.pool.create_pool`.
+    back to the pool.
     """
 
     __slots__ = ('_queue',
@@ -292,7 +293,7 @@ class Pool:
                 _acquire_impl(), timeout=timeout, loop=self._loop)
 
     async def release(self, connection: PoolConnectionProxy, *, timeout: int=None):
-        """Release a database connection back to the pool.
+        """Release a connection back to the pool.
         """
         if connection._con is None:
             # Already released, do nothing.
@@ -319,8 +320,8 @@ class Pool:
         :meth:`Pool.terminate() <pool.Pool.terminate>`.
         It is advisable to use :func:`python:asyncio.wait_for` to set
         a timeout.
-        .. versionchanged:: 0.16.0
-            ``close()`` now waits until all pool connections are released
+
+        now waits until all pool connections are released
             before closing them and the pool.  Errors raised in ``close()``
             will cause immediate pool termination.
         """
