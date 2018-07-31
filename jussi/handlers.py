@@ -133,7 +133,7 @@ async def debug(http_request: HTTPRequest) -> HTTPResponse:
     return response.json(data)
 # pylint: enable=protected-access, too-many-locals, no-member, unused-variable
 
-# pylint: disable=no-value-for-parameter, too-many-locals
+# pylint: disable=no-value-for-parameter, too-many-locals, too-many-branches, too-many-statements
 
 
 async def fetch_ws(http_request: HTTPRequest,
@@ -157,7 +157,6 @@ async def fetch_ws(http_request: HTTPRequest,
         return upstream_response
 
     except (concurrent.futures.TimeoutError,
-            concurrent.futures.CancelledError,
             asyncio.TimeoutError) as e:
         try:
             conn.terminate()
@@ -169,8 +168,25 @@ async def fetch_ws(http_request: HTTPRequest,
         raise RequestTimeoutError(http_request=http_request,
                                   jrpc_request=jrpc_request,
                                   exception=e,
-                                  upstream_request=upstream_request,
-                                  tasks_count=len(asyncio.tasks.Task.all_tasks()))
+                                  tasks_count=len(
+                                      asyncio.tasks.Task.all_tasks()),
+                                  upstream_request=upstream_request
+                                  )
+
+    except concurrent.futures.CancelledError as e:
+        try:
+            conn.terminate()
+        except NameError:
+            pass
+        except Exception as e:
+            logger.error('error while closing connection', e=e)
+
+        raise UpstreamResponseError(http_request=http_request,
+                                    jrpc_request=jrpc_request,
+                                    exception=e,
+                                    upstream_request=upstream_request,
+                                    log_traceback=True
+                                    )
     except AssertionError as e:
         try:
             conn.terminate()
@@ -188,7 +204,8 @@ async def fetch_ws(http_request: HTTPRequest,
         raise UpstreamResponseError(http_request=http_request,
                                     jrpc_request=jrpc_request,
                                     exception=e,
-                                    upstream_request=upstream_request)
+                                    upstream_request=upstream_request,
+                                    log_traceback=True)
     except Exception as e:
         try:
             conn.terminate()
@@ -206,6 +223,7 @@ async def fetch_ws(http_request: HTTPRequest,
                                     upstream_request=upstream_request,
                                     upstream_response=response,
                                     log_traceback=True)
+# pylint: enable=no-value-for-parameter, too-many-locals, too-many-branches, too-many-statements
 
 
 async def fetch_http(http_request: HTTPRequest,

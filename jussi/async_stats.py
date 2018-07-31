@@ -128,3 +128,7 @@ class AsyncStatsClient:
 
     def __bool__(self):
         return self._transport is not None
+
+
+def fmt_timings(timings: List[Tuple[float, str]]):
+    return [f'{t2[1]}:{((t2[0] - t1[0]) * 1000):0.6f}|ms' for t1, t2 in sliding_window(2, timings)]

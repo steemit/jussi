@@ -61,9 +61,21 @@ def setup_listeners(app: WebApp) -> WebApp:
         upstream_urls = app.config.upstreams.urls
 
         pools = dict()
+        ws_connect_kwargs = dict(
+            max_queue=args.websocket_queue_size,
+            max_size=args.websocket_max_msg_size,
+            read_limit=args.websocket_read_limit,
+            write_limit=args.websocket_write_limit
+        )
         for url in upstream_urls:
             if url.startswith('ws'):
-                logger.info('creating websocket pool', url=url)
+                logger.info('creating websocket pool',
+                            pool_min_size=args.websocket_pool_minsize,
+                            pool_maxsize=args.websocket_pool_maxsize,
+                            max_queries_per_conn=0,
+                            url=url,
+                            **ws_connect_kwargs
+                            )
                 pools[url] = await Pool(
                     args.websocket_pool_minsize,  # minsize of pool
                     args.websocket_pool_maxsize,  # maxsize of pool
@@ -71,7 +83,8 @@ def setup_listeners(app: WebApp) -> WebApp:
                     loop,  # event_loop
                     url,  # connection url
                     # all kwargs are passed to websocket connection
-                    max_queue=args.websocket_queue_size)
+                    **ws_connect_kwargs
+                )
 
         # pylint: disable=protected-access
         app.config.websocket_pools = pools

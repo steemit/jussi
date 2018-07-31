@@ -35,6 +35,14 @@ def strtobool(val):
         raise ValueError("invalid truth value %r" % (val,))
 
 
+def int_or_none(val):
+    if val is None:
+        return val
+    if val.lower() == 'none':
+        return None
+    return int(val)
+
+
 def setup_routes(app: WebApp) -> WebApp:
     app.add_route(jussi.handlers.healthcheck, '/health', methods=['GET', 'HEAD'])
     app.add_route(jussi.handlers.handle_jsonrpc, '/', methods=['POST'])
@@ -75,6 +83,14 @@ def parse_args(args: list = None):
                         default=8)
     parser.add_argument('--websocket_queue_size',
                         env_var='JUSSI_WEBSOCKET_QUEUE', type=int, default=1)
+    parser.add_argument('--websocket_read_limit',
+                        env_var='JUSSI_WEBSOCKET_READ_LIMIT', type=int, default=2**16)
+    parser.add_argument('--websocket_write_limit',
+                        env_var='JUSSI_WEBSOCKET_WRITE_LIMIT', type=int, default=2**16)
+    parser.add_argument('--websocket_max_msg_size',
+                        env_var='JUSSI_WEBSOCKET_MAX_MESSAGE_SIZE',
+                        default=None,
+                        type=int_or_none)
 
     # server version
     parser.add_argument('--source_commit', env_var='SOURCE_COMMIT', type=str,

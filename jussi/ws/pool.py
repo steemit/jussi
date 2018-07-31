@@ -71,8 +71,8 @@ class PoolConnectionProxy:
     def send(self, *args, **kwargs) -> None:
         return self._con.send(*args, **kwargs)
 
-    def recv(self, *args, **kwargs) -> bytes:
-        return self._con.recv(*args, **kwargs)
+    def recv(self) -> bytes:
+        return self._con.recv()
 
     def terminate(self) -> None:
         self._holder.terminate()
@@ -195,32 +195,32 @@ class Pool:
                  '_closed')
 
     def __init__(self,
-                 min_size: int,
-                 max_size: int,
-                 max_queries: int,
-                 loop,
+                 pool_min_size: int,
+                 pool_max_size: int,
+                 pool_max_queries: int,
+                 pool_loop,
                  connect_url: str,
                  **connect_kwargs):
 
-        if loop is None:
-            loop = asyncio.get_event_loop()
-        self._loop = loop
+        if pool_loop is None:
+            pool_loop = asyncio.get_event_loop()
+        self._loop = pool_loop
 
-        if max_size <= 0:
+        if pool_max_size <= 0:
             raise ValueError('max_size is expected to be greater than zero')
 
-        if min_size < 0:
+        if pool_min_size < 0:
             raise ValueError(
                 'min_size is expected to be greater or equal to zero')
 
-        if min_size > max_size:
+        if pool_min_size > pool_max_size:
             raise ValueError('min_size is greater than max_size')
 
-        if max_queries < 0:
+        if pool_max_queries < 0:
             raise ValueError('max_queries is expected to be greater than or equal zero')
 
-        self._minsize = min_size
-        self._maxsize = max_size
+        self._minsize = pool_min_size
+        self._maxsize = pool_max_size
 
         self._holders = []
         self._initialized = False
@@ -232,8 +232,8 @@ class Pool:
         self._connect_url = connect_url
         self._connect_kwargs = connect_kwargs
 
-        for _ in range(max_size):
-            ch = PoolConnectionHolder(self, max_queries=max_queries)
+        for _ in range(pool_max_size):
+            ch = PoolConnectionHolder(self, max_queries=pool_max_queries)
             self._holders.append(ch)
             self._queue.put_nowait(ch)
 
@@ -261,6 +261,7 @@ class Pool:
 
     async def _get_new_connection(self) -> WSConn:
         # First connection attempt on this pool.
+        logger.debug('spawning new ws conn')
         return await websockets_connect(self._connect_url, loop=self._loop,
                                         **self._connect_kwargs)
 

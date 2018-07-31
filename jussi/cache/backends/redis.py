@@ -29,6 +29,7 @@ class Cache:
     def __init__(self, client):
         self.client = client
 
+    # pylint: disable=no-self-use
     def _pack(self, value) -> bytes:
         return compress(dumps(value, ensure_ascii=False).encode('utf8'))
 
@@ -36,6 +37,8 @@ class Cache:
         if not value:
             return None
         return loads(decompress(value))
+
+    # pylint: enable=no-self-use
 
     async def get(self, key: CacheKey) -> CacheResult:
         res = await self.client.get(key)
