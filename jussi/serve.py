@@ -130,6 +130,12 @@ def parse_args(args: list = None):
                         help='statsd://host:port',
                         default=None)
 
+    # restart proess (and workers) after handling # of request
+    parser.add_argument('--restart_after_requests_count',
+                        env_var='JUSSI_RESTART_AFTER_REQUESTS_COUNT',
+                        default=None,
+                        type=int_or_none)
+
     return parser.parse_args(args=args)
 
 

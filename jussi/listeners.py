@@ -139,6 +139,25 @@ def setup_listeners(app: WebApp) -> WebApp:
                         prefix='jussi',
                         client=app.config.statsd_client)
 
+    @app.listener('before_server_start')
+    async def setup_restart_counter(app: WebApp, loop) -> None:
+        logger = app.config.logger
+        logger.info('setup_restart_counter', when='before_server_start')
+        args = app.config.args
+        app.config.request_count = None
+        if args.restart_after_requests_count is not None:
+            workers = args.server_workers
+            total_requests_before_restart = args.restart_after_requests_count
+            app.config.worker_requests_before_restart = int(total_requests_before_restart / workers)
+
+            logger.info('restart counter configured',
+                        workers=workers,
+                        total_requests_before_restart=total_requests_before_restart,
+                        worker_requests_before_restart=app.config.worker_requests_before_restart)
+            app.config.request_count = 0
+
+
+
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger
@@ -146,7 +165,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         pools = app.config.websocket_pools
         for url, pool in pools.items():
             logger.info('closing websocket pool for %s', url)
-            pool.terminate()
+            await pool.close()
 
     @app.listener('after_server_stop')
     async def close_aiohttp_session(app: WebApp, loop) -> None:

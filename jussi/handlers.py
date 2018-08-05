@@ -54,7 +54,6 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
 async def debug(http_request: HTTPRequest) -> HTTPResponse:
     app = http_request.app
     import inspect
-
     cache_data = []
     try:
         cache_group = app.config.cache_group
@@ -134,6 +133,7 @@ async def debug(http_request: HTTPRequest) -> HTTPResponse:
 # pylint: enable=protected-access, too-many-locals, no-member, unused-variable
 
 # pylint: disable=no-value-for-parameter, too-many-locals, too-many-branches, too-many-statements
+
 
 
 async def fetch_ws(http_request: HTTPRequest,

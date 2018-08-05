@@ -8,7 +8,7 @@ import structlog
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 from ..errors import JsonRpcError
-
+from ..utils import stop_server_from_worker
 logger = structlog.get_logger('jussi')
 
 
@@ -37,3 +37,11 @@ async def finalize_jussi_response(request: HTTPRequest,
             response.headers['x-jussi-params'] = _repr(request.jsonrpc.urn.params)
     except BaseException as e:
         logger.warning('finalize_jussi error', e=e)
+
+    if request.app.config.request_count is not None:
+        request.app.config.request_count += 1
+        if request.app.config.request_count >= request.app.config.worker_requests_before_restart:
+            logger.info('stopping process',
+                        request_count=request.app.config.request_count,
+                        limit=request.app.config.worker_requests_before_restart)
+            stop_server_from_worker()

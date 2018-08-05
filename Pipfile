@@ -57,6 +57,8 @@ structlog = "*"
 ujson = "*"
 uvloop = "*"
 websockets = "*"
+funcy = "*"
+jsonschema = "*"
 
 [requires]
 python_version = "3.6"
