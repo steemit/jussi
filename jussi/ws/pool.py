@@ -77,11 +77,13 @@ class PoolConnectionProxy:
     def terminate(self) -> None:
         self._holder.terminate()
 
+    async def close(self):
+        return await self._holder.close()
+
 
 class PoolConnectionHolder:
     __slots__ = ('_con',
                  '_pool',
-                 '_loop',
                  '_proxy',
                  '_max_queries',
                  '_in_use',
