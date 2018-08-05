@@ -1767,7 +1767,7 @@ def test_cli(app, loop, test_client):
     return loop.run_until_complete(test_client(app))
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def mocked_app_test_cli(app, loop, test_client):
     with asynctest.patch('jussi.ws.pool.Pool._get_new_connection') as mocked_connect:
         mocked_ws_conn = asynctest.CoroutineMock()
@@ -1778,6 +1778,7 @@ def mocked_app_test_cli(app, loop, test_client):
         mocked_ws_conn.recv = asynctest.CoroutineMock()
 
         mocked_ws_conn.close = asynctest.CoroutineMock()
+        mocked_ws_conn.close.return_value = None
 
         mocked_ws_conn.close_connection = asynctest.CoroutineMock()
 
@@ -1794,7 +1795,8 @@ def mocked_app_test_cli(app, loop, test_client):
         mocked_ws_conn._stream_reader = asynctest.MagicMock()
         mocked_connect.return_value = mocked_ws_conn
 
-        yield mocked_ws_conn, loop.run_until_complete(test_client(app))
+        initialized_client = loop.run_until_complete(test_client(app))
+        yield mocked_ws_conn, initialized_client
 
 
 @pytest.fixture(

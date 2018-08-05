@@ -62,7 +62,7 @@ def parse_args(args: list = None):
     parser.add_argument('--debug_route',
                         type=lambda x: bool(strtobool(x)),
                         env_var='JUSSI_DEBUG_ROUTE',
-                        default=False)
+                        default=True)
     parser.add_argument('--server_host', type=str, env_var='JUSSI_SERVER_HOST',
                         default='0.0.0.0')
     parser.add_argument('--server_port', type=int, env_var='JUSSI_SERVER_PORT',
@@ -70,7 +70,7 @@ def parse_args(args: list = None):
     parser.add_argument('--server_workers', type=int,
                         env_var='JUSSI_SERVER_WORKERS', default=os.cpu_count())
     parser.add_argument('--server_tcp_backlog', type=int,
-                        env_var='JUSSI_SERVER_TCP_BACKLOG', default=1000)
+                        env_var='JUSSI_SERVER_TCP_BACKLOG', default=100)
 
     parser.add_argument('--jsonrpc_batch_size_limit', type=int,
                         env_var='JUSSI_JSONRPC_BATCH_SIZE_LIMIT', default=50)
@@ -117,12 +117,12 @@ def parse_args(args: list = None):
     # redis config
     # redis://[:password]@localhost:6379/0
     parser.add_argument('--redis_url', type=str, env_var='JUSSI_REDIS_URL',
-                        help='redis://[:password]@localhost:6379/0',
+                        help='redis://[:password]@host:6379/0',
                         default=None)
 
     parser.add_argument('--redis_read_replica_urls', type=str,
                         env_var='JUSSI_REDIS_READ_REPLICA_URLS', default=None,
-                        help='redis://[:password]@localhost:6379/0',
+                        help='redis://[:password]@host:6379/0',
                         nargs='*')
 
     # statsd statsd://host:port
