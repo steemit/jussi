@@ -59,9 +59,9 @@ def parse_args(args: list = None):
                         type=lambda x: bool(strtobool(x)),
                         env_var='JUSSI_DEBUG',
                         default=False)
-    parser.add_argument('--debug_route',
+    parser.add_argument('--monitor_route',
                         type=lambda x: bool(strtobool(x)),
-                        env_var='JUSSI_DEBUG_ROUTE',
+                        env_var='JUSSI_MONITOR_ROUTE',
                         default=True)
     parser.add_argument('--server_host', type=str, env_var='JUSSI_SERVER_HOST',
                         default='0.0.0.0')

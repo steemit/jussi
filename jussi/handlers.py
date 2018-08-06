@@ -51,7 +51,7 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
 # pylint: disable=protected-access, too-many-locals, no-member, unused-variable
 
 
-async def debug(http_request: HTTPRequest) -> HTTPResponse:
+async def monitor(http_request: HTTPRequest) -> HTTPResponse:
     app = http_request.app
     import inspect
 
