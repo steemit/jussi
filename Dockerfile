@@ -20,7 +20,7 @@ ENV APP_ROOT /app
 ENV APP_CMD jussi.serve
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
-ENV JUSSI_DEBUG_PORT 7777
+ENV JUSSI_MONITOR_PORT 7777
 
 # all nginx env vars must also be changed in service/nginx/nginx.conf
 ENV NGINX_SERVER_PORT 8080
@@ -116,4 +116,4 @@ RUN chown -R www-data . && \
 RUN pipenv run pytest
 
 EXPOSE ${NGINX_SERVER_PORT}
-EXPOSE ${JUSSI_DEBUG_PORT}
+EXPOSE ${JUSSI_MONITOR_PORT}
