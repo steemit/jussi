@@ -8,6 +8,7 @@ import structlog
 from funcy.decorators import decorator
 from sanic import response
 from sanic.exceptions import RequestTimeout
+from sanic.exceptions import ServiceUnavailable
 from sanic.exceptions import SanicException
 
 from .typedefs import HTTPRequest
@@ -15,6 +16,7 @@ from .typedefs import HTTPResponse
 from .typedefs import JrpcRequest
 from .typedefs import JrpcResponse
 from .typedefs import WebApp
+from .async_stats import fmt_timings
 
 logger = structlog.get_logger(__name__)
 
@@ -32,14 +34,24 @@ def setup_error_handlers(app: WebApp) -> WebApp:
     # pylint: disable=unused-variable
 
     @app.exception(RequestTimeout)
-    def handle_timeout_errors(request: HTTPRequest,
-                              exception: SanicException) -> Optional[
+    def handle_request_timeout_errors(request: HTTPRequest,
+                                      exception: SanicException) -> Optional[
             HTTPResponse]:
         """handles noisy request timeout errors"""
         # pylint: disable=unused-argument
         if not request:
             return None
         return RequestTimeoutError(http_request=request).to_sanic_response()
+
+    @app.exception(ServiceUnavailable)
+    def handle_response_timeout_errors(request: HTTPRequest,
+                                       exception: SanicException) -> Optional[
+            HTTPResponse]:
+        """handles noisy request timeout errors"""
+        # pylint: disable=unused-argument
+        if not request:
+            return None
+        return ResponseTimeoutError(http_request=request).to_sanic_response()
 
     # pylint: disable=unused-argument
     @app.exception(JsonRpcError)
@@ -187,6 +199,30 @@ class JussiInteralError(Exception):
 
         return base_error
 
+    def timings(self) -> Optional[dict]:
+        try:
+            if self.http_request.is_single_jrpc:
+                request_timings = fmt_timings(self.http_request.timings)
+                jsonrpc_timings = fmt_timings(self.http_request.jsonrpc.timings)
+                return {
+                    'request_timings': request_timings,
+                    'jsonrpc_timings': jsonrpc_timings
+                }
+            elif self.http_request.is_batch_jrpc:
+                request_timings = fmt_timings(self.http_request.timings)
+                jsonrpc_timings = []
+                for r in self.http_request.jsonrpc:
+                    jsonrpc_timings.extend(fmt_timings(r.timings))
+                return {
+                    'request_timings': request_timings,
+                    'jsonrpc_timings': jsonrpc_timings
+                }
+            else:
+                return None
+
+        except Exception as e:
+            return None
+
     def log(self) -> None:
         if self.log_traceback and self.exception:
             self.logger.error(self.format_message(), **self.to_dict(),
@@ -247,6 +283,21 @@ class ServerError(JsonRpcError):
 class RequestTimeoutError(JsonRpcError):
     code = 1000
     message = 'Request Timeout'
+
+    def to_dict(self):
+        data = super().to_dict()
+        try:
+            timings = self.timings()
+            if timings:
+                data.update(**timings)
+        except Exception as e:
+            logger.info('error adding timing data to RequestTimeoutError', e=e)
+        return data
+
+
+class ResponseTimeoutError(JsonRpcError):
+    code = 1050
+    message = 'Response Timeout'
 
 
 class UpstreamResponseError(JsonRpcError):

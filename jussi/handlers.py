@@ -236,9 +236,8 @@ async def fetch_http(http_request: HTTPRequest,
                                 json=upstream_request,
                                 headers=jrpc_request.upstream_headers,
                                 timeout=jrpc_request.upstream.timeout) as resp:
-            jrpc_request.timings.append((perf(), 'fetch_http.sent'))
+            jrpc_request.timings.append((perf(), 'fetch_http.response'))
             upstream_response = await resp.json(encoding='utf-8', content_type=None)
-        jrpc_request.timings.append((perf(), 'fetch_http.response'))
 
     except (concurrent.futures.TimeoutError,
             asyncio.TimeoutError) as e:

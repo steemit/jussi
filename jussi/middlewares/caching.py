@@ -33,7 +33,7 @@ async def get_response(request: HTTPRequest) -> None:
         else:
             request.timings.append((perf(), 'get_cached_response.exit'))
             return
-        request.timings.append((perf(), 'get_cached_response.await'))
+        request.timings.append((perf(), 'get_cached_response.acquire'))
         cached_response = await asyncio.wait_for(cached_response_future,
                                                  timeout=cache_read_timeout)
         request.timings.append((perf(), 'get_cached_response.response'))

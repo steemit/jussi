@@ -189,3 +189,7 @@ class HTTPRequest:
     @property
     def amzn_trace_id(self) -> str:
         return self.headers.get('x-amzn-trace-id', '')
+
+    @property
+    def request_start_time(self) -> float:
+        return self.timings[0][0]
