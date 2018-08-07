@@ -19,11 +19,11 @@ def setup_listeners(app: WebApp) -> WebApp:
     def setup_debug(app: WebApp, loop) -> None:
         logger = app.config.logger
         logger.info('setup_debug', debug=app.config.args.debug,
-                    debug_route=app.config.args.debug_route,
+                    debug_route=app.config.args.monitor_route,
                     when='before_server_start')
-        if app.config.args.debug_route is True or app.config.args.debug is True:
-            from jussi.handlers import debug
-            app.add_route(debug, '/debug', methods=['GET'])
+        if app.config.args.monitor_route is True or app.config.args.debug is True:
+            from jussi.handlers import monitor
+            app.add_route(monitor, '/monitor', methods=['GET'])
 
     @app.listener('before_server_start')
     def setup_upstreams(app: WebApp, loop) -> None:

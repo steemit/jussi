@@ -1,5 +1,6 @@
+repos:
 - repo: git://github.com/pre-commit/pre-commit-hooks
-  sha: v0.9.5
+  rev: v0.9.5
   hooks:
     - id: check-ast
     - id: trailing-whitespace
@@ -24,15 +25,15 @@
 #  hooks:
 #    - id: dockerfile_lint
 - repo: git://github.com/Lucas-C/pre-commit-hooks
-  sha: v1.1.4
+  rev: v1.1.5
   hooks:
     - id: remove-tabs
       exclude: Makefile
-- repo: git://github.com/detailyang/pre-commit-shell
-  sha: 1b26bf757e6d5b9bfed2566339c6464f44779678
-  hooks:
-    - id: shell-lint
-      files: run$
+#- repo: git://github.com/detailyang/pre-commit-shell
+#  rev: 1.0.2
+#  hooks:
+#    - id: shell-lint
+#      files: run$
 - repo: local
   hooks:
     - id: check-bash-syntax
