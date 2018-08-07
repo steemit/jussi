@@ -248,7 +248,8 @@ async def fetch_http(http_request: HTTPRequest,
                                     jrpc_request=jrpc_request,
                                     exception=e,
                                     upstream_request=upstream_request,
-                                    upstream_response=response)
+                                    upstream_response=response,
+                                    log_traceback=True)
     upstream_response['id'] = jrpc_request.id
     jrpc_request.timings.append((perf(), 'fetch_http.exit'))
     return upstream_response
