@@ -156,8 +156,6 @@ def setup_listeners(app: WebApp) -> WebApp:
                         worker_requests_before_restart=app.config.worker_requests_before_restart)
             app.config.request_count = 0
 
-
-
     @app.listener('after_server_stop')
     async def close_websocket_connection_pools(app: WebApp, loop) -> None:
         logger = app.config.logger
@@ -165,7 +163,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         pools = app.config.websocket_pools
         for url, pool in pools.items():
             logger.info('closing websocket pool for %s', url)
-            await pool.close()
+            pool.terminate()
 
     @app.listener('after_server_stop')
     async def close_aiohttp_session(app: WebApp, loop) -> None:
