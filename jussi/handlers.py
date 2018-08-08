@@ -31,7 +31,7 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
     http_request.timings.append((perf(), 'handle_jsonrpc.enter'))
     # make upstream requests
 
-    async with timeout(http_request.jsonrpc.upstream.timeout):
+    async with timeout(http_request.request_timeout):
         if http_request.is_single_jrpc:
 
             jsonrpc_response = await dispatch_single(http_request,
