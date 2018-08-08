@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import json
 import sys
 from urllib.parse import urlparse
 
 import aiohttp
+import async_timeout
 import ujson
 
 from jussi.ws.pool import Pool
@@ -46,7 +48,9 @@ def setup_listeners(app: WebApp) -> WebApp:
         """
         logger = app.config.logger
         logger.info('setup_aiohttp_session', when='before_server_start')
+        tcp_connector = aiohttp.TCPConnector()
         aio = dict(session=aiohttp.ClientSession(
+            connector=tcp_connector,
             skip_auto_headers=['User-Agent'],
             loop=loop,
             json_serialize=ujson.dumps,

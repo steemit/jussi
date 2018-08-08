@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import concurrent.futures
 import logging
 import uuid
 from typing import Optional
 from typing import Union
 
+import sanic.exceptions
 import structlog
+
 from funcy.decorators import decorator
 from sanic import response
-from sanic.exceptions import RequestTimeout
-from sanic.exceptions import ServiceUnavailable
-from sanic.exceptions import SanicException
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
@@ -34,37 +34,35 @@ class Default(dict):
 def setup_error_handlers(app: WebApp) -> WebApp:
     # pylint: disable=unused-variable
 
-    @app.exception(RequestTimeout)
+    @app.exception(sanic.exceptions.RequestTimeout)
     def handle_request_timeout_errors(request: HTTPRequest,
-                                      exception: SanicException) -> Optional[
-            HTTPResponse]:
-        """handles noisy request timeout errors"""
-        # pylint: disable=unused-argument
+                                      exception: sanic.exceptions.RequestTimeout) -> Optional[HTTPResponse]:
         if not request:
             return None
-        return RequestTimeoutError(http_request=request).to_sanic_response()
+        return RequestTimeoutError(http_request=request,
+                                   jrpc_request=request.jsonrpc,
+                                   exception=exception).to_sanic_response()
 
-    @app.exception(ServiceUnavailable)
+    @app.exception(sanic.exceptions.ServiceUnavailable)
     def handle_response_timeout_errors(request: HTTPRequest,
-                                       exception: SanicException) -> Optional[
-            HTTPResponse]:
-        """handles noisy request timeout errors"""
-        # pylint: disable=unused-argument
+                                       exception: sanic.exceptions.ServiceUnavailable) -> Optional[HTTPResponse]:
         if not request:
             return None
-        return ResponseTimeoutError(http_request=request).to_sanic_response()
+        return ResponseTimeoutError(http_request=request,
+                                    jrpc_request=request.jsonrpc,
+                                    exception=exception).to_sanic_response()
 
-    @app.exception(asyncio.TimeoutError)
-    def handle_asyncio_timeout_errors(request: HTTPRequest,
-                                      exception: SanicException) -> Optional[
-            HTTPResponse]:
-        """handles noisy request timeout errors"""
-        # pylint: disable=unused-argument
+    @app.exception(concurrent.futures.CancelledError,
+                   concurrent.futures.TimeoutError,
+                   asyncio.TimeoutError)
+    def handle_async_timeout_errors(request: HTTPRequest,
+                                    exception: Exception) -> Optional[HTTPResponse]:
         if not request:
             return None
-        return RequestTimeoutError(http_request=request).to_sanic_response()
+        return RequestTimeoutError(http_request=request,
+                                   jrpc_request=request.jsonrpc,
+                                   exception=exception).to_sanic_response()
 
-    # pylint: disable=unused-argument
     @app.exception(JsonRpcError)
     def handle_jsonrpc_error(request: HTTPRequest,
                              exception: JsonRpcError) -> HTTPResponse:
@@ -80,11 +78,9 @@ def setup_error_handlers(app: WebApp) -> WebApp:
         if isinstance(exception, InvalidRequest):
             return InvalidRequest(http_request=request,
                                   exception=exception,
-                                  reason=exception.message
-                                  ).to_sanic_response()
+                                  reason=exception.message).to_sanic_response()
         return JsonRpcError(http_request=request,
-                            exception=exception,
-                            log_traceback=True).to_sanic_response()
+                            exception=exception).to_sanic_response()
 
     return app
 
@@ -239,7 +235,9 @@ class JussiInteralError(Exception):
             self.logger.error(self.format_message(), **self.to_dict(),
                               exc_info=self.exception)
         else:
-            self.logger.error(self.format_message(), **self.to_dict())
+            self.logger.error(self.format_message(),
+                              exception=self.exception,
+                              **self.to_dict())
 # pylint: enable=too-many-instance-attributes,too-many-arguments
 
 
@@ -309,6 +307,16 @@ class RequestTimeoutError(JsonRpcError):
 class ResponseTimeoutError(JsonRpcError):
     code = 1050
     message = 'Response Timeout'
+
+    def to_dict(self):
+        data = super().to_dict()
+        try:
+            timings = self.timings()
+            if timings:
+                data.update(**timings)
+        except Exception as e:
+            logger.info('error adding timing data to RequestTimeoutError', e=e)
+        return data
 
 
 class UpstreamResponseError(JsonRpcError):
