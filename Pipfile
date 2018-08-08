@@ -57,6 +57,7 @@ structlog = "*"
 ujson = "*"
 uvloop = "*"
 websockets = "*"
+async-timeout = "*"
 
 [requires]
 python_version = "3.6"

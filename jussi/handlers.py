@@ -7,6 +7,8 @@ from typing import Coroutine
 
 import cytoolz
 import structlog
+
+from async_timeout import timeout
 from sanic import response
 from ujson import loads
 from websockets.exceptions import ConnectionClosed
@@ -28,15 +30,19 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
     # retreive parsed jsonrpc_requests after request middleware processing
     http_request.timings.append((perf(), 'handle_jsonrpc.enter'))
     # make upstream requests
-    if http_request.is_single_jrpc:
-        jsonrpc_response = await dispatch_single(http_request,
-                                                 http_request.jsonrpc)
-    else:
-        futures = [dispatch_single(http_request, request)
-                   for request in http_request.jsonrpc]
-        jsonrpc_response = await asyncio.gather(*futures)
-    http_request.timings.append((perf(), 'handle_jsonrpc.exit'))
-    return response.json(jsonrpc_response)
+
+    async with timeout(http_request.jsonrpc.upstream.timeout):
+        if http_request.is_single_jrpc:
+
+            jsonrpc_response = await dispatch_single(http_request,
+                                                     http_request.jsonrpc)
+        else:
+
+            futures = [dispatch_single(http_request, request)
+                       for request in http_request.jsonrpc]
+            jsonrpc_response = await asyncio.gather(*futures)
+        http_request.timings.append((perf(), 'handle_jsonrpc.exit'))
+        return response.json(jsonrpc_response)
 
 
 async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
@@ -147,7 +153,7 @@ async def fetch_ws(http_request: HTTPRequest,
         jrpc_request.timings.append((perf(), 'fetch_ws.acquire'))
         await conn.send(upstream_request)
         jrpc_request.timings.append((perf(), 'fetch_ws.send'))
-        upstream_response_json = await asyncio.wait_for(conn.recv(), jrpc_request.upstream.timeout)
+        upstream_response_json = await conn.recv()
         jrpc_request.timings.append((perf(), 'fetch_ws.response'))
         upstream_response = loads(upstream_response_json)
         await pool.release(conn)
@@ -155,23 +161,6 @@ async def fetch_ws(http_request: HTTPRequest,
         upstream_response['id'] = jrpc_request.id
         jrpc_request.timings.append((perf(), 'fetch_ws.exit'))
         return upstream_response
-
-    except (concurrent.futures.TimeoutError,
-            asyncio.TimeoutError) as e:
-        try:
-            conn.terminate()
-        except NameError:
-            pass
-        except Exception as e:
-            logger.error('error while closing connection', e=e)
-
-        raise RequestTimeoutError(http_request=http_request,
-                                  jrpc_request=jrpc_request,
-                                  exception=e,
-                                  tasks_count=len(
-                                      asyncio.tasks.Task.all_tasks()),
-                                  upstream_request=upstream_request
-                                  )
 
     except concurrent.futures.CancelledError as e:
         try:
@@ -231,6 +220,7 @@ async def fetch_http(http_request: HTTPRequest,
     jrpc_request.timings.append((perf(), 'fetch_http.enter'))
     session = http_request.app.config.aiohttp['session']
     upstream_request = jrpc_request.to_upstream_request(as_json=False)
+
     try:
         async with session.post(jrpc_request.upstream.url,
                                 json=upstream_request,

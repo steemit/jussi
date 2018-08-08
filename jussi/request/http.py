@@ -193,3 +193,10 @@ class HTTPRequest:
     @property
     def request_start_time(self) -> float:
         return self.timings[0][0]
+
+    @property
+    def request_timeout(self) -> Union[int, float]:
+        if self.is_single_jrpc:
+            return self.jsonrpc.upstream.timeout
+        elif self.is_batch_jrpc:
+            return min([max(r.upstream.timeout for r in self.jsonrpc) * 2, 30])
