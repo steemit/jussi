@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import logging
 import uuid
 from typing import Optional
@@ -52,6 +53,16 @@ def setup_error_handlers(app: WebApp) -> WebApp:
         if not request:
             return None
         return ResponseTimeoutError(http_request=request).to_sanic_response()
+
+    @app.exception(asyncio.TimeoutError)
+    def handle_asyncio_timeout_errors(request: HTTPRequest,
+                                      exception: SanicException) -> Optional[
+            HTTPResponse]:
+        """handles noisy request timeout errors"""
+        # pylint: disable=unused-argument
+        if not request:
+            return None
+        return RequestTimeoutError(http_request=request).to_sanic_response()
 
     # pylint: disable=unused-argument
     @app.exception(JsonRpcError)

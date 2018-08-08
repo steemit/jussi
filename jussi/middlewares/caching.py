@@ -2,7 +2,10 @@
 import asyncio
 from time import perf_counter as perf
 
+
 import structlog
+
+from async_timeout import timeout
 from sanic import response
 from ujson import loads
 
@@ -18,24 +21,25 @@ async def get_response(request: HTTPRequest) -> None:
     # return cached response from cache if all requests were in cache
     if not request.jsonrpc:
         return
+
     request.timings.append((perf(), 'get_cached_response.enter'))
     cache_group = request.app.config.cache_group
     cache_read_timeout = request.app.config.cache_read_timeout
 
     try:
         cached_response = None
-        if request.is_single_jrpc:
-            cached_response_future =  \
-                cache_group.get_single_jsonrpc_response(request.jsonrpc)
-        elif request.is_batch_jrpc:
-            cached_response_future = \
-                cache_group.get_batch_jsonrpc_responses(request.jsonrpc)
-        else:
-            request.timings.append((perf(), 'get_cached_response.exit'))
-            return
-        request.timings.append((perf(), 'get_cached_response.acquire'))
-        cached_response = await asyncio.wait_for(cached_response_future,
-                                                 timeout=cache_read_timeout)
+        async with timeout(cache_read_timeout):
+            if request.is_single_jrpc:
+                cached_response_future =  \
+                    cache_group.get_single_jsonrpc_response(request.jsonrpc)
+            elif request.is_batch_jrpc:
+                cached_response_future = \
+                    cache_group.get_batch_jsonrpc_responses(request.jsonrpc)
+            else:
+                request.timings.append((perf(), 'get_cached_response.exit'))
+                return
+
+            cached_response = await cached_response_future
         request.timings.append((perf(), 'get_cached_response.response'))
 
         if cached_response and \
