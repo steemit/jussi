@@ -2,6 +2,7 @@
 import asyncio
 import json
 import sys
+from functools import partial
 from urllib.parse import urlparse
 
 import aiohttp
@@ -49,11 +50,12 @@ def setup_listeners(app: WebApp) -> WebApp:
         logger = app.config.logger
         logger.info('setup_aiohttp_session', when='before_server_start')
         tcp_connector = aiohttp.TCPConnector()
+
         aio = dict(session=aiohttp.ClientSession(
             connector=tcp_connector,
             skip_auto_headers=['User-Agent'],
             loop=loop,
-            json_serialize=ujson.dumps,
+            json_serialize=partial(ujson.dumps, ensure_ascii=False),
             headers={'Content-Type': 'application/json'}))
         app.config.aiohttp = aio
 
