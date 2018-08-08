@@ -199,4 +199,6 @@ class HTTPRequest:
         if self.is_single_jrpc:
             return self.jsonrpc.upstream.timeout
         elif self.is_batch_jrpc:
-            return min([max(r.upstream.timeout for r in self.jsonrpc) * 2, 30])
+            return min([sum(r.upstream.timeout for r in self.jsonrpc), 60])
+        else:
+            return 1

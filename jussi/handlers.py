@@ -30,7 +30,6 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
     # retreive parsed jsonrpc_requests after request middleware processing
     http_request.timings.append((perf(), 'handle_jsonrpc.enter'))
     # make upstream requests
-
     async with timeout(http_request.request_timeout):
         if http_request.is_single_jrpc:
 
@@ -162,39 +161,6 @@ async def fetch_ws(http_request: HTTPRequest,
         jrpc_request.timings.append((perf(), 'fetch_ws.exit'))
         return upstream_response
 
-    except concurrent.futures.CancelledError as e:
-        try:
-            conn.terminate()
-        except NameError:
-            pass
-        except Exception as e:
-            logger.error('error while closing connection', e=e)
-
-        raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jrpc_request,
-                                    exception=e,
-                                    upstream_request=upstream_request,
-                                    log_traceback=True
-                                    )
-    except AssertionError as e:
-        try:
-            conn.terminate()
-        except NameError:
-            pass
-        except Exception as e:
-            logger.error('error while closing connection', e=e)
-        raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jrpc_request,
-                                    exception=e,
-                                    upstream_request=upstream_request,
-                                    upstream_response=upstream_response
-                                    )
-    except ConnectionClosed as e:
-        raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jrpc_request,
-                                    exception=e,
-                                    upstream_request=upstream_request,
-                                    log_traceback=True)
     except Exception as e:
         try:
             conn.terminate()
@@ -202,16 +168,8 @@ async def fetch_ws(http_request: HTTPRequest,
             pass
         except Exception as e:
             logger.error('error while closing connection', e=e)
-        try:
-            response = upstream_response
-        except NameError:
-            response = None
-        raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jrpc_request,
-                                    exception=e,
-                                    upstream_request=upstream_request,
-                                    upstream_response=response,
-                                    log_traceback=True)
+        raise e
+
 # pylint: enable=no-value-for-parameter, too-many-locals, too-many-branches, too-many-statements
 
 
@@ -221,35 +179,11 @@ async def fetch_http(http_request: HTTPRequest,
     session = http_request.app.config.aiohttp['session']
     upstream_request = jrpc_request.to_upstream_request(as_json=False)
 
-    try:
-        async with session.post(jrpc_request.upstream.url,
-                                json=upstream_request,
-                                headers=jrpc_request.upstream_headers,
-                                timeout=jrpc_request.upstream.timeout) as resp:
-            jrpc_request.timings.append((perf(), 'fetch_http.response'))
-            upstream_response = await resp.json(encoding='utf-8', content_type=None)
-
-    except (concurrent.futures.TimeoutError,
-            asyncio.TimeoutError) as e:
-        raise RequestTimeoutError(http_request=http_request,
-                                  jrpc_request=jrpc_request,
-                                  exception=e,
-                                  tasks_count=len(
-                                      asyncio.tasks.Task.all_tasks()),
-                                  upstream_request=upstream_request
-                                  )
-
-    except Exception as e:
-        try:
-            response = upstream_response
-        except NameError:
-            response = None
-        raise UpstreamResponseError(http_request=http_request,
-                                    jrpc_request=jrpc_request,
-                                    exception=e,
-                                    upstream_request=upstream_request,
-                                    upstream_response=response,
-                                    log_traceback=True)
+    async with session.post(jrpc_request.upstream.url,
+                            json=upstream_request,
+                            headers=jrpc_request.upstream_headers) as resp:
+        jrpc_request.timings.append((perf(), 'fetch_http.response'))
+        upstream_response = await resp.json(encoding='utf-8', content_type=None)
     upstream_response['id'] = jrpc_request.id
     jrpc_request.timings.append((perf(), 'fetch_http.exit'))
     return upstream_response
