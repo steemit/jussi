@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
 
-from time import perf_counter
-
 import structlog
 # pylint: disable=no-name-in-module
 from websockets import WebSocketClientProtocol as WSConn
@@ -266,26 +264,17 @@ class Pool:
     async def _get_new_connection(self) -> WSConn:
         # First connection attempt on this pool.
         logger.debug('spawning new ws conn')
-        start = perf_counter()
-        conn = await websockets_connect(self._connect_url, loop=self._loop,
+        return await websockets_connect(self._connect_url, loop=self._loop,
                                         **self._connect_kwargs)
-        elapsed = perf_counter() - start
-        logger.info('new ws conn', elapsed=elapsed)
-        return conn
 
     async def acquire(self, timeout: int=None) -> PoolConnectionProxy:
         async def _acquire_impl(timeout=None) -> PoolConnectionProxy:
-            start = perf_counter()
             ch = await self._queue.get()  # type: PoolConnectionHolder
             self._queue.task_done()
             try:
                 proxy = await ch.acquire()  # type: # type: PoolConnectionProxy
-                elapsed = perf_counter() - start
-                if elapsed > 1:
-                    logger.info('acquire ws conn', elapsed=elapsed)
             except Exception:
                 self._queue.put_nowait(ch)
-
                 raise
             else:
                 # Record the timeout, as we will apply it by default
