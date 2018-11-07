@@ -145,6 +145,10 @@
         [
           "appbase.condenser_api.broadcast_transaction_synchronous",
           0
+        ],
+        [
+          "appbase.condenser_api.get_ops_in_block.params=[2889020,false]",
+          20
         ]
       ]
     }
