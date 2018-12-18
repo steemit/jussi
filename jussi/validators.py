@@ -4,17 +4,15 @@ from typing import NoReturn
 
 import structlog
 
-from .errors import InvalidRequest
+from jussi.request.jsonrpc import JSONRPCRequest
+
+#from .errors import InvalidRequest
 from .errors import JussiCustomJsonOpLengthError
 from .errors import JussiLimitsError
-
 from .typedefs import JrpcRequest
 from .typedefs import JrpcResponse
-from .typedefs import SingleJrpcRequest
-from .typedefs import SingleJrpcResponse
 from .typedefs import RawRequest
-
-from jussi.request import JSONRPCRequest
+from .typedefs import SingleJrpcResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -51,6 +49,7 @@ BROADCAST_TRANSACTION_METHODS = {
 
 
 def validate_jsonrpc_request(request: RawRequest) -> NoReturn:
+    from .errors import InvalidRequest
     if isinstance(request, dict):
         assert JSONRPC_REQUEST_KEYS.issuperset(request.keys()) and \
             request['jsonrpc'] == '2.0' and \
@@ -73,14 +72,6 @@ def validate_jsonrpc_request(request: RawRequest) -> NoReturn:
 #
 # is_valid_* methods return True or False, but they don't raise
 #
-
-
-def is_valid_jsonrpc_request(request: JrpcRequest) -> bool:
-    try:
-        validate_jsonrpc_request(request)
-        return True
-    except Exception as e:
-        return False
 
 
 def is_valid_single_jsonrpc_response(response: SingleJrpcResponse) -> bool:

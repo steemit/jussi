@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
+import asyncio
+import concurrent.futures
 import logging
-import structlog
 import uuid
-from funcy.decorators import decorator
-from sanic import response
-from sanic.exceptions import RequestTimeout
-from sanic.exceptions import SanicException
 from typing import Optional
 from typing import Union
+
+import sanic.exceptions
+import structlog
+
+from funcy.decorators import decorator
+from sanic import response
 
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
@@ -30,20 +33,42 @@ class Default(dict):
 def setup_error_handlers(app: WebApp) -> WebApp:
     # pylint: disable=unused-variable
 
-    @app.exception(RequestTimeout)
-    def handle_timeout_errors(request: HTTPRequest,
-                              exception: SanicException) -> Optional[
-            HTTPResponse]:
-        """handles noisy request timeout errors"""
-        # pylint: disable=unused-argument
+
+    @app.exception(sanic.exceptions.RequestTimeout)
+    def handle_request_timeout_errors(request: HTTPRequest,
+                                      exception: sanic.exceptions.RequestTimeout) -> Optional[HTTPResponse]:
         if not request:
             return None
-        return RequestTimeoutError(http_request=request).to_sanic_response()
+        return RequestTimeoutError(http_request=request,
+                                   jrpc_request=request.jsonrpc,
+                                   exception=exception).to_sanic_response()
 
-    # pylint: disable=unused-argument
+
+    @app.exception(sanic.exceptions.ServiceUnavailable)
+    def handle_response_timeout_errors(request: HTTPRequest,
+                                       exception: sanic.exceptions.ServiceUnavailable) -> Optional[HTTPResponse]:
+        if not request:
+            return None
+        return ResponseTimeoutError(http_request=request,
+                                    jrpc_request=request.jsonrpc,
+                                    exception=exception).to_sanic_response()
+
+    @app.exception(concurrent.futures.CancelledError,
+                   concurrent.futures.TimeoutError,
+                   asyncio.TimeoutError)
+    def handle_async_timeout_errors(request: HTTPRequest,
+                                    exception: Exception) -> Optional[HTTPResponse]:
+        if not request:
+            return None
+        return RequestTimeoutError(http_request=request,
+                                   jrpc_request=request.jsonrpc,
+                                   exception=exception).to_sanic_response()
+
     @app.exception(JsonRpcError)
     def handle_jsonrpc_error(request: HTTPRequest,
                              exception: JsonRpcError) -> HTTPResponse:
+        if not exception.http_request:
+            exception.add_http_request(request)
         return exception.to_sanic_response()
     # pylint: enable=unused-argument
 
@@ -51,6 +76,10 @@ def setup_error_handlers(app: WebApp) -> WebApp:
     def handle_errors(request: HTTPRequest,
                       exception: Exception) -> HTTPResponse:
         """handles all errors"""
+        if isinstance(exception, InvalidRequest):
+            return InvalidRequest(http_request=request,
+                                  exception=exception,
+                                  reason=exception.message).to_sanic_response()
         return JsonRpcError(http_request=request,
                             exception=exception).to_sanic_response()
 
@@ -59,7 +88,7 @@ def setup_error_handlers(app: WebApp) -> WebApp:
 
 @decorator
 async def handle_middleware_exceptions(call):
-    """Return response when exceptions happend in middleware
+    """Return response when exceptions happened in middleware
     """
     try:
         return await call()
@@ -109,7 +138,7 @@ class JussiInteralError(Exception):
         kwargs = kwargs or self.kwargs
         try:
             return self.message.format_map(Default(**kwargs))
-        except Exception as e:
+        except Exception:
             return self.message
 
     @property
@@ -134,7 +163,8 @@ class JussiInteralError(Exception):
         except BaseException:
             pass
         try:
-            return self.http_request.json['id']
+            # pylint: disable=protected-access
+            return self.http_request._parsed_json['id']
         except BaseException:
             pass
 
@@ -169,11 +199,6 @@ class JussiInteralError(Exception):
             'jrpc_request_id': self.jrpc_request_id,
             'jussi_request_id': self.jussi_request_id
         }
-        if self.jsonrpc_request:
-            try:
-                base_error.update(self.jsonrpc_request.log_extra())
-            except Exception as e:
-                logger.warning('JussiInteralError jsonrpc_request serialization error', e=e)
 
         try:
             base_error.update(**self.kwargs)
@@ -187,7 +212,9 @@ class JussiInteralError(Exception):
             self.logger.error(self.format_message(), **self.to_dict(),
                               exc_info=self.exception)
         else:
-            self.logger.error(self.format_message(), **self.to_dict())
+            self.logger.error(self.format_message(),
+                              exception=self.exception,
+                              **self.to_dict())
 # pylint: enable=too-many-instance-attributes,too-many-arguments
 
 
@@ -243,7 +270,32 @@ class RequestTimeoutError(JsonRpcError):
     code = 1000
     message = 'Request Timeout'
 
+    def to_dict(self):
+        data = super().to_dict()
+        try:
+            timings = self.timings()
+            if timings:
+                data.update(**timings)
+        except Exception as e:
+            logger.info('error adding timing data to RequestTimeoutError', e=e)
+        return data
 
+
+class ResponseTimeoutError(JsonRpcError):
+    code = 1050
+    message = 'Response Timeout'
+
+    def to_dict(self):
+        data = super().to_dict()
+        try:
+            timings = self.timings()
+            if timings:
+                data.update(**timings)
+        except Exception as e:
+            logger.info('error adding timing data to RequestTimeoutError', e=e)
+        return data
+
+      
 class UpstreamResponseError(JsonRpcError):
     code = 1100
     message = 'Upstream response error'

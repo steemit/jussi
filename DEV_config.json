@@ -7,11 +7,11 @@
   "upstreams": [
     {
       "name": "steemd",
-      "translate_to_appbase": false,
+      "translate_to_appbase": true,
       "urls": [
         [
           "steemd",
-          "wss://steemd.steemitstage.com"
+         "wss://steemd-appbase.steemit.com"
         ]
       ],
       "ttls": [
@@ -145,6 +145,10 @@
         [
           "appbase.condenser_api.broadcast_transaction_synchronous",
           0
+        ],
+        [
+          "appbase.condenser_api.get_ops_in_block.params=[2889020,false]",
+          20
         ]
       ]
     }

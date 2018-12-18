@@ -24,8 +24,9 @@ def irreversible_ttl(jsonrpc_response: dict=None,
                      last_irreversible_block_num: int=None) -> TTL:
     if not jsonrpc_response:
         return TTL.NO_CACHE
-    if not isinstance(last_irreversible_block_num, (int, TTL)):
-        logger.info('bad/missing last_irrersible_block_num', lirb=last_irreversible_block_num)
+    if not isinstance(last_irreversible_block_num, int):
+        logger.debug('bad/missing last_irrersible_block_num',
+                     lirb=last_irreversible_block_num)
         return TTL.NO_CACHE
     try:
         jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
@@ -41,7 +42,7 @@ def irreversible_ttl(jsonrpc_response: dict=None,
 
 
 def block_num_from_jsonrpc_response(
-        jsonrpc_response: dict=None) -> int:
+        jsonrpc_response: dict=None) -> Optional[int]:
     # pylint: disable=no-member
     get_in = cytoolz.get_in
     # for appbase get_block
@@ -65,12 +66,7 @@ def block_num_from_jsonrpc_response(
                       jsonrpc_response)
     if previous:
         return int(str(previous)[:8], base=16) + 1
-
-
-def block_num_from_id(block_hash: str) -> int:
-    """return the first 4 bytes (8 hex digits) of the block ID (the block_num)
-    """
-    return int(str(block_hash)[:8], base=16)
+    return None
 
 
 def merge_cached_response(request: SingleJrpcRequest,

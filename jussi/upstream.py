@@ -11,7 +11,6 @@ from urllib.parse import urlparse
 import jsonschema
 import pygtrie
 import structlog
-
 import ujson
 
 from .errors import InvalidUpstreamHost
@@ -22,18 +21,18 @@ logger = structlog.get_logger(__name__)
 ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?(@([^\/\s]+)/transfers|~?witnesses)$')
 
 
-#-------------------
+# -------------------
 # TTLS
 # NO EXPIRE: 0
 # NO CACHE: -1
 # NO EXPIRE IF IRREVERSIBLE: -2
-#-------------------
+# -------------------
 #  TIMEOUTS
 #  NO TIMEOUT: 0
-#-------------------
+# -------------------
 #  RETRIES
 #  NO RETRIES: 0
-#-------------------
+# -------------------
 
 
 UPSTREAM_SCHEMA_FILE = 'upstreams_schema.json'

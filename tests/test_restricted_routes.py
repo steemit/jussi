@@ -20,7 +20,7 @@ params1 = make_params('/', ['GET', 'HEAD', 'OPTIONS', 'POST'])
 params2 = make_params('/health', ['GET', 'HEAD', 'OPTIONS'])
 params3 = make_params('/.well-known/healthcheck.json', [])
 params4 = make_params('/index.html', [])
-params5 = make_params('/stats', [])
+params5 = make_params('/monitor', [])
 params6 = make_params('/nginx_status', [])
 
 

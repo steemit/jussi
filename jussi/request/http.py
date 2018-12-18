@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
-from time import perf_counter
-from typing import Optional
-from typing import Union
-from typing import List
-from typing import Dict
-from cytoolz import sliding_window
-
-
-from httptools import parse_url
-from urllib.parse import parse_qs, urlunparse
-from ujson import loads as json_loads
 from random import getrandbits
+from time import perf_counter
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import TypeVar
+from typing import Union
+from urllib.parse import urlunparse
 
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+# pylint: disable=no-name-in-module
+from httptools import parse_url
+from ujson import loads as json_loads
+
+from jussi.empty import _empty
 from jussi.request.jsonrpc import JSONRPCRequest
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
+
+# pylint: enable=no-name-in-module
+
 
 # HTTP/1.1: https://www.w3.org/Protocols/rfc2616/rfc2616-sec7.html#sec7.2.1
 # > If the media type remains unknown, the recipient SHOULD treat it
@@ -21,19 +25,16 @@ from jussi.request.jsonrpc import JSONRPCRequest
 DEFAULT_HTTP_CONTENT_TYPE = "application/json"
 
 
-class Empty:
-    def __bool__(self):
-        return False
-
-
-_empty = Empty()
-
-RawRequestDict = Dict[str, Union[str, float, int, list, dict]]
+RawRequestDict = Dict[str, Union[str, float, int, list, dict, bool, type(None)]]
 RawRequestList = List[RawRequestDict]
-RawRequest = Union[RawRequestDict, RawRequestList]
-SingleJsonRpcRequest = JSONRPCRequest
-BatchJsonRpcRequest = List[SingleJsonRpcRequest]
-JsonRpcRequest = Union[SingleJsonRpcRequest, BatchJsonRpcRequest]
+RawRequest = TypeVar('RawRequest', RawRequestDict, RawRequestList)
+
+SingleJrpcRequest = JSONRPCRequest
+BatchJrpcRequest = List[SingleJrpcRequest]
+JrpcRequest = TypeVar('JrpcRequest', SingleJrpcRequest,
+                      BatchJrpcRequest)
+
+# pylint: disable=too-many-instance-attributes,too-many-arguments,attribute-defined-outside-init
 
 
 class HTTPRequest:
@@ -41,7 +42,7 @@ class HTTPRequest:
 
     __slots__ = (
         'app', 'headers', 'version', 'method', 'transport',
-        'body', 'parsed_json', 'parsed_jsonrpc',
+        'body', '_parsed_json', '_parsed_jsonrpc',
         '_ip', '_parsed_url', 'uri_template', 'stream',
         '_socket', '_port', 'timings', '_log', 'is_batch_jrpc',
         'is_single_jrpc'
@@ -59,50 +60,56 @@ class HTTPRequest:
 
         # Init but do not inhale
         self.body = []
-        self.parsed_json = _empty
-        self.parsed_jsonrpc = _empty
+        self._parsed_json = _empty
+        self._parsed_jsonrpc = _empty
         self.uri_template = None
         self.stream = None
         self.is_batch_jrpc = False
         self.is_single_jrpc = False
 
-        self.timings = {'created': perf_counter()}
+        self.timings = [(perf_counter(), 'http_create')]
         self._log = _empty
 
     @property
-    def json(self) -> Optional[RawRequest]:
-        if self.parsed_json is _empty:
-            self.parsed_json = None
-            try:
-                if not self.body:
-                    return self.parsed_json
-                self.parsed_json = json_loads(self.body)
-            except Exception:
-                from jussi.errors import ParseError
-                raise ParseError(http_request=self)
-        return self.parsed_json
+    def jsonrpc(self) -> Optional[JrpcRequest]:
+        # ignore body and json if HTTP methos is not POST
+        if self.method != 'POST':
+            return None
 
-    @property
-    def jsonrpc(self) -> Optional[JsonRpcRequest]:
-        if self.parsed_jsonrpc is _empty:
-            self.parsed_jsonrpc = None
+        if self._parsed_jsonrpc is _empty:
+            self._parsed_jsonrpc = None
+            from jussi.errors import ParseError
+            from jussi.errors import InvalidRequest
+            from jussi.validators import validate_jsonrpc_request
             try:
-                if self.method != 'POST':
-                    return self.parsed_jsonrpc
-                jsonrpc_request = self.json
+                # raise ParseError for blank/empty body
+                if self.body is _empty:
+                    raise ParseError(http_request=self)
+                # raise ParseError if parsing fails
+                try:
+                    self._parsed_json = json_loads(self.body)
+                except Exception as e:
+                    raise ParseError(http_request=self, exception=e)
+
+                # validate jsonrpc
+                jsonrpc_request = self._parsed_json
+                validate_jsonrpc_request(jsonrpc_request)
+
                 if isinstance(jsonrpc_request, dict):
-                    self.parsed_jsonrpc = jsonrpc_from_request(self, 0,
-                                                               jsonrpc_request)
+                    self._parsed_jsonrpc = jsonrpc_from_request(self, 0,
+                                                                jsonrpc_request)
                     self.is_single_jrpc = True
                 elif isinstance(jsonrpc_request, list):
-                    self.parsed_jsonrpc = [
+                    self._parsed_jsonrpc = [
                         jsonrpc_from_request(self, batch_index, req)
                         for batch_index, req in enumerate(jsonrpc_request)
                     ]
                     self.is_batch_jrpc = True
-            except Exception:
-                pass
-        return self.parsed_jsonrpc
+            except ParseError as e:
+                raise e
+            except Exception as e:
+                raise InvalidRequest(http_request=self, exception=e)
+        return self._parsed_jsonrpc
 
     @property
     def ip(self):
@@ -118,20 +125,24 @@ class HTTPRequest:
 
     @property
     def socket(self):
-        if not hasattr(self, '_socket'):
-            self._get_socket()
-        return self._socket
+        return None
 
     def _get_address(self):
-        self._socket = (self.transport.get_extra_info('peername') or
-                        (None, None))
-        self._ip, self._port = self._socket
+        try:
+            self._socket = (self.transport.get_extra_info('peername') or
+                            (None, None))
+            self._ip, self._port = self._socket
+        except Exception:
+            self._ip, self._port = None, None
 
     @property
     def scheme(self):
         scheme = 'http'
-        if self.transport.get_extra_info('sslcontext'):
-            scheme += 's'
+        try:
+            if self.transport.get_extra_info('sslcontext'):
+                scheme += 's'
+        except Exception:
+            pass
         return scheme
 
     @property
@@ -171,14 +182,6 @@ class HTTPRequest:
             None))
 
     @property
-    def timings_str(self) -> dict:
-        try:
-            return {t2[0]: t2[1] - t1[1] for t1, t2 in
-                    sliding_window(2, self.timings.items())}
-        except Exception:
-            return {}
-
-    @property
     def jussi_request_id(self) -> str:
         return self.headers.get('x-jussi-request-id',
                                 '%(rid)018d' % {'rid': getrandbits(50)})
@@ -186,3 +189,16 @@ class HTTPRequest:
     @property
     def amzn_trace_id(self) -> str:
         return self.headers.get('x-amzn-trace-id', '')
+
+    @property
+    def request_start_time(self) -> float:
+        return self.timings[0][0]
+
+    @property
+    def request_timeout(self) -> Union[int, float]:
+        if self.is_single_jrpc:
+            return self.jsonrpc.upstream.timeout
+        elif self.is_batch_jrpc:
+            return min([sum(r.upstream.timeout for r in self.jsonrpc), 60])
+        else:
+            return 1

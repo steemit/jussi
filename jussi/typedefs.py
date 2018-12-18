@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
-from typing import Any
 from typing import Dict
 from typing import List
-from typing import Union
 from typing import TypeVar
+from typing import Union
 
 import pygtrie
 from sanic.app import Sanic
-
 from sanic.response import HTTPResponse as SanicHTTPResponse
 
-from jussi.request import HTTPRequest
-from jussi.request import JSONRPCRequest
+from jussi.request.http import HTTPRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 
 WebApp = Sanic
 HTTPRequest = HTTPRequest

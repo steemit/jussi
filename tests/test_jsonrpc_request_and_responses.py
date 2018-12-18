@@ -85,9 +85,9 @@ async def steemd_multi_format_requests(mocked_app_test_cli, jsonrpc_request, exp
         assert json_response == expected
 
 
-async def test_mocked_steemd_calls(mocked_app_test_cli, steemd_jrpc_response_validator, steemd_requests_and_responses, mocker):
+async def test_mocked_steemd_calls(mocked_app_test_cli, steemd_jrpc_response_validator, steemd_request_and_response, mocker):
     compare_key_only_ids = (6, 48)
-    jrpc_req, jrpc_resp = steemd_requests_and_responses
+    jrpc_req, jrpc_resp = steemd_request_and_response
 
     mocked_ws_conn, test_cli = mocked_app_test_cli
     mocked_ws_conn.recv.return_value = json.dumps(jrpc_resp)

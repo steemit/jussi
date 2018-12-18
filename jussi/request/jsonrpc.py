@@ -1,32 +1,31 @@
 # -*- coding: utf-8 -*-
 from time import perf_counter
-from ujson import dumps
-
-from cytoolz import sliding_window
-from typing import Any
 from typing import Dict
-from typing import Optional
+from typing import List
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+from ujson import dumps
 
-class Empty:
-    def __bool__(self):
-        return False
+from jussi.empty import _empty
 
-    def __repr__(self):
-        return '<Empty>'
+# JSONRPC Request/Response fields
+JrpcRequestIdField = TypeVar('JRPCIdField', str, int, float, type(None))
+JrpcRequestParamsField = TypeVar('JRPCParamsField', type(None), list, dict)
+JrpcRequestVersionField = str
+JrpcRequestMethodField = str
+JrpcField = TypeVar('JrpcField',
+                    JrpcRequestIdField,
+                    JrpcRequestParamsField,
+                    JrpcRequestVersionField,
+                    JrpcRequestMethodField)
 
-    def __str__(self):
-        return '<Empty>'
 
+# JSONRPC Requests
+SingleRawRequest = Dict[str, JrpcField]
 
-_empty = Empty()
-
-JsonRpcRequestIdField = TypeVar('JRPCIdField', str, int, float, Empty)
-JsonRpcRequestParamsField = TypeVar('JRPCParamsField', Empty, list, dict)
-JsonRpcRequestVersionField = str
-JsonRpcRequestMethodField = str
+# pylint: disable=too-many-instance-attributes
 
 
 class JSONRPCRequest:
@@ -42,18 +41,19 @@ class JSONRPCRequest:
                  'original_request',
                  'timings')
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
-                 _id: JsonRpcRequestIdField,
-                 jsonrpc: JsonRpcRequestVersionField,
-                 method: JsonRpcRequestMethodField,
-                 params: JsonRpcRequestParamsField,
+                 _id: JrpcRequestIdField,
+                 jsonrpc: JrpcRequestVersionField,
+                 method: JrpcRequestMethodField,
+                 params: JrpcRequestParamsField,
                  urn,
                  upstream,
                  amzn_trace_id: str,
                  jussi_request_id: str,
                  batch_index: int,
-                 original_request,
-                 timings: Dict[str, float]) -> None:
+                 original_request: SingleRawRequest,
+                 timings: List[Tuple[float, str]]) -> None:
         self.id = _id
         self.jsonrpc = jsonrpc
         self.method = method
@@ -95,37 +95,11 @@ class JSONRPCRequest:
     def translated(self) -> bool:
         return self.original_request is not None
 
-    @property
-    def timings_str(self):
-        try:
-            return {t2[0]: t2[1] - t1[1] for t1, t2 in
-                    sliding_window(2, self.timings.items())}
-        except Exception:
-            return {}
-
-    def log_extra(self, **kwargs) -> Optional[Dict[str, Any]]:
-        try:
-            base_extra = {
-                'x-amzn-trace-id': self.amzn_trace_id,
-                'jussi_request_id': self.jussi_request_id,
-                'jsonrpc_id': self.id,
-                'batch_index': self.batch_index,
-                'upstream_request_id': self.upstream_id,
-                'translated': self.translated,
-                **self.urn.to_dict(),
-                **self.upstream._asdict(),
-            }
-            base_extra.update(**kwargs)
-            return base_extra
-
-        except Exception:
-            return None
-
     def __hash__(self) -> int:
         return hash(self.urn)
 
     @staticmethod
-    def translate_to_appbase(request, urn) -> dict:
+    def translate_to_appbase(request: SingleRawRequest, urn) -> dict:
         params = urn.params
         if params is _empty:
             params = []
@@ -139,10 +113,9 @@ class JSONRPCRequest:
 
 # pylint: disable=no-member
 
-def from_request(http_request, batch_index: int, request: Dict[str, any]):
+def from_http_request(http_request, batch_index: int, request: SingleRawRequest):
     from ..urn import from_request as urn_from_request
     from ..upstream import Upstream
-    from ..urn import URN
 
     upstreams = http_request.app.config.upstreams
     urn = urn_from_request(request)  # type:URN
@@ -159,7 +132,7 @@ def from_request(http_request, batch_index: int, request: Dict[str, any]):
     jsonrpc = request['jsonrpc']
     method = request['method']
     params = request.get('params', _empty)
-    timings = {'created': perf_counter()}
+    timings = [(perf_counter(), 'jsonrpc_create')]
     return JSONRPCRequest(_id,
                           jsonrpc,
                           method,

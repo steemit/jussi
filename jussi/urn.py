@@ -2,11 +2,15 @@
 import functools
 import re
 import reprlib
-import structlog
 from typing import Dict
 from typing import TypeVar
 from typing import Union
 
+import structlog
+import ujson
+
+from .empty import Empty
+from .empty import _empty
 from .errors import InvalidNamespaceAPIError
 from .errors import InvalidNamespaceError
 
@@ -18,22 +22,6 @@ JRPC_METHOD_REGEX = re.compile(JRPC_METHOD_PATTERN)
 
 STEEMD_NUMERIC_API_MAPPING = ('database_api', 'login_api')
 
-
-class Empty:
-    def __bool__(self):
-        return False
-
-    def __repr__(self):
-        return '<Empty>'
-
-    def __str__(self):
-        return '<Empty>'
-
-    def __len__(self):
-        return 0
-
-
-_empty = Empty()
 
 RawRequestDict = Dict[str, Union[str, float, int, list, dict]]
 APIType = TypeVar('URNAPIType', Empty, str)
@@ -62,7 +50,7 @@ class URN:
             return self.__cached_str
         params = self.params
         if self.params is not _empty:
-            params = f'params={self.params}'.replace(' ', '')
+            params = f'params={ujson.dumps(self.params, ensure_ascii=False)}'
 
         api = self.api
         if api is not _empty:

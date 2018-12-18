@@ -5,10 +5,11 @@ import sys
 import time
 
 import structlog
+import ujson
 from pythonjsonlogger.jsonlogger import JsonFormatter
 
+# pylint: disable=c-extension-no-member
 import rapidjson
-import ujson
 from jussi.typedefs import WebApp
 
 # pylint: disable=no-member

@@ -1,39 +1,40 @@
 # -*- coding: utf-8 -*-
-from time import perf_counter
-import inspect
-import structlog
-from reprlib import repr
+from typing import Optional
+from reprlib import repr as _repr
+from time import perf_counter as perf
 
-from ..errors import handle_middleware_exceptions
-from ..request import JSONRPCRequest
+import structlog
+
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
+from ..errors import JsonRpcError
 
-logger = structlog.get_logger(__name__)
-request_logger = structlog.getLogger('jussi_request')
+logger = structlog.get_logger('jussi')
 
 
-@handle_middleware_exceptions
+async def initialize_jussi_request(request: HTTPRequest) -> Optional[HTTPResponse]:
+   # parse jsonrpc
+    try:
+        request.jsonrpc
+    except JsonRpcError as e:
+        return e.to_sanic_response()
+    except Exception as e:
+        return JsonRpcError(http_request=request,
+                            exception=e).to_sanic_response()
+
+
 async def finalize_jussi_response(request: HTTPRequest,
                                   response: HTTPResponse) -> None:
     # pylint: disable=bare-except
     try:
         response.headers['x-jussi-request-id'] = request.jussi_request_id
         response.headers['x-amzn-trace-id'] = request.amzn_trace_id
-        now = perf_counter()
-        response.headers['x-jussi-response-time'] = str(now - request.timings['created'])
-        logger.debug('httprequest timings', timings=request.timings_str)
-        if isinstance(request.jsonrpc, JSONRPCRequest):
+        response.headers['x-jussi-response-time'] = str(perf() - request.timings[0][0])
+        if request.is_single_jrpc:
             response.headers['x-jussi-namespace'] = request.jsonrpc.urn.namespace
             response.headers['x-jussi-api'] = request.jsonrpc.urn.api
             response.headers['x-jussi-method'] = request.jsonrpc.urn.method
-            response.headers['x-jussi-params'] = repr(request.jsonrpc.urn.params)
-            logger.debug('httprequest timings', timings=request.jsonrpc.timings_str)
-
-        #stack = inspect.stack()
-        #connections = stack[4][0].f_locals['connections']
-        #state = stack[4][0].f_locals['state']
-        #server = stack[4][0].f_locals['http_server']
+            response.headers['x-jussi-params'] = _repr(request.jsonrpc.urn.params)
 
     except BaseException as e:
         logger.warning('finalize_jussi error', e=e)

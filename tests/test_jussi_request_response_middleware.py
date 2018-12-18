@@ -150,6 +150,7 @@ def test_urn_parts_in_post_response_headers():
 
     @app.post('/post')
     def handler(r):
+        _ = r.jsonrpc  # trigger lazy parsing
         return sanic.response.text('post')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
@@ -168,6 +169,7 @@ def test_urn_parts_not_in_batch_response_headers():
 
     @app.post('/post')
     def handler(r):
+        _ = r.jsonrpc  # trigger lazy parsing
         return sanic.response.text('post')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
@@ -185,6 +187,7 @@ def test_urn_parts_not_in_get_response_headers():
 
     @app.get('/get')
     def handler(r):
+        _ = r.jsonrpc  # trigger lazy parsing
         return sanic.response.text('get')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
@@ -202,6 +205,7 @@ def test_urn_parts_not_in_head_response_headers():
 
     @app.head('/head')
     def handler(r):
+        _ = r.jsonrpc  # trigger lazy parsing
         return sanic.response.text('head')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)
@@ -219,6 +223,7 @@ def test_urn_parts_not_in_options_response_headers():
 
     @app.options('/options')
     def handler(r):
+        _ = r.jsonrpc  # trigger lazy parsing
         return sanic.response.text('options')
 
     app.config.upstreams = _Upstreams(TEST_UPSTREAM_CONFIG, validate=False)

@@ -6,8 +6,8 @@ from jussi.errors import JsonRpcError
 from jussi.errors import JussiLimitsError
 from jussi.errors import JussiCustomJsonOpLengthError
 from jussi.errors import InvalidRequest
-from jussi.request import JSONRPCRequest
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
+from jussi.request.jsonrpc import JSONRPCRequest
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 from jussi.validators import is_get_block_header_request
 from jussi.validators import is_get_block_request
 from jussi.validators import is_valid_get_block_response
@@ -91,14 +91,14 @@ batch_response = [response, response]
 error_response = {"id": "1", "jsonrpc": "2.0", "error": {}}
 
 
-def test_vaildate_jsonrpc_request_invalid(invalid_jrpc_single_and_batch_requests):
-    request = invalid_jrpc_single_and_batch_requests
+def test_vaildate_jsonrpc_request_invalid(invalid_jrpc_single_and_batch_request):
+    request = invalid_jrpc_single_and_batch_request
     with pytest.raises((AssertionError, InvalidRequest, KeyError, AttributeError)):
         validate_jsonrpc_request(request)
 
 
-def test_vaildate_jsonrpc_requests(batched_steemd_jrpc_calls):
-    request = batched_steemd_jrpc_calls
+def test_vaildate_jsonrpc_requests(batch_combined_request):
+    request = batch_combined_request
     assert validate_jsonrpc_request(request) is None
 
 
@@ -209,8 +209,8 @@ def test_is_valid_single_jsonrpc_response(value, expected):
 
 
 def test_is_valid_single_jsonrpc_response_using_steemd(
-        steemd_requests_and_responses):
-    req, resp = steemd_requests_and_responses
+        steemd_request_and_response):
+    req, resp = steemd_request_and_response
     assert is_valid_single_jsonrpc_response(resp) is True
 
 
@@ -232,8 +232,8 @@ def test_is_valid_non_error_single_jsonrpc_response(value, expected):
 
 
 def test_is_valid_non_error_single_jsonrpc_response_using_steemd(
-        steemd_requests_and_responses):
-    req, resp = steemd_requests_and_responses
+        steemd_request_and_response):
+    req, resp = steemd_request_and_response
     assert is_valid_non_error_single_jsonrpc_response(resp) is True
 
 
@@ -273,8 +273,8 @@ def test_is_valid_jussi_response(req, resp, expected):
     assert is_valid_non_error_jussi_response(req, resp) is expected
 
 
-def test_is_valid_jussi_response_using_steemd(steemd_requests_and_responses):
-    req, resp = steemd_requests_and_responses
+def test_is_valid_jussi_response_using_steemd(steemd_request_and_response):
+    req, resp = steemd_request_and_response
     req = jsonrpc_from_request(dummy_request, 0, req)
     assert is_valid_non_error_jussi_response(req, resp) is True
 
@@ -335,39 +335,39 @@ def test_limit_custom_json_account(ops, expected):
         limit_custom_json_account(ops, blacklist_accounts={'not_steemit'})
 
 
-def test_is_broadcast_transaction_false(steemd_requests_and_responses):
-    req, resp = steemd_requests_and_responses
+def test_is_broadcast_transaction_false(steemd_request_and_response):
+    req, resp = steemd_request_and_response
     req = jsonrpc_from_request(dummy_request, 0,
                                req)
     assert is_broadcast_transaction_request(req) is False
 
 
-def test_is_broadcast_transaction_true(valid_broadcast_transactions):
+def test_is_broadcast_transaction_true(valid_broadcast_transaction):
     req = jsonrpc_from_request(dummy_request, 0,
-                               valid_broadcast_transactions)
+                               valid_broadcast_transaction)
     assert is_broadcast_transaction_request(req) is True
 
 
-def test_is_broadcast_transaction_true_invalid(invalid_broadcast_transactions):
+def test_is_broadcast_transaction_true_invalid(invalid_broadcast_transaction):
     req = jsonrpc_from_request(dummy_request, 0,
-                               invalid_broadcast_transactions)
+                               invalid_broadcast_transaction)
     assert is_broadcast_transaction_request(req) is True
 
 
-def test_limit_broadcast_transaction_request(steemd_requests_and_responses):
-    req, resp = steemd_requests_and_responses
+def test_limit_broadcast_transaction_request(steemd_request_and_response):
+    req, resp = steemd_request_and_response
     req = jsonrpc_from_request(dummy_request, 0, req)
     limit_broadcast_transaction_request(req)
 
 
-def test_valid_limit_broadcast_transaction_request(valid_broadcast_transactions):
-    req = jsonrpc_from_request(dummy_request, 0, valid_broadcast_transactions)
+def test_valid_limit_broadcast_transaction_request(valid_broadcast_transaction):
+    req = jsonrpc_from_request(dummy_request, 0, valid_broadcast_transaction)
     limit_broadcast_transaction_request(
         req, limits=TEST_UPSTREAM_CONFIG['limits'])
 
 
-def test_invalid_limit_broadcast_transaction_request(invalid_broadcast_transactions):
-    req = jsonrpc_from_request(dummy_request, 0, invalid_broadcast_transactions)
+def test_invalid_limit_broadcast_transaction_request(invalid_broadcast_transaction):
+    req = jsonrpc_from_request(dummy_request, 0, invalid_broadcast_transaction)
     with pytest.raises(JsonRpcError):
         limit_broadcast_transaction_request(
             req, limits=TEST_UPSTREAM_CONFIG['limits'])

@@ -4,22 +4,13 @@
 import pytest
 
 from jussi.cache.utils import jsonrpc_cache_key
-from jussi.request import JSONRPCRequest
+from jussi.request.jsonrpc import JSONRPCRequest
 from .conftest import make_request
-from jussi.request.jsonrpc import from_request as jsonrpc_from_request
-dummy_request = make_request()
+from jussi.request.jsonrpc import from_http_request as jsonrpc_from_request
 
 
-caches_config = {
-    'default': {
-        'cache':
-            'jussi.cache.backends.SimpleLRUMemoryCache'
-    }
-}
-
-
-jrpc_req_1 = jsonrpc_from_request(dummy_request, 0, {"id": "1", "jsonrpc": "2.0",
-                                                     "method": "get_block", "params": [1000]})
+jrpc_req_1 = jsonrpc_from_request(make_request(), 0, {"id": "1", "jsonrpc": "2.0",
+                                                      "method": "get_block", "params": [1000]})
 jrpc_resp_1 = {
     "id": 2,
     "result": {
@@ -35,10 +26,10 @@ jrpc_resp_1 = {
         "transaction_ids": []}}
 
 
-batch1_jrpc = [jsonrpc_from_request(dummy_request, _id, {"id": _id, "jsonrpc": "2.0",
-                                                         "method": "get_block", "params": [1000]}) for _id in range(10)]
-batch2_jrpc = [jsonrpc_from_request(dummy_request, _id, {"id": _id, "jsonrpc": "2.0", "method": "get_block",
-                                                         "params": [1000]}) for _id in range(20, 30)]
+batch1_jrpc = [jsonrpc_from_request(make_request(), _id, {"id": _id, "jsonrpc": "2.0",
+                                                          "method": "get_block", "params": [1000]}) for _id in range(10)]
+batch2_jrpc = [jsonrpc_from_request(make_request(), _id, {"id": _id, "jsonrpc": "2.0", "method": "get_block",
+                                                          "params": [1000]}) for _id in range(20, 30)]
 
 cached_resp1 = [None for i in batch1_jrpc]
 cached_resp2 = [

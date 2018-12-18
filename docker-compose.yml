@@ -5,23 +5,24 @@ services:
     image: "steemit/jussi:latest"
     ports:
       - "8080:8080"
+      - "7777:7777"
     environment:
-      JUSSI_REDIS_HOST: redis1
-      JUSSI_REDIS_PORT: 6379
-      JUSSI_REDIS_READ_REPLICA_HOSTS: redis2:6379
-      LOG_LEVEL: DEBUG
-    links:
-      - redis1
-      - redis2
+      JUSSI_REDIS_URL: redis://redis1:6379
+      JUSSI_REDIS_READ_REPLICA_URLS: redis://redis2:6379
+      JUSSI_STATSD_URL: statsd://statsd:8125
+    env_file: .env
     volumes:
       - /Users/muyloco/Dev/steemit/jussi/DEV_config.json:/app/DEV_config.json
   redis1:
     restart: "no"
     image: "redis:3.2"
-    ports:
-      - "6380:6379"
   redis2:
     restart: "no"
     image: "redis:3.2"
     ports:
       - "6379:6379"
+  statsd:
+     restart: "no"
+     image: "statsd"
+     ports:
+      - "8125:8125/udp"
