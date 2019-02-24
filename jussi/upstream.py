@@ -134,7 +134,7 @@ class _Upstreams(object):
         for url in self.urls:
             try:
                 parsed_url = urlparse(url)
-                host = urlparse(url).netloc
+                host = urlparse(url).hostname
                 logger.info('attempting to add uptream url', url=parsed_url)
                 socket.gethostbyname(host)
                 logger.info('added upstream url', url=parsed_url)
