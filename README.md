@@ -93,6 +93,22 @@ Each urls key can have multiple endpoints for each namespace. For example:
 
 This makes it possible to forward specific calls to specific clusters of nodes.
 
+### Redis
+
+While it isn't required to function, for production scenarios we recommend using a separate redis database for jussi. You can specify your redis host by passing in an environment variable. You can learn more about redis here: https://redis.io/
+
+### Environment variables
+
+Certain features of jussi can be configured using environment variables. If you are running jussi in a docker container, you can pass them in using `--env ENVIRONMENT_VARIABLE=value`
+
+`JUSSI_UPSTREAM_CONFIG_FILE` - Specifies the location of your config file
+`JUSSI_REDIS_URL` - In the format of: `redis://host:port`
+`JUSSI_JSONRPC_BATCH_SIZE_LIMIT` - The number of batch requests to allow
+`JUSSI_SERVER_PORT` - The port to run on, default is `9000`
+`JUSSI_STATSD_URL` - In the format of: `statsd://host:port`
+`JUSSI_TEST_UPSTREAM_URLS` - This stops jussi from testing upstream URLs at startup. When pointing jussi to locally running test services, you may need to set this to `FALSE`.
+`JUSSI_WEBSOCKET_POOL_MAXSIZE` - If connecting to a service using websockets, you can set the max pool size
+`LOG_LEVEL` - Everyone likes more logs. If you do too, set this to `INFO`. Otherwise, `WARNING` is ok as well.
 
 ## What jussi does
 ### At Startup
