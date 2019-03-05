@@ -2,6 +2,18 @@
 
 A reverse proxy that only speaks json-rpc 2.0. Upstream routing is done using json-rpc method "namespaces".
 
+## Building & Running
+
+The easiest way to get up and running with jussi is by running it in a docker container.
+
+1) Copy the example `DEV_config.json` to a local directory and make any necessary edits.
+2) Run this docker command (replace `/path/to/config.json` with the path to your config file): 
+```
+docker run -it --env JUSSI_UPSTREAM_CONFIG_FILE=/app/config.json -v /path/to/config.json:/app/config.json -p 9000:9000 steemit/jussi:latest
+```
+
+You can build jussi using docker which will run it's full test suite with `docker build -t="myname/jussi:latest" .`
+
 ## Namespaces
 A json-rpc method namespace is a json-rpc method prefix joined to the method name with a period, so a method in the "sbds" namespace begins with `sbds.` and will be forwarded to a sbds endpoint:
 ```
@@ -30,6 +42,73 @@ Content-Type: application/json
   "id": 1
 }
 ```
+
+### Configuring and routing additional namespaces
+
+Jussi comes with an example config file, `DEV_config.json`. You can add additional namespaces for routing different calls to different hosts.
+
+Additional namespaces can be added to the upstreams array:
+
+```
+{
+  "name": "foo",
+  "urls": [["foo", "https://foo.host.name"]],
+  "ttls": [["foo", 3]],
+  "timeouts": [["foo", 5]]
+}
+```
+
+Once the above upstream has been added to your local config and jussi, the following curl would work:
+```
+curl -s --data '{"jsonrpc":"2.0", "method":"foo.bar", "params":["baz"], "id":1}' http://localhost:9000
+```
+
+### Caching and Time to Live
+
+For each namespace, you can configure a time to live (ttl). Jussi will cache any request for this namespace for however long you specify. Setting to `0` won't expire, `-1` won't be cached, and `-2` will be cached without expiration only if it is still irreversible on chain. Any positive number is te number of seconds to cache the request.
+
+### Multiple routes
+
+Each urls key can have multiple endpoints for each namespace. For example:
+
+```
+{
+  "urls":[
+    ["appbase", "https://api.steemitdev.com"]
+  ]
+}
+```
+
+… could be expaned to list specific additional methods in that namespace:
+
+```
+{
+  "urls":[
+    ["appbase","https://api.steemitdev.com"],
+    ["appbase.condenser_api.get_account_history","https://api-for-account-history.steemitdev.com"],
+    ["appbase.condenser_api.get_ops_in_block","https://api-for-get-ops-in-block.steemitdev.com"]
+  ]
+}
+```
+
+This makes it possible to forward specific calls to specific clusters of nodes.
+
+### Redis
+
+While it isn't required to function, for production scenarios we recommend using a separate redis database for jussi. You can specify your redis host by passing in an environment variable. You can learn more about redis here: https://redis.io/
+
+### Environment variables
+
+Certain features of jussi can be configured using environment variables. If you are running jussi in a docker container, you can pass them in using `--env ENVIRONMENT_VARIABLE=value`
+
+`JUSSI_UPSTREAM_CONFIG_FILE` - Specifies the location of your config file
+`JUSSI_REDIS_URL` - In the format of: `redis://host:port`
+`JUSSI_JSONRPC_BATCH_SIZE_LIMIT` - The number of batch requests to allow
+`JUSSI_SERVER_PORT` - The port to run on, default is `9000`
+`JUSSI_STATSD_URL` - In the format of: `statsd://host:port`
+`JUSSI_TEST_UPSTREAM_URLS` - This stops jussi from testing upstream URLs at startup. When pointing jussi to locally running test services, you may need to set this to `FALSE`.
+`JUSSI_WEBSOCKET_POOL_MAXSIZE` - If connecting to a service using websockets, you can set the max pool size
+`LOG_LEVEL` - Everyone likes more logs. If you do too, set this to `INFO`. Otherwise, `WARNING` is ok as well.
 
 ## What jussi does
 ### At Startup
@@ -65,3 +144,7 @@ Content-Type: application/json
 1. return single jsonrpc response or assembled jsonrpc responses for batch requests
 1. cache response in redis cache
 1. cache response in memory
+
+## Additional documentation
+
+For more indepth documentation on jussi including examples, check out the section on it in the steem dev portal: https://developers.steem.io/services/#services-jussi
