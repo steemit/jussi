@@ -33,7 +33,7 @@ from .utils import merge_cached_responses
 
 logger = structlog.getLogger(__name__)
 
-BATCH_IRREVERSIBLE_TTL_SET = frozenset([TTL.NO_EXPIRE_IF_IRREVERSIBLE])
+BATCH_IRREVERSIBLE_TTL_SET = frozenset([TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE])
 
 # types
 CacheTTLValue = TypeVar('CacheTTL', int, float, type(None))
@@ -188,7 +188,7 @@ class CacheGroup:
                                             ) -> None:
         key = jsonrpc_cache_key(request)
         ttl = ttl or request.upstream.ttl
-        if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
+        if ttl == TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE:
             last_irreversible_block_num = last_irreversible_block_num or \
                 self._memory_cache.gets('last_irreversible_block_num') or \
                 await self.get('last_irreversible_block_num')
@@ -218,7 +218,7 @@ class CacheGroup:
         else:
             new_ttls = []
             for i, ttl in enumerate(ttls):
-                if ttl == TTL.NO_EXPIRE_IF_IRREVERSIBLE:
+                if ttl == TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE:
                     ttl = irreversible_ttl(responses[i], last_irreversible_block_num)
                 new_ttls.append(ttl)
             triplets = filter(lambda p: p[0] != TTL.NO_CACHE, zip(ttls, requests, responses))

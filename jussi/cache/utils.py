@@ -31,7 +31,7 @@ def irreversible_ttl(jsonrpc_response: dict=None,
     try:
         jrpc_block_num = block_num_from_jsonrpc_response(jsonrpc_response)
         if jrpc_block_num and jrpc_block_num <= last_irreversible_block_num:
-            return TTL.NO_EXPIRE
+            return TTL.DEFAULT_TTL
         return TTL.DEFAULT_TTL
     except Exception as e:
         logger.warning(
