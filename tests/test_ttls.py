@@ -35,8 +35,8 @@ non_ttl_rpc_req = jsonrpc_from_request(dummy_request, 0, {"id": "1", "jsonrpc": 
     (ttl_rpc_req, rpc_resp, 999, TTL.DEFAULT_TTL),
 
     # cache when last_block_num >= response block_num
-    (ttl_rpc_req, rpc_resp, 1000, TTL.NO_EXPIRE),
-    (ttl_rpc_req, rpc_resp, 1001, TTL.NO_EXPIRE),
+    (ttl_rpc_req, rpc_resp, 1000, TTL.DEFAULT_TTL),
+    (ttl_rpc_req, rpc_resp, 1001, TTL.DEFAULT_TTL),
 
     # don't cache when bad/missing response block_num
     (ttl_rpc_req, {}, 2000, TTL.NO_CACHE),
