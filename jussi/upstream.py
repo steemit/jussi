@@ -18,7 +18,7 @@ from .errors import InvalidUpstreamURL
 
 logger = structlog.get_logger(__name__)
 
-ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?(@([^\/\s]+)/transfers|~?witnesses)$')
+ACCOUNT_TRANSFER_PATTERN = re.compile(r'^\/?(@([^\/\s]+)/transfers|~?witnesses|proposals)$')
 
 
 # -------------------
