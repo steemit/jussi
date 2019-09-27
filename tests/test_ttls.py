@@ -35,8 +35,8 @@ non_ttl_rpc_req = jsonrpc_from_request(dummy_request, 0, {"id": "1", "jsonrpc": 
     (ttl_rpc_req, rpc_resp, 999, TTL.DEFAULT_TTL),
 
     # cache when last_block_num >= response block_num
-    (ttl_rpc_req, rpc_resp, 1000, TTL.NO_EXPIRE),
-    (ttl_rpc_req, rpc_resp, 1001, TTL.NO_EXPIRE),
+    (ttl_rpc_req, rpc_resp, 1000, TTL.DEFAULT_TTL),
+    (ttl_rpc_req, rpc_resp, 1001, TTL.DEFAULT_TTL),
 
     # don't cache when bad/missing response block_num
     (ttl_rpc_req, {}, 2000, TTL.NO_CACHE),
@@ -54,7 +54,7 @@ def test_ttls(rpc_req, rpc_resp, last_block_num, expected):
     (TTL.NO_CACHE, -1),
     (TTL.DEFAULT_TTL, 3),
     (TTL.NO_EXPIRE, None),
-    (TTL.NO_EXPIRE_IF_IRREVERSIBLE, -2),
+    (TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE, -2),
 ]
 )
 def test_ttl_eq(ttl, eq):
@@ -65,7 +65,7 @@ def test_ttl_eq(ttl, eq):
 @pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
-    (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
+    (TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE)
 ]
 )
 def test_ttl_gt(ttl):
@@ -75,7 +75,7 @@ def test_ttl_gt(ttl):
 @pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
-    (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
+    (TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE)
 ]
 )
 def test_ttl_ge(ttl):
@@ -85,7 +85,7 @@ def test_ttl_ge(ttl):
 @pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
-    (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
+    (TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE)
 ]
 )
 def test_ttl_lt(ttl):
@@ -95,7 +95,7 @@ def test_ttl_lt(ttl):
 @pytest.mark.parametrize('ttl', [
     (TTL.NO_CACHE),
     (TTL.DEFAULT_TTL),
-    (TTL.NO_EXPIRE_IF_IRREVERSIBLE)
+    (TTL.DEFAULT_EXPIRE_IF_IRREVERSIBLE)
 ]
 )
 def test_ttl_le(ttl):

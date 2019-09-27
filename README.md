@@ -9,7 +9,7 @@ The easiest way to get up and running with jussi is by running it in a docker co
 1) Copy the example `DEV_config.json` to a local directory and make any necessary edits.
 2) Run this docker command (replace `/path/to/config.json` with the path to your config file): 
 ```
-docker run -it --env JUSSI_UPSTREAM_CONFIG_FILE=/app/config.json -v /path/to/config.json:/app/config.json -p 9000:9000 steemit/jussi:latest
+docker run -it --env JUSSI_UPSTREAM_CONFIG_FILE=/app/config.json -v /path/to/config.json:/app/config.json -p 8080:8080 steemit/jussi:latest
 ```
 
 You can build jussi using docker which will run it's full test suite with `docker build -t="myname/jussi:latest" .`

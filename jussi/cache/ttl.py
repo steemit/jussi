@@ -8,11 +8,11 @@ Method Settings
 - TTL is an integer value in seconds. Integers <= 0 have special meaning
   - A TTL of `0` won't expire
   - A TTL of `-1` wont be cached
-  - A TTL of `-2` will be cached without expiration only if it is 'irreversible' in terms of blockchain consesus
+  - A TTL of `-2` will be cached with default expiration only if it is 'irreversible' in terms of blockchain consesus
 - For readabilty/writabilty, there are shorthand variables for these 'special' TTL values:
    - `NO_EXPIRE` == 0
    - `NO_CACHE` == -1
-   - `NO_EXPIRE_IF_IRREVERSIBLE` == -2
+   - `DEFAULT_EXPIRE_IF_IRREVERSIBLE` == -2
 
 """
 
@@ -23,7 +23,7 @@ class TTL(Enum):
     DEFAULT_TTL = 3
     NO_EXPIRE = None
     NO_CACHE = -1
-    NO_EXPIRE_IF_IRREVERSIBLE = -2
+    DEFAULT_EXPIRE_IF_IRREVERSIBLE = -2
 
     # pylint: disable=no-else-return
     def __eq__(self, other: int) -> bool:
