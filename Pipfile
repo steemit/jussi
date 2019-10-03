@@ -41,6 +41,7 @@ funcy = "*"
 vprof = "*"
 
 [packages]
+attrs = "==19.1.0"
 aiodns = "*"
 aiohttp = "*"
 aredis = "*"
