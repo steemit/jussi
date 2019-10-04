@@ -1594,7 +1594,7 @@ INVALID_BROADCAST_TRANSACTIONS = [
                          {
                              "required_auths": [],
                              "id": "follow",
-                             "json": 'a' * 2001,
+                             "json": 'a' * 8193,
                              "required_posting_auths": ["steemit"]
                          }
                      ]
@@ -1666,7 +1666,7 @@ INVALID_BROADCAST_TRANSACTIONS = [
                             {
                                 "required_auths": [],
                                 "id": "follow",
-                                "json": 'a' * 2001,
+                                "json": 'a' * 8193,
                                 "required_posting_auths": ["steemit"]
                             }
                         ]

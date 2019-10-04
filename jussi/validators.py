@@ -34,7 +34,7 @@ NONE_TYPE = type(None)
 ID_TYPES = (int, str, float, NONE_TYPE)
 PARAMS_TYPES = (list, dict, NONE_TYPE)
 
-CUSTOM_JSON_SIZE_LIMIT = 2000
+CUSTOM_JSON_SIZE_LIMIT = 8192
 CUSTOM_JSON_FOLLOW_RATE = 2
 
 BROADCAST_TRANSACTION_METHODS = {
@@ -199,7 +199,7 @@ def limit_broadcast_transaction_request(request: JSONRPCRequest, limits=None) ->
 
 
 def limit_custom_json_op_length(ops: list, size_limit=None):
-    if any(len(op[1]['json']) > size_limit for op in ops):
+    if any(len(op[1]['json'].encode('utf-8')) > size_limit for op in ops):
         raise JussiCustomJsonOpLengthError(size_limit=size_limit)
 
 
