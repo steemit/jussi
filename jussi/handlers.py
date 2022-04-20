@@ -51,7 +51,7 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
         'source_commit': http_request.app.config.args.source_commit,
         'docker_tag': http_request.app.config.args.docker_tag,
         'jussi_num': http_request.app.config.last_irreversible_block_num,
-        "info":"welcome to wherein.io"
+        "info":"welcome to steems.top"
     })
 
 # pylint: disable=protected-access, too-many-locals, no-member, unused-variable
