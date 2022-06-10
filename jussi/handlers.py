@@ -54,7 +54,7 @@ async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
         'jussi_num': http_request.app.config.last_irreversible_block_num
     }
     try:
-        with open(r"./config.json", 'r')  as f:
+        with open(r'./config.json', 'r')  as f:
             info = ujson.load(f)
         info = info["info"]
         health.update(info)
