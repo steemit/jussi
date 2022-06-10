@@ -12,10 +12,9 @@
       "name": "steemd",
       "translate_to_appbase": true,
       "urls": [
-        [
-          "steemd",
-         "https://api.steemit.com"
-        ]
+        ["appbase", ["https://api.steem.fans","https://api.steemit.com"]],
+        ["appbase.condenser_api", ["https://api.steem.fans","https://api.steemit.com"]],
+        ["appbase.condenser_api.get_block", ["https://api.steemit.com","https://api.steem.fans"]]
       ],
       "ttls": [
         [
