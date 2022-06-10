@@ -75,7 +75,6 @@ class _Upstreams(object):
 
     def __build_trie(self, key):
         trie = pygtrie.StringTrie(separator='.')
-        trie2 = pygtrie.StringTrie(separator='.')
         for item in it.chain.from_iterable(c[key] for c in self.config):
             if isinstance(item, list):
                 prefix, value = item
@@ -85,16 +84,11 @@ class _Upstreams(object):
                 value_key = keys[keys.index(prefix_key) - 1]
                 prefix = item[prefix_key]
                 value = item[value_key]
-            try:
-                if trie[prefix] != "":
-                    trie[prefix].append(value)
-            except:
-                trie[prefix] = [value]
-        for item in trie:
-            prefix = item
-            value = random.choice(trie[prefix])
-            trie2[prefix] = value
-        return trie2
+            if isinstance(value, list):
+                trie[prefix] = random.choice(value)
+            else:
+                trie[prefix] = value
+        return trie
 
     @functools.lru_cache(8192)
     def url(self, request_urn) -> str:
