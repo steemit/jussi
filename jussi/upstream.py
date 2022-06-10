@@ -12,6 +12,7 @@ import jsonschema
 import pygtrie
 import structlog
 import ujson
+import random
 
 from .errors import InvalidUpstreamHost
 from .errors import InvalidUpstreamURL
@@ -83,7 +84,10 @@ class _Upstreams(object):
                 value_key = keys[keys.index(prefix_key) - 1]
                 prefix = item[prefix_key]
                 value = item[value_key]
-            trie[prefix] = value
+            if isinstance(value, list):
+                trie[prefix] = random.choice(value)
+            else:
+                trie[prefix] = value
         return trie
 
     @functools.lru_cache(8192)
