@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import ujson
 import asyncio
 import concurrent.futures
 import datetime
@@ -45,14 +46,21 @@ async def handle_jsonrpc(http_request: HTTPRequest) -> HTTPResponse:
 
 
 async def healthcheck(http_request: HTTPRequest) -> HTTPResponse:
-    return response.json({
+    health={
         'status': 'OK',
         'datetime': datetime.datetime.utcnow().isoformat(),
         'source_commit': http_request.app.config.args.source_commit,
         'docker_tag': http_request.app.config.args.docker_tag,
-        'jussi_num': http_request.app.config.last_irreversible_block_num,
-        "info":"welcome to steems.top"
-    })
+        'jussi_num': http_request.app.config.last_irreversible_block_num
+    }
+    try:
+        with open(r"./config.json", 'r')  as f:
+            info = ujson.load(f)
+        info = info["info"]
+        health.update(info)
+    except:
+        pass
+    return response.json(health)
 
 # pylint: disable=protected-access, too-many-locals, no-member, unused-variable
 
