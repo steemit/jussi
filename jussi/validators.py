@@ -9,6 +9,7 @@ from jussi.request.jsonrpc import JSONRPCRequest
 #from .errors import InvalidRequest
 from .errors import JussiCustomJsonOpLengthError
 from .errors import JussiLimitsError
+from .errors import JussiAccountHistoryLimitsError
 from .typedefs import JrpcRequest
 from .typedefs import JrpcResponse
 from .typedefs import RawRequest
@@ -197,6 +198,14 @@ def limit_broadcast_transaction_request(request: JSONRPCRequest, limits=None) ->
         limit_custom_json_op_length(ops, size_limit=CUSTOM_JSON_SIZE_LIMIT)
         limit_custom_json_account(ops, blacklist_accounts=blacklist_accounts)
 
+def limit_account_history_count_request(request: JSONRPCRequest, limits=100) -> NoReturn:
+    if request.urn.method == 'get_account_history':
+        if isinstance(request.urn.params, list):
+            limit_count = request.urn.params[2]
+        elif isinstance(request.urn.params, dict):
+            limit_count = request.urn.params['limit']
+        if limit_count > limits:
+            raise JussiAccountHistoryLimitsError(your_limit=limit_count)
 
 def limit_custom_json_op_length(ops: list, size_limit=None):
     if any(len(op[1]['json'].encode('utf-8')) > size_limit for op in ops):
