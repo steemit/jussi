@@ -34,12 +34,11 @@ async def check_limits(request: HTTPRequest) -> Optional[HTTPResponse]:
 # This is a temporary way to improve the ahnode backend perform
 async def account_history_limit(request: HTTPRequest) -> Optional[HTTPResponse]:
     # pylint: disable=no-member
-    if request.app.config.limits['account_history_limit']:
+    if 'account_history_limit' in request.app.config.limits:
         limits = request.app.config.limits['account_history_limit']
     else:
         limits = 100
     try:
-        print(request.is_single_jrpc)
         if request.is_single_jrpc:
             limit_account_history_count_request(request.jsonrpc,
                                                 limits=limits)
