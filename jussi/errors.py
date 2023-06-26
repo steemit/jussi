@@ -295,7 +295,6 @@ class ResponseTimeoutError(JsonRpcError):
             logger.info('error adding timing data to RequestTimeoutError', e=e)
         return data
 
-      
 class UpstreamResponseError(JsonRpcError):
     code = 1100
     message = 'Upstream response error'
@@ -330,6 +329,9 @@ class JussiLimitsError(JsonRpcError):
     code = 1700
     message = 'Request exceeded limit'
 
+class JussiAccountHistoryLimitsError(JsonRpcError):
+    code = 1701
+    message = 'Account History request exceeded limit. The max limit is 100. Your limit is {your_limit}'
 
 class JussiCustomJsonOpLengthError(JsonRpcError):
     code = 1800

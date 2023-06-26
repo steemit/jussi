@@ -3,6 +3,7 @@
 from .jussi import initialize_jussi_request
 from .jussi import finalize_jussi_response
 from .limits import check_limits
+from .limits import account_history_limit
 from .caching import get_response
 from .caching import cache_response
 from .update_block_num import update_last_irreversible_block_num
@@ -20,6 +21,7 @@ def setup_middlewares(app):
     app.request_middleware.append(init_stats)
     app.request_middleware.append(check_limits)
     app.request_middleware.append(get_response)
+    app.request_middleware.append(account_history_limit)
 
     # response middlware
     app.response_middleware.append(finalize_jussi_response)

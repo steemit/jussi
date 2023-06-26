@@ -121,7 +121,7 @@ def setup_listeners(app: WebApp) -> WebApp:
         config_file = args.upstream_config_file
         with open(config_file) as f:
             config = json.load(f)
-        app.config.limits = config.get('limits', {'accounts_blacklist': set()})
+        app.config.limits = config.get('limits', {'accounts_blacklist': set(), 'account_history_limit': 100})
 
         app.config.jsonrpc_batch_size_limit = args.jsonrpc_batch_size_limit
 
