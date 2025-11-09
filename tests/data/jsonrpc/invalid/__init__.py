@@ -252,7 +252,7 @@ responses = [
     {"id": 1, "jsonrpc": 2, "result": 1},
     {"id": 1, "result": 1},
 
-    # missing result and errpr
+    # missing result and error
     {"id": 1, "jsonrpc": 2},
 
     # both result and error
