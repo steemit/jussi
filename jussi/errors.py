@@ -12,6 +12,7 @@ import structlog
 from funcy.decorators import decorator
 from sanic import response
 
+from .async_stats import fmt_timings
 from .typedefs import HTTPRequest
 from .typedefs import HTTPResponse
 from .typedefs import JrpcRequest
@@ -273,9 +274,10 @@ class RequestTimeoutError(JsonRpcError):
     def to_dict(self):
         data = super().to_dict()
         try:
-            timings = self.timings()
-            if timings:
-                data.update(**timings)
+            if self.http_request and hasattr(self.http_request, 'timings'):
+                timings = fmt_timings(self.http_request.timings)
+                if timings:
+                    data['timings'] = timings
         except Exception as e:
             logger.info('error adding timing data to RequestTimeoutError', e=e)
         return data
@@ -288,11 +290,12 @@ class ResponseTimeoutError(JsonRpcError):
     def to_dict(self):
         data = super().to_dict()
         try:
-            timings = self.timings()
-            if timings:
-                data.update(**timings)
+            if self.http_request and hasattr(self.http_request, 'timings'):
+                timings = fmt_timings(self.http_request.timings)
+                if timings:
+                    data['timings'] = timings
         except Exception as e:
-            logger.info('error adding timing data to RequestTimeoutError', e=e)
+            logger.info('error adding timing data to ResponseTimeoutError', e=e)
         return data
 
 class UpstreamResponseError(JsonRpcError):
