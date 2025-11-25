@@ -88,7 +88,7 @@
 3. Error handling improvements:
    - [x] More comprehensive error types
    - [x] Better error context propagation
-   - Error recovery mechanisms
+   - [x] Error recovery mechanisms (retry with exponential backoff)
 
 ### Medium Priority
 1. WebSocket pool improvements:
