@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Observability and Metrics Integration (Phase 3)
+
+#### Prometheus Metrics
+- Comprehensive Prometheus metrics collection
+- Request metrics (total, duration, errors)
+- Cache metrics (operations, hit ratio, duration)
+- Upstream metrics (requests, duration, errors)
+- Connection pool metrics (size, active, idle)
+- Batch request size distribution
+- All metrics exposed via /metrics endpoint
+
+#### OpenTelemetry Integration
+- Span creation for all request processing operations
+- Child spans for cache operations and upstream calls
+- Span attributes for namespace, method, upstream URL, cache hit/miss
+- Context propagation through request processing
+- Error recording in spans
+- Trace export to Jaeger via OTLP
+
+#### Request Processing Enhancements
+- Integrated metrics collection in request processor
+- OpenTelemetry tracing in all operations
+- Improved error handling with metrics
+- Performance tracking for all operations
+
 ### Added - Request Processing Flow Integration (Phase 2)
 
 #### Request Processing
