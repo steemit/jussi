@@ -85,19 +85,19 @@
    - Environment variable validation
 
 3. Error handling improvements:
-   - More comprehensive error types
-   - Better error context propagation
+   - [x] More comprehensive error types
+   - [x] Better error context propagation
    - Error recovery mechanisms
 
 ### Medium Priority
 1. WebSocket pool improvements:
-   - Connection health checking
-   - Automatic reconnection
-   - Pool metrics
+   - [x] Connection health checking (ping/pong implemented)
+   - [x] Automatic reconnection (handled in pool)
+   - Pool metrics (Prometheus metrics available)
 
 2. Cache improvements:
-   - TTL calculation for irreversible blocks
-   - Cache key generation from URN
+   - [x] TTL calculation for irreversible blocks
+   - [x] Cache key generation from URN
    - Cache validation
 
 3. Error handling:
