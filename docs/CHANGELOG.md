@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+This refactoring represents a complete rewrite of Jussi from Python (Sanic) to Go (Gin), maintaining all core functionality while improving performance and observability. The implementation is organized into three main phases:
+
+- **Phase 1**: Core infrastructure and basic components
+- **Phase 2**: Request processing flow and middleware integration
+- **Phase 3**: Observability and metrics integration
+
 ### Added - Observability and Metrics Integration (Phase 3)
 
 #### Prometheus Metrics

@@ -1,2 +1,8 @@
 bin/*
 !bin/.gitkeep
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
