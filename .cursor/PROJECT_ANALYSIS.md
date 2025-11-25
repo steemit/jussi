@@ -223,16 +223,18 @@ jussi/
 - **Validation**: jsonschema
 
 ### Target Implementation (Go + Gin)
+- **Go Version**: Go 1.20+ (minimum requirement)
 - **Framework**: Gin (HTTP web framework)
 - **HTTP Client**: net/http with connection pooling
-- **WebSocket**: gorilla/websocket
+- **WebSocket**: gorilla/websocket with third-party connection pool library
 - **Cache**: 
   - Redis: go-redis/redis/v8
   - In-memory: sync.Map or custom implementation
-- **Data Structures**: Custom trie implementation or third-party library
+- **Data Structures**: Third-party trie library (github.com/derekparker/trie or similar)
 - **JSON**: encoding/json (standard library)
-- **Logging**: zerolog (recommended) or zap for JSON output, optimized for Scalyr
-- **Validation**: JSON schema validation library
+- **Logging**: zerolog (recommended) for JSON output, optimized for Scalyr
+- **Validation**: github.com/santhosh-tekuri/jsonschema/v5 (JSON schema validation)
+- **Testing**: Standard library testing + testify (assertions)
 - **Observability**:
   - OpenTelemetry: go.opentelemetry.io/otel
   - Jaeger: OTLP exporter
