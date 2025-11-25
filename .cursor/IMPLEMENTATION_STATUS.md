@@ -80,9 +80,10 @@
    - Performance benchmarking
 
 2. Configuration validation:
-   - Validate upstream URLs on startup
-   - Validate configuration schema
-   - Environment variable validation
+   - [x] Validate upstream URLs on startup
+   - [x] Validate configuration schema
+   - [x] Environment variable validation
+   - [x] WebSocket URL connection testing
 
 3. Error handling improvements:
    - [x] More comprehensive error types
