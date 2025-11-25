@@ -26,8 +26,8 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 		}
 
 		// Generate cache key from request
-		cacheKey := generateCacheKey(body)
-		if cacheKey == "" {
+		cacheKey, err := generateCacheKey(body)
+		if err != nil || cacheKey == "" {
 			c.Next()
 			return
 		}
@@ -97,31 +97,22 @@ func CacheStoreMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 }
 
 // generateCacheKey generates a cache key from request
-func generateCacheKey(request interface{}) string {
-	// Try to extract method and params for URN-based key generation
-	reqMap, ok := request.(map[string]interface{})
-	if !ok {
-		// Fallback to JSON string for batch requests
-		data, err := json.Marshal(request)
+func generateCacheKey(request interface{}) (string, error) {
+	// Handle single request
+	if reqMap, ok := request.(map[string]interface{}); ok {
+		return cache.GenerateCacheKeyFromRequest(reqMap)
+	}
+	
+	// Handle batch request - use JSON string as key
+	if batch, ok := request.([]interface{}); ok {
+		data, err := json.Marshal(batch)
 		if err != nil {
-			return ""
+			return "", err
 		}
-		return string(data)
+		// For batch requests, use JSON string as cache key
+		return string(data), nil
 	}
 	
-	// Extract method for URN
-	method, _ := reqMap["method"].(string)
-	params, _ := reqMap["params"]
-	
-	// Simple key generation - in production, use proper URN parsing
-	key := method
-	if params != nil {
-		paramsData, err := json.Marshal(params)
-		if err == nil {
-			key += "." + string(paramsData)
-		}
-	}
-	
-	return key
+	return "", nil
 }
 

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"sync"
+	"time"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -12,8 +14,15 @@ import (
 
 // Client represents a WebSocket client connection
 type Client struct {
-	conn net.Conn
+	conn      net.Conn
+	lastPing  time.Time
+	mu        sync.RWMutex
 }
+
+var (
+	pingInterval = 30 * time.Second
+	pingTimeout  = 5 * time.Second
+)
 
 // NewClient creates a new WebSocket client
 func NewClient(url string) (*Client, error) {
@@ -23,7 +32,8 @@ func NewClient(url string) (*Client, error) {
 	}
 
 	return &Client{
-		conn: conn,
+		conn:     conn,
+		lastPing: time.Now(),
 	}, nil
 }
 
@@ -62,7 +72,44 @@ func (c *Client) Close() error {
 
 // IsAlive checks if connection is alive
 func (c *Client) IsAlive() bool {
-	// Simple check - in production, implement proper ping/pong
-	return c.conn != nil
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	
+	if c.conn == nil {
+		return false
+	}
+	
+	// Check if we need to ping
+	now := time.Now()
+	if now.Sub(c.lastPing) > pingInterval {
+		// Try to ping
+		if err := c.ping(); err != nil {
+			return false
+		}
+		c.mu.Lock()
+		c.lastPing = now
+		c.mu.Unlock()
+	}
+	
+	return true
+}
+
+// ping sends a ping frame to check connection health
+func (c *Client) ping() error {
+	c.mu.RLock()
+	conn := c.conn
+	c.mu.RUnlock()
+	
+	if conn == nil {
+		return fmt.Errorf("connection is nil")
+	}
+	
+	// Set write deadline
+	if err := conn.SetWriteDeadline(time.Now().Add(pingTimeout)); err != nil {
+		return err
+	}
+	
+	// Send ping frame
+	return ws.WriteFrame(conn, ws.NewPingFrame(nil))
 }
 

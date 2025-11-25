@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - WebSocket Health Checks and Cache Key Improvements (Phase 8)
+
+#### WebSocket Health Checking
+- Implemented proper ping/pong health checking for WebSocket connections
+- Added connection liveness verification with configurable ping interval
+- Automatic connection health monitoring in connection pool
+- Improved connection lifecycle management
+
+#### Cache Key Generation Improvements
+- Updated cache middleware to use proper URN-based cache key generation
+- Better handling of single and batch requests in cache lookup
+- Integration with cache.GenerateCacheKeyFromRequest for consistent key generation
+
 ### Added - Extended Error Handling (Phase 7)
 
 #### Error Handling Enhancements
