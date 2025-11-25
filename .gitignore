@@ -1,6 +1,5 @@
-bin/*
-!bin/.gitkeep
 bin/
+!bin/.gitkeep
 *.exe
 *.exe~
 *.dll
