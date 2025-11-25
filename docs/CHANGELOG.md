@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Request Processing Flow Integration (Phase 2)
+
+#### Request Processing
+- Complete request processing flow with cache lookup and upstream calls
+- Request processor for single and batch requests
+- Integration of cache, router, and upstream clients
+- Response caching with TTL support
+- Concurrent batch request processing
+
+#### Middleware Enhancements
+- Response capture middleware for caching response bodies
+- OpenTelemetry tracing middleware with span creation
+- Error handling middleware for JSON-RPC compliant error responses
+- Cache storage middleware integration
+
+#### Application Architecture
+- Application struct for dependency management
+- Centralized application initialization and lifecycle
+- Dependency injection for handlers and processors
+- Resource cleanup on graceful shutdown
+
+#### Cache System Enhancements
+- Cache key generation from URN
+- TTL calculation and management
+- Cache validation utilities
+
+#### Code Organization
+- Separated request processing logic into dedicated processor
+- Improved handler structure with dependency injection
+- Better separation of concerns
+
 ### Added - Initial Go + Gin Refactoring (Phase 1)
 
 #### Core Infrastructure

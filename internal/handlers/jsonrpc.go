@@ -4,14 +4,23 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/steemit/jussi/internal/cache"
 	"github.com/steemit/jussi/internal/errors"
+	"github.com/steemit/jussi/internal/logging"
 	"github.com/steemit/jussi/internal/request"
+	"github.com/steemit/jussi/internal/upstream"
 	"github.com/steemit/jussi/internal/validators"
+	"github.com/steemit/jussi/internal/ws"
 )
 
 // JSONRPCHandler handles JSON-RPC requests
 type JSONRPCHandler struct {
-	// Will be populated with dependencies
+	CacheGroup *cache.CacheGroup
+	Router     *upstream.Router
+	HTTPClient *upstream.HTTPClient
+	WSPools    map[string]*ws.Pool
+	Logger     *logging.Logger
+	processor  *RequestProcessor
 }
 
 // HandleJSONRPC handles POST / requests
@@ -44,10 +53,14 @@ func (h *JSONRPCHandler) handleSingleRequest(c *gin.Context, req map[string]inte
 	// Extract request ID
 	requestID := req["id"]
 
+	// Get request ID from context
+	jussiRequestID, _ := c.Get("jussi_request_id")
+	amznTraceID, _ := c.Get("amzn_trace_id")
+
 	// Create HTTP request wrapper
 	httpReq := &request.HTTPRequest{
-		AmznTraceID:   c.GetHeader("x-amzn-trace-id"),
-		JussiRequestID: c.GetHeader("x-jussi-request-id"),
+		AmznTraceID:    getString(amznTraceID),
+		JussiRequestID: getString(jussiRequestID),
 	}
 
 	// Parse JSON-RPC request
@@ -57,35 +70,73 @@ func (h *JSONRPCHandler) handleSingleRequest(c *gin.Context, req map[string]inte
 		return
 	}
 
-	// TODO: Process request (cache lookup, upstream call, etc.)
-	_ = jsonrpcReq
+	// Initialize processor if not already done
+	if h.processor == nil {
+		h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools)
+	}
 
-	// For now, return a placeholder response
-	c.JSON(http.StatusOK, map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      requestID,
-		"result":  nil,
-	})
+	// Process request
+	ctx := c.Request.Context()
+	response, err := h.processor.ProcessSingleRequest(ctx, jsonrpcReq)
+	if err != nil {
+		errors.HandleError(c, errors.NewInternalError(err.Error()), requestID)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *JSONRPCHandler) handleBatchRequest(c *gin.Context, reqs []interface{}) {
-	// TODO: Handle batch requests
-	results := make([]interface{}, len(reqs))
+	// Get request ID from context
+	jussiRequestID, _ := c.Get("jussi_request_id")
+	amznTraceID, _ := c.Get("amzn_trace_id")
+
+	// Parse all requests
+	jsonrpcReqs := make([]*request.JSONRPCRequest, 0, len(reqs))
+	httpReq := &request.HTTPRequest{
+		AmznTraceID:    getString(amznTraceID),
+		JussiRequestID: getString(jussiRequestID),
+	}
+
 	for i, req := range reqs {
 		reqMap, ok := req.(map[string]interface{})
 		if !ok {
-			results[i] = errors.NewInvalidRequest("invalid batch item").ToResponse(nil)
 			continue
 		}
-		// Process each request
-		_ = reqMap
-		results[i] = map[string]interface{}{
-			"jsonrpc": "2.0",
-			"id":      reqMap["id"],
-			"result":  nil,
+		jsonrpcReq, err := request.FromHTTPRequest(httpReq, i, reqMap)
+		if err != nil {
+			continue
 		}
+		jsonrpcReqs = append(jsonrpcReqs, jsonrpcReq)
+	}
+
+	// Initialize processor if not already done
+	if h.processor == nil {
+		h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools)
+	}
+
+	// Process batch
+	ctx := c.Request.Context()
+	responses, err := h.processor.ProcessBatchRequest(ctx, jsonrpcReqs)
+	if err != nil {
+		errors.HandleError(c, errors.NewInternalError(err.Error()), nil)
+		return
+	}
+
+	// Convert to interface slice
+	results := make([]interface{}, len(responses))
+	for i, resp := range responses {
+		results[i] = resp
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+// getString safely converts interface{} to string
+func getString(v interface{}) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }
 

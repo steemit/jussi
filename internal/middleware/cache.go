@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
@@ -49,8 +50,6 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 }
 
 // CacheStoreMiddleware stores response in cache
-// Note: This is a simplified version. In production, you'd need to capture
-// the response body using a custom response writer wrapper.
 func CacheStoreMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Process response
@@ -67,11 +66,33 @@ func CacheStoreMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 			return
 		}
 
-		// TODO: Capture response body for caching
-		// This requires a custom response writer wrapper
-		// For now, this is a placeholder
-		_ = cacheGroup
-		_ = cacheKey
+		// Get response body
+		responseBody, exists := c.Get("response_body")
+		if !exists {
+			return
+		}
+
+		bodyBytes, ok := responseBody.([]byte)
+		if !ok || len(bodyBytes) == 0 {
+			return
+		}
+
+		// Parse response
+		var response interface{}
+		if err := json.Unmarshal(bodyBytes, &response); err != nil {
+			return
+		}
+
+		// Get TTL from context (set by processor)
+		ttl, _ := c.Get("cache_ttl")
+		ttlDuration := 3 * time.Second // Default
+		if ttlInt, ok := ttl.(int); ok {
+			ttlDuration = time.Duration(ttlInt) * time.Second
+		}
+
+		// Store in cache
+		ctx := c.Request.Context()
+		_ = cacheGroup.Set(ctx, cacheKey.(string), response, ttlDuration)
 	}
 }
 
