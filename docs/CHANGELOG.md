@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Extended Error Handling (Phase 7)
+
+#### Error Handling Enhancements
+- Extended error types for all Jussi-specific error codes
+- Error context helpers (WithContext, WithRequestID, WithMethod, WithNamespace)
+- Improved error messages with detailed context
+- Better error propagation through middleware chain
+- Comprehensive error type coverage:
+  - Method not found errors
+  - Invalid params errors
+  - Invalid namespace errors
+  - Invalid upstream URL errors
+  - Batch size errors
+  - Limits errors
+  - Account history limit errors
+  - Custom JSON operation length errors
+  - Response timeout errors
+
+#### Cache Key Generation
+- Improved cache key generation from request
+- Better handling of batch requests in cache middleware
+
 ### Added - WebSocket Pool Initialization and Improvements (Phase 6)
 
 #### WebSocket Pool Management

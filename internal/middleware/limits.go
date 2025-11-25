@@ -31,14 +31,8 @@ func LimitsMiddleware(config *LimitsConfig) gin.HandlerFunc {
 		// Check batch size
 		if batch, ok := body.([]interface{}); ok {
 			if len(batch) > config.BatchSizeLimit {
-				errors.HandleError(c, &errors.JSONRPCError{
-					Code:    errors.CodeBatchSizeError,
-					Message: "Batch size exceeds limit",
-					Data: map[string]interface{}{
-						"batch_size":       len(batch),
-						"batch_size_limit": config.BatchSizeLimit,
-					},
-				}, nil)
+				err := errors.NewBatchSizeError(len(batch), config.BatchSizeLimit)
+				errors.HandleError(c, err, nil)
 				c.Abort()
 				return
 			}

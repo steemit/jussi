@@ -98,12 +98,30 @@ func CacheStoreMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 
 // generateCacheKey generates a cache key from request
 func generateCacheKey(request interface{}) string {
-	// Simple implementation - should use URN-based key generation
-	data, err := json.Marshal(request)
-	if err != nil {
-		return ""
+	// Try to extract method and params for URN-based key generation
+	reqMap, ok := request.(map[string]interface{})
+	if !ok {
+		// Fallback to JSON string for batch requests
+		data, err := json.Marshal(request)
+		if err != nil {
+			return ""
+		}
+		return string(data)
 	}
-	// In production, use proper URN-based key generation
-	return string(data) // Placeholder
+	
+	// Extract method for URN
+	method, _ := reqMap["method"].(string)
+	params, _ := reqMap["params"]
+	
+	// Simple key generation - in production, use proper URN parsing
+	key := method
+	if params != nil {
+		paramsData, err := json.Marshal(params)
+		if err == nil {
+			key += "." + string(paramsData)
+		}
+	}
+	
+	return key
 }
 
