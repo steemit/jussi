@@ -190,39 +190,43 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	return p.httpClient.Request(ctx, url, payload, headers)
 }
 
-// callWebSocketUpstream calls WebSocket upstream
+// callWebSocketUpstream calls WebSocket upstream with retry logic
 func (p *RequestProcessor) callWebSocketUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
-	pool, exists := p.wsPools[url]
-	if !exists {
-		// Create pool on demand
-		var err error
-		pool, err = ws.NewPool(url, 8, 8) // Default pool size
-		if err != nil {
-			return nil, fmt.Errorf("failed to create WebSocket pool: %w", err)
+	retryConfig := upstream.DefaultRetryConfig()
+	
+	return upstream.RetryWithResult(ctx, retryConfig, func() (map[string]interface{}, error) {
+		pool, exists := p.wsPools[url]
+		if !exists {
+			// Create pool on demand
+			var err error
+			pool, err = ws.NewPool(url, 8, 8) // Default pool size
+			if err != nil {
+				return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to create WebSocket pool: %w", err)}
+			}
+			p.wsPools[url] = pool
 		}
-		p.wsPools[url] = pool
-	}
 
-	// Acquire connection
-	client, err := pool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to acquire connection: %w", err)
-	}
-	defer pool.Release(client)
+		// Acquire connection
+		client, err := pool.Acquire(ctx)
+		if err != nil {
+			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to acquire connection: %w", err)}
+		}
+		defer pool.Release(client)
 
-	// Send request
-	payload := jsonrpcReq.ToUpstreamRequest()
-	if err := client.Send(ctx, payload); err != nil {
-		return nil, fmt.Errorf("failed to send: %w", err)
-	}
+		// Send request
+		payload := jsonrpcReq.ToUpstreamRequest()
+		if err := client.Send(ctx, payload); err != nil {
+			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to send: %w", err)}
+		}
 
-	// Receive response
-	response, err := client.Receive(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to receive: %w", err)
-	}
+		// Receive response
+		response, err := client.Receive(ctx)
+		if err != nil {
+			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to receive: %w", err)}
+		}
 
-	return response, nil
+		return response, nil
+	})
 }
 
 // ProcessBatchRequest processes a batch of JSON-RPC requests

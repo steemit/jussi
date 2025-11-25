@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Error Recovery Mechanisms (Phase 10)
+
+#### Retry Mechanism
+- Implemented retry logic for upstream requests with exponential backoff
+- Configurable retry parameters (max retries, initial backoff, max backoff, multiplier)
+- Automatic retry for retryable errors (network errors, timeouts, 5xx status codes)
+- Retry support for both HTTP and WebSocket upstream calls
+- Generic retry utilities (Retry, RetryWithResult) for reusable retry logic
+
+#### Error Recovery
+- Retryable error detection and classification
+- Exponential backoff strategy for retries
+- Context-aware retry cancellation
+- Improved error handling for transient failures
+
 ### Added - Enhanced Upstream URL Validation (Phase 9)
 
 #### Upstream URL Validation Improvements
