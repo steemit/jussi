@@ -107,10 +107,20 @@ func (p *Pool) Release(client *Client) {
 
 // Close closes all connections in the pool
 func (p *Pool) Close() error {
-	close(p.clients)
-	for client := range p.clients {
-		_ = client.Close()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	
+	// Close all clients in the channel
+	for {
+		select {
+		case client := <-p.clients:
+			_ = client.Close()
+			p.active--
+		default:
+			// Channel is empty
+			close(p.clients)
+			return nil
+		}
 	}
-	return nil
 }
 

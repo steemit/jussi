@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - WebSocket Pool Initialization and Improvements (Phase 6)
+
+#### WebSocket Pool Management
+- Automatic WebSocket pool initialization on startup
+- Pool creation for all WebSocket upstream URLs from configuration
+- Configurable pool size (min/max) from configuration
+- Proper pool cleanup on graceful shutdown
+- Improved pool close logic to prevent channel closure errors
+
+#### Application Lifecycle
+- Enhanced resource cleanup on shutdown
+- WebSocket pool graceful shutdown
+- Better error handling during pool initialization
+
 ### Added - Irreversible Block Support and Cache Improvements (Phase 5)
 
 #### Irreversible Block Support

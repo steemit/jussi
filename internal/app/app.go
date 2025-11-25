@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -118,13 +119,51 @@ func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, e
 // initWebSocketPools initializes WebSocket connection pools
 func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *logging.Logger) (map[string]*ws.Pool, error) {
 	pools := make(map[string]*ws.Pool)
-	// Get all upstream URLs and create pools for WebSocket URLs
-	namespaces := router.GetNamespaces()
-	for _, ns := range namespaces {
-		// TODO: Get URLs for this namespace and create pools for WS URLs
-		_ = ns
+	
+	// Get all upstream URLs
+	allURLs := router.GetAllURLs()
+	
+	// WebSocket pool configuration
+	minSize := cfg.Upstream.WebSocketPool.MinSize
+	maxSize := cfg.Upstream.WebSocketPool.MaxSize
+	
+	// Default values if not configured
+	if minSize <= 0 {
+		minSize = 8
 	}
-	_ = logger
+	if maxSize <= 0 {
+		maxSize = 8
+	}
+	if minSize > maxSize {
+		maxSize = minSize
+	}
+	
+	// Create pools for WebSocket URLs
+	for _, urlStr := range allURLs {
+		if strings.HasPrefix(urlStr, "ws://") || strings.HasPrefix(urlStr, "wss://") {
+			logger.Info().
+				Str("url", urlStr).
+				Int("min_size", minSize).
+				Int("max_size", maxSize).
+				Msg("Initializing WebSocket pool")
+			
+			pool, err := ws.NewPool(urlStr, minSize, maxSize)
+			if err != nil {
+				logger.Warn().
+					Err(err).
+					Str("url", urlStr).
+					Msg("Failed to initialize WebSocket pool, will create on demand")
+				// Don't fail startup, pools will be created on demand
+				continue
+			}
+			
+			pools[urlStr] = pool
+			logger.Info().
+				Str("url", urlStr).
+				Msg("WebSocket pool initialized")
+		}
+	}
+	
 	return pools, nil
 }
 
