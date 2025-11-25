@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Enhanced Upstream URL Validation (Phase 9)
+
+#### Upstream URL Validation Improvements
+- Enhanced WebSocket URL validation with actual connection testing
+- Improved HTTP/HTTPS URL validation with proper error handling
+- Better error messages for validation failures
+- Support for testing WebSocket connections during startup (optional)
+
+#### Configuration Validation
+- Complete configuration schema validation
+- Environment variable validation
+- Upstream URL reachability testing (optional, configurable)
+
 ### Added - WebSocket Health Checks and Cache Key Improvements (Phase 8)
 
 #### WebSocket Health Checking

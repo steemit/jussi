@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/gobwas/ws"
 	"github.com/steemit/jussi/internal/config"
 )
 
@@ -64,10 +66,17 @@ func testUpstreamURL(urlStr string) error {
 		return nil
 	}
 
-	// For WebSocket URLs, we can't easily test without establishing a connection
-	// Just validate the URL format
-	if urlStr[:2] == "ws" {
-		// WebSocket URLs will be validated when pools are created
+	// For WebSocket URLs, try to establish a connection
+	if strings.HasPrefix(urlStr, "ws://") || strings.HasPrefix(urlStr, "wss://") {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Try to dial WebSocket connection
+		conn, _, _, err := ws.Dial(ctx, urlStr)
+		if err != nil {
+			return fmt.Errorf("websocket connection failed: %w", err)
+		}
+		conn.Close()
 		return nil
 	}
 
