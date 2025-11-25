@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +16,7 @@ type HealthHandler struct {
 func (h *HealthHandler) HandleHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":   "OK",
-		"datetime": "", // TODO: Add timestamp
+		"datetime": time.Now().UTC().Format(time.RFC3339),
 	})
 }
 

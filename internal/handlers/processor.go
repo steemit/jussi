@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/middleware"
 	"github.com/steemit/jussi/internal/request"
 	"github.com/steemit/jussi/internal/telemetry"
 	"github.com/steemit/jussi/internal/upstream"
@@ -135,10 +136,27 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	if cache.IsCacheable(ttl) {
 		ctx, cacheSpan := telemetry.StartSpan(ctx, "jussi.cache.store")
 		cacheKey := cache.GenerateCacheKey(jsonrpcReq.URN)
-		cacheTTL := cache.CalculateTTL(ttl, false, 0) // TODO: Check irreversibility
-		_ = p.cacheGroup.Set(ctx, cacheKey, response, cacheTTL)
-		cacheSpan.End()
-		CacheOperations.WithLabelValues("set", "success").Inc()
+		
+		// Calculate TTL based on irreversibility if needed
+		var cacheTTL time.Duration
+		if ttl == cache.TTLExpireIfIrreversible {
+			// Get last irreversible block number from tracker
+			tracker := middleware.GetBlockNumberTracker()
+			lastIrreversibleBlockNum := tracker.GetLastIrreversibleBlockNum()
+			irreversibleTTL := cache.IrreversibleTTL(response, lastIrreversibleBlockNum)
+			cacheTTL = cache.CalculateTTL(irreversibleTTL, false, lastIrreversibleBlockNum)
+		} else {
+			cacheTTL = cache.CalculateTTL(ttl, false, 0)
+		}
+		
+		if cacheTTL > 0 || ttl == cache.TTLNoExpire {
+			_ = p.cacheGroup.Set(ctx, cacheKey, response, cacheTTL)
+			cacheSpan.End()
+			CacheOperations.WithLabelValues("set", "success").Inc()
+		} else {
+			cacheSpan.End()
+			CacheOperations.WithLabelValues("set", "skipped").Inc()
+		}
 	}
 
 	// Ensure response has correct ID

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Irreversible Block Support and Cache Improvements (Phase 5)
+
+#### Irreversible Block Support
+- Block number tracker for tracking last irreversible block number
+- Automatic block number extraction from get_dynamic_global_properties responses
+- Block number extraction from JSON-RPC responses (multiple formats supported)
+- Irreversible block TTL calculation
+- Cache TTL based on block irreversibility status
+
+#### Cache Improvements
+- Enhanced TTL calculation with irreversible block awareness
+- Support for TTLExpireIfIrreversible (-2) TTL mode
+- Block number extraction from block IDs and block headers
+- Improved cache key generation
+
+#### Middleware Enhancements
+- Update block number middleware for tracking irreversible blocks
+- Integration with request processing flow
+
+#### Bug Fixes
+- Fixed health check handler to include timestamp
+- Improved error handling in block number extraction
+
 ### Added - Configuration Validation (Phase 4)
 
 #### Configuration Validation
