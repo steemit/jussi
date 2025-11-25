@@ -282,6 +282,15 @@ func (a *App) Run() error {
 	if a.httpClient != nil {
 		_ = a.httpClient.Close()
 	}
+	
+	// Close WebSocket pools
+	for url, pool := range a.wsPools {
+		if err := pool.Close(); err != nil {
+			a.logger.Warn().Err(err).Str("url", url).Msg("Error closing WebSocket pool")
+		} else {
+			a.logger.Info().Str("url", url).Msg("WebSocket pool closed")
+		}
+	}
 
 	a.logger.Info().Msg("Server exited")
 	return nil
