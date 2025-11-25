@@ -34,6 +34,11 @@ type App struct {
 
 // NewApp creates a new application instance
 func NewApp(cfg *config.Config) (*App, error) {
+	// Validate configuration
+	if err := config.ValidateConfig(cfg); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
 	logger := logging.NewLogger(
 		cfg.Logging.Level,
 		cfg.Logging.Format,
@@ -51,6 +56,14 @@ func NewApp(cfg *config.Config) (*App, error) {
 	router, err := upstream.NewRouter(cfg.Upstream.RawConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize router: %w", err)
+	}
+
+	// Validate upstream URLs if enabled
+	if cfg.Upstream.TestURLs {
+		if err := upstream.ValidateUpstreamURLs(cfg); err != nil {
+			logger.Warn().Err(err).Msg("Upstream URL validation failed, continuing anyway")
+			// Don't fail startup if URL validation fails, just log a warning
+		}
 	}
 
 	// Initialize HTTP client

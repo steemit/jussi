@@ -136,6 +136,43 @@ func (r *Router) ShouldTranslateToAppbase(urn *urn.URN) bool {
 	return r.translateToAppbase[urn.Namespace]
 }
 
+// GetAllURLs returns all unique upstream URLs
+func (r *Router) GetAllURLs() []string {
+	urlSet := make(map[string]bool)
+	r.collectURLsFromTrie(r.urls, urlSet)
+	
+	urls := make([]string, 0, len(urlSet))
+	for url := range urlSet {
+		urls = append(urls, url)
+	}
+	return urls
+}
+
+// collectURLsFromTrie collects all URLs from a trie
+func (r *Router) collectURLsFromTrie(trie *Trie, urlSet map[string]bool) {
+	if trie == nil || trie.root == nil {
+		return
+	}
+	r.collectURLs(trie.root, urlSet)
+}
+
+// collectURLs recursively collects URLs from trie node
+func (r *Router) collectURLs(node *trieNode, urlSet map[string]bool) {
+	if node == nil {
+		return
+	}
+	
+	if node.value != nil {
+		if urlStr, ok := node.value.(string); ok {
+			urlSet[urlStr] = true
+		}
+	}
+	
+	for _, child := range node.children {
+		r.collectURLs(child, urlSet)
+	}
+}
+
 // GetNamespaces returns all configured namespaces
 func (r *Router) GetNamespaces() []string {
 	namespaces := make([]string, 0, len(r.namespaces))
