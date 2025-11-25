@@ -151,8 +151,14 @@ func (a *App) SetupRouter() *gin.Engine {
 	// Error middleware
 	router.Use(middleware.ErrorMiddleware())
 
+	// Initialize block number tracker
+	middleware.InitBlockNumberTracker()
+
 	// Response capture middleware (must be before cache lookup)
 	router.Use(middleware.ResponseCaptureMiddleware())
+
+	// Update block number middleware (must be after response capture)
+	router.Use(middleware.UpdateBlockNumberMiddleware())
 
 	// Cache lookup middleware
 	router.Use(middleware.CacheLookupMiddleware(a.cacheGroup))
