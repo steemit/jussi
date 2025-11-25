@@ -1,0 +1,212 @@
+{
+  "id": "https://schema.steemit.com/jussi/upstreams/schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Jussi upstream configuration file schema",
+  "type": "object",
+  "properties": {
+    "upstreams": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/upstream_definition"
+      },
+      "limits": {
+        "type": "object",
+        "properties": {
+          "accounts_blacklist": {
+            "type": "array"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "upstream_definition": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "urls": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/url_pairs"
+            },
+            {
+              "$ref": "#/definitions/url_objects"
+            }
+          ]
+        },
+        "ttls": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/ttl_pairs"
+            },
+            {
+              "$ref": "#/definitions/ttl_objects"
+            }
+          ]
+        },
+        "timeouts": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/timeout_pairs"
+            },
+            {
+              "$ref": "#/definitions/timeout_objects"
+            }
+          ]
+        },
+        "retries": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/retry_pairs"
+            }
+          ]
+        },
+        "translate_to_appbase": {
+          "$ref":"#/definitions/translate_to_appbase"
+        }
+      },
+      "required": [
+        "name",
+        "urls",
+        "ttls",
+        "timeouts"
+      ]
+    },
+    "url_pairs": {
+      "type": "array",
+      "items": {"$ref":"#/definitions/url_pair"}
+    },
+    "url_pair":{
+      "type": "array",
+      "items": [{
+           "$ref": "#/definitions/prefix"
+        },
+        {
+          "$ref": "#/definitions/url"
+        }]
+    },
+    "url_object": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "type": "string"
+        },
+        "upstream_url": {
+          "$ref": "#/definitions/url"
+        }
+      },
+      "additionalProperties": false
+    },
+    "url_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/url_object"
+      }
+    },
+    "ttl_pairs": {
+      "type": "array",
+      "items": {"$ref":"#/definitions/ttl_pair"}
+    },
+    "ttl_pair":{
+      "type": "array",
+      "items": [{
+           "$ref": "#/definitions/prefix"
+        },
+        {
+          "$ref": "#/definitions/ttl"
+        }]
+    },
+    "ttl_object": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "type": "string"
+        },
+        "upstream_ttl": {
+          "$ref": "#/definitions/ttl"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ttl_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ttl_object"
+      }
+    },
+    "timeout_pairs": {
+      "type": "array",
+      "items": {"$ref":"#/definitions/timeout_pair"}
+    },
+    "timeout_pair":{
+      "type": "array",
+      "items": [{
+           "$ref": "#/definitions/prefix"
+        },
+        {
+          "$ref": "#/definitions/timeout"
+        }]
+    },
+    "timeout_object": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "type": "string"
+        },
+        "upstream_timeout": {
+          "$ref": "#/definitions/timeout"
+        }
+      },
+      "additionalProperties": false
+    },
+    "timeout_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/timeout_object"
+      }
+    },
+    "retry_pairs": {
+      "type": "array",
+      "items": {"$ref":"#/definitions/retry_pair"}
+    },
+    "retry_pair":{
+      "type": "array",
+      "items": [{
+           "$ref": "#/definitions/prefix"
+        },
+        {
+          "$ref": "#/definitions/retry"
+        }]
+    },
+    "prefix": {
+      "description": "The prefix to me matched against the Jussi request URN",
+      "type": "string"
+    },
+    "url": {
+      "description": "Upstream URL",
+      "type": "string",
+      "format": "uri"
+    },
+    "ttl": {
+      "description": "Cache TTL in seconds, where 0 means no expiration, -1 means no cache, and -2 means no expiration if block_num is irreversible ",
+      "type": "integer",
+      "minimum": -2
+    },
+    "timeout": {
+      "description": "Timeout in seconds, where 0 means no timeout",
+      "type": "integer",
+      "minimum": 0
+    },
+    "translate_to_appbase": {
+      "type": "boolean"
+    },
+    "retry": {
+      "description":"Number of retry attempts, where 0 means no retry",
+      "type": "integer",
+      "minimum":0,
+      "maxiumum":3
+    }
+  }
+}

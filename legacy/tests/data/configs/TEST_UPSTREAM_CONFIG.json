@@ -1,0 +1,268 @@
+{
+  "limits": {
+    "accounts_blacklist": ["non-steemit"]
+  },
+  "upstreams": [
+    {
+      "name": "steemd",
+      "urls": [
+        [
+          "steemd",
+          "wss://steemd.steemitdev.com"
+        ]
+      ],
+      "ttls": [
+        [
+          "steemd",
+          3
+        ],
+        [
+          "steemd.login_api",
+          -1
+        ],
+        [
+          "steemd.network_broadcast_api",
+          -1
+        ],
+        [
+          "steemd.follow_api",
+          10
+        ],
+        [
+          "steemd.market_history_api",
+          1
+        ],
+        [
+          "steemd.database_api",
+          3
+        ],
+        [
+          "steemd.database_api.get_block",
+          -2
+        ],
+        [
+          "steemd.database_api.get_block_header",
+          -2
+        ],
+        [
+          "steemd.database_api.get_content",
+          1
+        ],
+        [
+          "steemd.database_api.get_state",
+          1
+        ],
+        [
+          "steemd.database_api.get_state.params=['/trending']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['trending']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/hot']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/welcome']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/promoted']",
+          30
+        ],
+        [
+          "steemd.database_api.get_state.params=['/created']",
+          10
+        ],
+        [
+          "steemd.database_api.get_dynamic_global_properties",
+          1
+        ]
+      ],
+      "timeouts": [
+        [
+          "steemd",
+          3
+        ],
+        [
+          "steemd.network_broadcast_api",
+          0
+        ]
+      ]
+    },
+    {
+      "name": "overseer",
+      "urls": [
+        [
+          "overseer",
+          "wss://overseer.steemitdev.com"
+        ]
+      ],
+      "ttls": [
+        [
+          "overseer",
+          3
+        ]
+      ],
+      "timeouts": [
+        [
+          "overseer",
+          3
+        ]
+      ]
+    },
+    {
+      "name": "appbase",
+      "urls": [
+        [
+          "appbase",
+          "wss://appbase.steemitdev.com"
+        ]
+      ],
+      "ttls": [
+        [
+          "appbase",
+          3
+        ]
+      ],
+      "timeouts": [
+        [
+          "appbase",
+          3
+        ]
+      ]
+    },
+    {
+      "name": "sbds",
+      "urls": [
+        [
+          "sbds",
+          "wss://sbds.steemitdev.com"
+        ]
+      ],
+      "ttls": [
+        [
+          "sbds",
+          3
+        ]
+      ],
+      "timeouts": [
+        [
+          "sbds",
+          3
+        ]
+      ]
+    },
+    {
+      "name": "hivemind",
+      "urls": [
+        [
+          "hivemind",
+          "wss://hivemind.steemitdev.com"
+        ]
+      ],
+      "ttls": [
+        [
+          "hivemind",
+          3
+        ]
+      ],
+      "timeouts": [
+        [
+          "hivemind",
+          3
+        ]
+      ]
+    },
+    {
+      "name": "yo",
+      "urls": [
+        {
+          "prefix": "yo",
+          "upstream_url": "wss://yo.steemitdev.com"
+        }
+      ],
+      "ttls": [
+        {
+          "prefix": "yo",
+          "upstream_ttl": 3
+        }
+      ],
+      "timeouts": [
+        {
+          "prefix": "yo",
+          "upstream_timeout": 3
+        }
+      ]
+    },
+    {
+      "name": "namespace",
+      "urls": [
+        [
+          "namespace",
+          "wss://namespace.steemitdev.com"
+        ],
+        [
+          "namespace.method",
+          "wss://namespace.method.steemitdev.com"
+        ],
+        [
+          "namespace.method.params=[666]",
+          "wss://namespace.method.params666.steemitdev.com"
+        ],
+        [
+          "namespace.api.method",
+          "wss://namespace.api.method.steemitdev.com"
+        ],
+        [
+          "namespace.api.method.params=[666]",
+          "wss://namespace.api.method.params666.steemitdev.com"
+        ]
+      ],
+      "ttls": [
+        [
+          "namespace",
+          3
+        ],
+        [
+          "namespace.method",
+          4
+        ],
+        [
+          "namespace.api.method",
+          5
+        ],
+        [
+          "namespace.api.method.params=[666]",
+          6
+        ]
+      ],
+      "timeouts": [
+        [
+          "namespace",
+          3
+        ],
+        [
+          "namespace.method",
+          4
+        ],
+        [
+          "namespace.api.method",
+          5
+        ],
+        [
+          "namespace.api.method.params=[666]",
+          6
+        ]
+      ],
+      "retries": [
+        [
+          "namespace",
+          3
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+#!/bin/bash
+
+
+# Only make these changes if container is running in privileged mode
+ip link add dummy0 type dummy >/dev/null
+if [[ $? -eq 0 ]]; then
+    # PRIVILEGED
+    # clean the dummy0 link
+    ip link delete dummy0 >/dev/null
+
+    sysctl -p - <<EOF
+    # Max receive buffer size (8 Mb)
+    net.core.rmem_max=8388608
+    # Max send buffer size (8 Mb)
+    net.core.wmem_max=8388608
+    # Default receive buffer size
+    net.core.rmem_default=65536
+    # Default send buffer size
+    net.core.wmem_default=65536
+
+    net.ipv4.tcp_rmem=8192 873800 8388608
+    net.ipv4.tcp_wmem=4096 655360 8388608
+
+    #  Set all these values high to prevent any mem pressure  on TCP sockets
+    net.ipv4.tcp_mem=8388608 8388608 8388608
+
+    # Increase max number of sockets allowed in TIME_WAIT
+    net.ipv4.tcp_max_tw_buckets=6000000
+
+    # Increase max half-open connections.
+    net.ipv4.tcp_max_syn_backlog=65536
+
+    # Increase max TCP orphans
+    # These are sockets which have been closed and no longer have a file handle attached to them
+    net.ipv4.tcp_max_orphans=262144
+
+    # Max listen queue backlog
+    # make sure to increase nginx backlog as well if changed
+    net.core.somaxconn=16384
+
+    # Max number of packets that can be queued on interface input
+    # If kernel is receiving packets faster than can be processed
+    # this queue increases
+    net.core.netdev_max_backlog=16384
+
+    net.ipv4.tcp_slow_start_after_idle=0
+    net.ipv4.ip_local_port_range=10240 65535
+    net.ipv4.tcp_abort_on_overflow=1
+EOF
+fi
+
+
+sv -w3 check jussi
+chown www-data /dev/stdout
+exec setuidgid www-data /usr/sbin/nginx -c /etc/service/nginx/nginx.conf

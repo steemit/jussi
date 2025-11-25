@@ -1,0 +1,6 @@
+#!/bin/bash -e
+
+cd "${APP_ROOT}"
+exec 2>&1 \
+  chpst -u www-data \
+    pipenv run python3.6 -m "${APP_CMD}"

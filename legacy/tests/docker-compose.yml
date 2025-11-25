@@ -1,0 +1,17 @@
+version: "3.3"
+services:
+  jussi:
+    image: steemit/jussi
+    ports:
+      - "8080:8080"
+    env_file:
+      - ../.env
+    environment:
+      JUSSI_REDIS_HOST: redis
+      JUSSI_REDIS_PORT: 6379
+    links:
+      - redis
+  redis:
+    image: "redis:3.2"
+    ports:
+      - "6379:6379"

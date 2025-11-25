@@ -1,0 +1,13 @@
+{"size_download":%{size_download},
+"size_header":%{size_header},
+"size_request":%{size_request},
+"size_upload":%{size_upload},
+"speed_download":%{speed_download},
+"speed_upload":%{speed_upload},
+"time_appconnect":%{time_appconnect},
+"time_connect":%{time_connect},
+"time_namelookup":%{time_namelookup},
+"time_pretransfer":%{time_pretransfer},
+"time_redirect":%{time_redirect},
+"time_starttransfer":%{time_starttransfer},
+"time_total":%{time_total}}

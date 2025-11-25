@@ -1,0 +1,61 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+
+# dotenv
+.env
+
+# Rope project settings
+.ropeproject
+
+# Vim
+Session.vim
+
+# Pycharm
+.idea
+
+# junk
+blocks.json
+
+# sqlite db for testing
+envd/
+*.db
+envfile
+deploy/
+.venv/
+.mypy_cache/
+.cache/
+perf/
+*.log
+.elasticbeanstalk/
+upstream_traffic.json
+Untitled.ipynb
+.pytest_cache
+*.ipynb
+.ipynb_checkpoints
+build
+prof/
+local/
