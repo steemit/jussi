@@ -49,3 +49,4 @@ docker-compose*
 
 # Legacy code (not needed in production)
 legacy/
+

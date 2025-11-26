@@ -305,3 +305,4 @@ For issues and questions:
 
 - **v2.0.0**: Go + Gin refactoring with OpenTelemetry
 - **v1.x**: Original Python implementation (legacy)
+
