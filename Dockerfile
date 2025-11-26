@@ -1,5 +1,9 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
+
+# Set proxy environment variables for network access
+ENV HTTPS_PROXY=http://192.168.199.11:8001
+ENV HTTP_PROXY=http://192.168.199.11:8001
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -16,8 +20,8 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
+# Tidy dependencies and build the application
+RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
 
 # Final stage
 FROM alpine:latest
