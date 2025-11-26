@@ -6,7 +6,7 @@ services:
         - HTTPS_PROXY=http://192.168.199.11:8001
         - HTTP_PROXY=http://192.168.199.11:8001
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       - JUSSI_SERVER_HOST=0.0.0.0
       - JUSSI_SERVER_PORT=8080
@@ -15,7 +15,7 @@ services:
       - JUSSI_LOGGING_FORMAT=json
       - JUSSI_TELEMETRY_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
       - JUSSI_PROMETHEUS_ENABLED=true
-      - JUSSI_PROMETHEUS_PORT=9090
+      - JUSSI_PROMETHEUS_PORT=9093
     volumes:
       - ./config:/app/config:ro
     depends_on:
@@ -54,7 +54,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     ports:
-      - "9090:9090"
+      - "9092:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
