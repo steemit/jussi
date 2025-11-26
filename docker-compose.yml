@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  jussi:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - JUSSI_SERVER_HOST=0.0.0.0
+      - JUSSI_SERVER_PORT=8080
+      - JUSSI_CACHE_REDIS_URL=redis://redis:6379
+      - JUSSI_LOGGING_LEVEL=info
+      - JUSSI_LOGGING_FORMAT=json
+      - JUSSI_TELEMETRY_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - JUSSI_PROMETHEUS_ENABLED=true
+      - JUSSI_PROMETHEUS_PORT=9090
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - redis
+      - jaeger
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  prometheus_data:
+
+networks:
+  default:
+    name: jussi-network

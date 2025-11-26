@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Development files
+.cursor/
+.vscode/
+*.log
+
+# Test files
+*_test.go
+test/
+tests/
+
+# Build artifacts
+bin/
+dist/
+build/
+
+# Dependencies (will be downloaded in container)
+vendor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Legacy code (not needed in production)
+legacy/
