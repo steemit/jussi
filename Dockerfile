@@ -39,8 +39,9 @@ WORKDIR /app
 # Copy binary from builder stage
 COPY --from=builder /app/jussi .
 
-# Copy configuration files (if any)
+# Copy configuration files
 COPY --from=builder /app/config ./config
+COPY --from=builder /app/DEV_config.json .
 
 # Change ownership to non-root user
 RUN chown -R jussi:jussi /app
