@@ -201,16 +201,15 @@ The `upstreams` section defines available upstream APIs:
   "upstreams": {
     "steemd": [
       ["https://api.steemit.com", 1, 30],
-      ["https://api.hive.blog", 1, 30]
+      ["https://api.justyy.com", 1, 30]
     ],
     "appbase": {
       "condenser_api": [
         ["https://api.steemit.com", 1, 30],
-        ["https://api.hive.blog", 1, 30]
+        ["https://api.justyy.com", 1, 30]
       ],
       "database_api": [
-        ["https://api.steemit.com", 3, 30],
-        ["https://api.hive.blog", 3, 30]
+        ["https://api.steemit.com", 3, 30]
       ]
     }
   }

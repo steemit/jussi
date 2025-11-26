@@ -117,8 +117,7 @@ Create a configuration file (e.g., `config/production.json`):
     "raw_config": {
       "upstreams": {
         "steemd": [
-          ["https://api.steemit.com", 1, 30],
-          ["https://api.hive.blog", 1, 30]
+          ["https://api.steemit.com", 1, 30]
         ],
         "appbase": {
           "condenser_api": [
