@@ -79,7 +79,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// Initialize OpenTelemetry
 	shutdownTelemetry, err := telemetry.Setup(
 		cfg.Telemetry.ServiceName,
-		cfg.Telemetry.TracesEndpoint,
+		cfg.Telemetry.OTLPEndpoint,
 	)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to initialize OpenTelemetry")

@@ -25,11 +25,16 @@ type JSONRPCHandler struct {
 
 // HandleJSONRPC handles POST / requests
 func (h *JSONRPCHandler) HandleJSONRPC(c *gin.Context) {
-	// Parse request body
+	// Try to get parsed body from middleware first
 	var body interface{}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		errors.HandleError(c, errors.NewParseError(err.Error()), nil)
-		return
+	if parsedBody, exists := c.Get("parsed_body"); exists {
+		body = parsedBody
+	} else {
+		// Parse request body if not already parsed
+		if err := c.ShouldBindJSON(&body); err != nil {
+			errors.HandleError(c, errors.NewParseError(err.Error()), nil)
+			return
+		}
 	}
 
 	// Validate request

@@ -56,6 +56,9 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
+# Set environment variable for configuration file
+ENV JUSSI_UPSTREAM_CONFIG_FILE=DEV_config.json
+
 # Run the application
 CMD ["./jussi"]
 

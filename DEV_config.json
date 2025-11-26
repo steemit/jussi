@@ -2,83 +2,72 @@
   "server": {
     "host": "0.0.0.0",
     "port": 8080,
-    "batch_size_limit": 50,
-    "request_timeout": 30,
-    "response_timeout": 30
+    "workers": 4,
+    "tcp_backlog": 1024,
+    "batch_size_limit": 100
+  },
+  "upstream": {
+    "config_file": "upstreams.json",
+    "test_urls": true,
+    "websocket_pool": {
+      "min_size": 4,
+      "max_size": 8,
+      "queue_size": 16,
+      "read_limit": 1048576,
+      "write_limit": 1048576,
+      "max_msg_size": 1048576
+    }
+  },
+  "cache": {
+    "enabled": true,
+    "memory": {
+      "max_size": 100000
+    },
+    "redis": {
+      "address": "redis:6379",
+      "password": "",
+      "db": 0,
+      "pool_size": 10,
+      "read_timeout": 3,
+      "write_timeout": 3,
+      "dial_timeout": 5,
+      "compression": true
+    }
   },
   "logging": {
     "level": "info",
     "format": "json",
-    "output": "stdout",
-    "caller": true,
-    "timestamp_format": "2006-01-02T15:04:05.000Z07:00"
+    "output": "stdout"
   },
   "telemetry": {
-    "jaeger": {
-      "endpoint": "http://jaeger:14268/api/traces",
-      "service_name": "jussi",
-      "environment": "development"
-    }
+    "service_name": "jussi-go",
+    "otlp_endpoint": "jaeger:4318",
+    "resource_attributes": "environment=development"
   },
   "prometheus": {
     "enabled": true,
-    "port": 9093,
-    "path": "/metrics"
-  },
-  "cache": {
-    "memory": {
-      "enabled": true,
-      "max_size": 10000,
-      "default_ttl": 300
-    },
-    "redis": {
-      "enabled": true,
-      "url": "redis://redis:6379",
-      "db": 0,
-      "pool_size": 10,
-      "compression": true
-    }
+    "path": "/metrics",
+    "port": 9090
   },
   "limits": {
-    "batch_size": 50,
-    "account_history_limit": 1000,
-    "custom_json_op_length": 8192
+    "accounts_blacklist": [
+      "accounttoblock"
+    ]
   },
-  "upstream": {
-    "raw_config": {
-      "upstreams": {
-        "steemd": [
-          ["https://httpbin.org/post", 1, 30]
-        ],
-        "appbase": {
-          "condenser_api": [
-            ["https://httpbin.org/post", 1, 30]
-          ],
-          "database_api": [
-            ["https://httpbin.org/post", 3, 30]
-          ]
-        }
-      },
-      "ttls": {
-        "steemd": {
-          "get_dynamic_global_properties": 1
-        },
-        "appbase": {
-          "condenser_api": {
-            "get_dynamic_global_properties": 1
-          },
-          "database_api": {
-            "get_dynamic_global_properties": 1
-          }
-        }
-      },
-      "timeouts": {
-        "steemd": 30,
-        "appbase": {
-          "condenser_api": 30,
-          "database_api": 30
-        }
-      }
+  "upstreams_raw": {
+    "steemd": [
+      ["https://api.steem.fans", 1, 30],
+      ["https://api.justyy.com", 1, 30]
+    ],
+    "appbase": {
+      "condenser_api": [
+        ["https://api.steem.fans", 1, 30],
+        ["https://api.justyy.com", 1, 30]
+      ],
+      "database_api": [
+        ["https://api.steem.fans", 3, 30],
+        ["https://api.justyy.com", 3, 30]
+      ]
     }
   }
 }

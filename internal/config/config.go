@@ -122,8 +122,8 @@ func LoadConfig() (*Config, error) {
 
 // UpstreamRawConfig represents the raw upstream configuration from JSON
 type UpstreamRawConfig struct {
-	Limits    map[string]interface{} `json:"limits"`
-	Upstreams []UpstreamDefinition   `json:"upstreams"`
+	Limits       map[string]interface{} `json:"limits"`
+	UpstreamsRaw map[string]interface{} `json:"upstreams_raw"`
 }
 
 // UpstreamDefinition represents a single upstream configuration

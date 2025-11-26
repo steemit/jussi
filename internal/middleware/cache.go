@@ -18,12 +18,15 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 			return
 		}
 
-		// Parse request body
-		var body interface{}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.Next()
-			return
-		}
+	// Parse request body without consuming it
+	var body interface{}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.Next()
+		return
+	}
+	
+	// Store parsed body in context for later use
+	c.Set("parsed_body", body)
 
 		// Generate cache key from request
 		cacheKey, err := generateCacheKey(body)

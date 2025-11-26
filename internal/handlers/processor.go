@@ -18,12 +18,12 @@ import (
 
 // Import metrics for direct access
 var (
-	CacheOperations        = telemetry.CacheOperations
-	UpstreamRequests      = telemetry.UpstreamRequests
+	CacheOperations         = telemetry.CacheOperations
+	UpstreamRequests        = telemetry.UpstreamRequests
 	UpstreamRequestDuration = telemetry.UpstreamRequestDuration
-	UpstreamErrors        = telemetry.UpstreamErrors
-	RequestsTotal         = telemetry.RequestsTotal
-	BatchSize             = telemetry.BatchSize
+	UpstreamErrors          = telemetry.UpstreamErrors
+	RequestsTotal           = telemetry.RequestsTotal
+	BatchSize               = telemetry.BatchSize
 )
 
 // RequestProcessor processes JSON-RPC requests
@@ -59,17 +59,18 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 
 	// Add span attributes
 	telemetry.AddSpanAttributes(span, map[string]string{
-		"jussi.namespace": jsonrpcReq.URN.Namespace,
-		"jussi.api":       jsonrpcReq.URN.API,
-		"jussi.method":    jsonrpcReq.URN.Method,
+		"jussi.namespace":  jsonrpcReq.URN.Namespace,
+		"jussi.api":        jsonrpcReq.URN.API,
+		"jussi.method":     jsonrpcReq.URN.Method,
 		"jussi.request_id": jsonrpcReq.JussiRequestID,
 	})
 
 	// Get upstream configuration
-	upstreamConfig, err := p.router.GetUpstream(jsonrpcReq.URN)
-	if err != nil {
+	upstreamConfig, found := p.router.GetUpstream(jsonrpcReq.URN.String())
+	if !found {
+		err := fmt.Errorf("failed to get upstream configuration")
 		telemetry.RecordSpanError(span, err)
-		return nil, fmt.Errorf("failed to get upstream: %w", err)
+		return nil, err
 	}
 
 	// Convert upstream.Upstream to request.UpstreamConfig
@@ -91,22 +92,23 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 		cacheSpan.End()
 
 		if err == nil && cachedValue != nil {
-		// Cache hit
-		span.SetAttributes(attribute.Bool("jussi.cache.hit", true))
-		CacheOperations.WithLabelValues("get", "hit").Inc()
-		
-		if cachedResp, ok := cachedValue.(map[string]interface{}); ok {
-			cachedResp["id"] = jsonrpcReq.ID
-			telemetry.SetSpanSuccess(span)
-			return cachedResp, nil
+			// Cache hit
+			span.SetAttributes(attribute.Bool("jussi.cache.hit", true))
+			CacheOperations.WithLabelValues("get", "hit").Inc()
+
+			if cachedResp, ok := cachedValue.(map[string]interface{}); ok {
+				cachedResp["id"] = jsonrpcReq.ID
+				telemetry.SetSpanSuccess(span)
+				return cachedResp, nil
+			}
 		}
-	}
-	span.SetAttributes(attribute.Bool("jussi.cache.hit", false))
-	CacheOperations.WithLabelValues("get", "miss").Inc()
+		span.SetAttributes(attribute.Bool("jussi.cache.hit", false))
+		CacheOperations.WithLabelValues("get", "miss").Inc()
 	}
 
 	// Cache miss - call upstream
 	var response map[string]interface{}
+	var err error
 	upstreamURL := upstreamConfig.URL
 
 	startTime := time.Now()
@@ -136,7 +138,7 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	if cache.IsCacheable(ttl) {
 		ctx, cacheSpan := telemetry.StartSpan(ctx, "jussi.cache.store")
 		cacheKey := cache.GenerateCacheKey(jsonrpcReq.URN)
-		
+
 		// Calculate TTL based on irreversibility if needed
 		var cacheTTL time.Duration
 		if ttl == cache.TTLExpireIfIrreversible {
@@ -148,7 +150,7 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 		} else {
 			cacheTTL = cache.CalculateTTL(ttl, false, 0)
 		}
-		
+
 		if cacheTTL > 0 || ttl == cache.TTLNoExpire {
 			_ = p.cacheGroup.Set(ctx, cacheKey, response, cacheTTL)
 			cacheSpan.End()
@@ -193,7 +195,7 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 // callWebSocketUpstream calls WebSocket upstream with retry logic
 func (p *RequestProcessor) callWebSocketUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
 	retryConfig := upstream.DefaultRetryConfig()
-	
+
 	return upstream.RetryWithResult(ctx, retryConfig, func() (map[string]interface{}, error) {
 		pool, exists := p.wsPools[url]
 		if !exists {
