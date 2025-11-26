@@ -16,6 +16,8 @@
 - Always use non-interactive mode for git operations
 - Use flags like `--yes`, `--no-verify`, `--no-edit`, etc. when needed to avoid interactive prompts
 - Never use interactive git commands that require user input
+- **NEVER automatically create git commits** - always ask user for permission before committing
+- Only suggest commit commands, let user decide when to commit
 
 ## Code Standards
 - Write all code, comments, and documentation in English
