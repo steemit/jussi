@@ -47,7 +47,11 @@
   "prometheus": {
     "enabled": true,
     "path": "/metrics",
-    "port": 9090
+    "port": 9090,
+    "localhost_only": true,
+    "allowed_ips": [],
+    "separate_port": false,
+    "metrics_port": 9091
   },
   "limits": {
     "accounts_blacklist": [

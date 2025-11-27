@@ -73,9 +73,13 @@ type TelemetryConfig struct {
 
 // PrometheusConfig holds Prometheus configuration
 type PrometheusConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Path    string `mapstructure:"path"`
-	Port    int    `mapstructure:"port"`
+	Enabled         bool     `mapstructure:"enabled"`
+	Path            string   `mapstructure:"path"`
+	Port            int      `mapstructure:"port"`
+	LocalhostOnly   bool     `mapstructure:"localhost_only"`
+	AllowedIPs      []string `mapstructure:"allowed_ips"`
+	SeparatePort    bool     `mapstructure:"separate_port"`
+	MetricsPort     int      `mapstructure:"metrics_port"`
 }
 
 // LimitsConfig holds rate limiting configuration
@@ -183,6 +187,9 @@ func setDefaults() {
 	viper.SetDefault("PROMETHEUS_ENABLED", true)
 	viper.SetDefault("PROMETHEUS_PATH", "/metrics")
 	viper.SetDefault("PROMETHEUS_PORT", 9090)
+	viper.SetDefault("PROMETHEUS_LOCALHOST_ONLY", true)
+	viper.SetDefault("PROMETHEUS_SEPARATE_PORT", false)
+	viper.SetDefault("PROMETHEUS_METRICS_PORT", 9091)
 
 	// Upstream defaults
 	viper.SetDefault("TEST_UPSTREAM_URLS", true)

@@ -24,13 +24,13 @@ import (
 
 // App represents the application
 type App struct {
-	config      *config.Config
-	logger      *logging.Logger
-	cacheGroup  *cache.CacheGroup
-	router      *upstream.Router
-	httpClient  *upstream.HTTPClient
-	wsPools     map[string]*ws.Pool
-	shutdown    func()
+	config     *config.Config
+	logger     *logging.Logger
+	cacheGroup *cache.CacheGroup
+	router     *upstream.Router
+	httpClient *upstream.HTTPClient
+	wsPools    map[string]*ws.Pool
+	shutdown   func()
 }
 
 // NewApp creates a new application instance
@@ -119,14 +119,14 @@ func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, e
 // initWebSocketPools initializes WebSocket connection pools
 func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *logging.Logger) (map[string]*ws.Pool, error) {
 	pools := make(map[string]*ws.Pool)
-	
+
 	// Get all upstream URLs
 	allURLs := router.GetAllURLs()
-	
+
 	// WebSocket pool configuration
 	minSize := cfg.Upstream.WebSocketPool.MinSize
 	maxSize := cfg.Upstream.WebSocketPool.MaxSize
-	
+
 	// Default values if not configured
 	if minSize <= 0 {
 		minSize = 8
@@ -137,7 +137,7 @@ func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *log
 	if minSize > maxSize {
 		maxSize = minSize
 	}
-	
+
 	// Create pools for WebSocket URLs
 	for _, urlStr := range allURLs {
 		if strings.HasPrefix(urlStr, "ws://") || strings.HasPrefix(urlStr, "wss://") {
@@ -146,7 +146,7 @@ func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *log
 				Int("min_size", minSize).
 				Int("max_size", maxSize).
 				Msg("Initializing WebSocket pool")
-			
+
 			pool, err := ws.NewPool(urlStr, minSize, maxSize)
 			if err != nil {
 				logger.Warn().
@@ -156,14 +156,14 @@ func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *log
 				// Don't fail startup, pools will be created on demand
 				continue
 			}
-			
+
 			pools[urlStr] = pool
 			logger.Info().
 				Str("url", urlStr).
 				Msg("WebSocket pool initialized")
 		}
 	}
-	
+
 	return pools, nil
 }
 
@@ -221,15 +221,38 @@ func (a *App) SetupRouter() *gin.Engine {
 		WSPools:    a.wsPools,
 		Logger:     a.logger,
 	}
-	healthHandler := &handlers.HealthHandler{}
+
+	// Get version information from environment or config
+	sourceCommit := os.Getenv("SOURCE_COMMIT")
+	if sourceCommit == "" {
+		sourceCommit = "unknown"
+	}
+	dockerTag := os.Getenv("DOCKER_TAG")
+	if dockerTag == "" {
+		dockerTag = "unknown"
+	}
+
+	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName)
+	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName)
 	metricsHandler := &handlers.MetricsHandler{}
 
 	// Register routes
-	router.POST("/", jsonrpcHandler.HandleJSONRPC)
-	router.GET("/health", healthHandler.HandleHealth)
-	
+	router.GET("/", homepageHandler.HandleHomepage)   // Homepage GET support
+	router.POST("/", jsonrpcHandler.HandleJSONRPC)    // JSON-RPC POST support
+	router.GET("/health", healthHandler.HandleHealth) // Health check
+
+	// Metrics endpoint with security
 	if a.config.Prometheus.Enabled {
-		router.GET(a.config.Prometheus.Path, metricsHandler.HandleMetrics)
+		metricsGroup := router.Group(a.config.Prometheus.Path)
+
+		// Apply security middleware
+		if a.config.Prometheus.LocalhostOnly {
+			metricsGroup.Use(middleware.LocalhostOnlyMiddleware())
+		} else if len(a.config.Prometheus.AllowedIPs) > 0 {
+			metricsGroup.Use(middleware.IPWhitelistMiddleware(a.config.Prometheus.AllowedIPs))
+		}
+
+		metricsGroup.GET("", metricsHandler.HandleMetrics)
 	}
 
 	return router
@@ -282,7 +305,7 @@ func (a *App) Run() error {
 	if a.httpClient != nil {
 		_ = a.httpClient.Close()
 	}
-	
+
 	// Close WebSocket pools
 	for url, pool := range a.wsPools {
 		if err := pool.Close(); err != nil {
@@ -295,4 +318,3 @@ func (a *App) Run() error {
 	a.logger.Info().Msg("Server exited")
 	return nil
 }
-
