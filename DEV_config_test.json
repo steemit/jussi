@@ -1,7 +1,7 @@
 {
   "server": {
     "host": "0.0.0.0",
-    "port": 8083,
+    "port": 8084,
     "workers": 4,
     "tcp_backlog": 1024,
     "batch_size_limit": 100

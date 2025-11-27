@@ -20,6 +20,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Get current commit hash and write to /tmp/commit_hash
+RUN git rev-parse HEAD > /tmp/commit_hash 2>/dev/null || echo "unknown" > /tmp/commit_hash
+
 # Tidy dependencies and build the application
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
 
@@ -43,6 +46,9 @@ COPY --from=builder /app/jussi .
 COPY --from=builder /app/config ./config
 COPY --from=builder /app/DEV_config.json .
 
+# Copy the commit hash to /etc/version
+COPY --from=builder /tmp/commit_hash /etc/version
+
 # Change ownership to non-root user
 RUN chown -R jussi:jussi /app
 
@@ -58,6 +64,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Set environment variable for configuration file
 ENV JUSSI_UPSTREAM_CONFIG_FILE=DEV_config.json
+ENV DOCKER_TAG=latest
 
 # Run the application
 CMD ["./jussi"]
