@@ -27,7 +27,7 @@ RUN git rev-parse HEAD > /tmp/commit_hash 2>/dev/null || echo "unknown" > /tmp/c
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
 
 # Final stage
-FROM alpine:latest
+FROM golang:1.23-alpine
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata
