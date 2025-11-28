@@ -9,7 +9,7 @@ Jussi supports configuration through JSON files and environment variables. This 
 Configuration is loaded in the following order (later sources override earlier ones):
 
 1. **Default values** - Hardcoded defaults in the application
-2. **Configuration file** (`DEV_config.json` or specified via `JUSSI_UPSTREAM_CONFIG_FILE`) - Base configuration
+2. **Configuration file** (`DEV_config.json`) - Base configuration
 3. **Environment variables** - **Highest priority**, overrides configuration file values
 
 **Important**: Environment variables with the `JUSSI_` prefix will override values from the configuration file. This allows you to:
@@ -73,12 +73,10 @@ Example:
     "account_history_limit": 1000,
     "custom_json_op_length": 8192
   },
-  "upstream": {
-    "raw_config": {
-      "upstreams": {},
-      "ttls": {},
-      "timeouts": {}
-    }
+  "upstreams": {
+    "steemd": [
+      ["https://api.steemit.com", 1, 30]
+    ]
   }
 }
 ```
@@ -223,96 +221,6 @@ Controls request processing limits.
 - `JUSSI_LIMITS_ACCOUNT_HISTORY_LIMIT`
 - `JUSSI_LIMITS_CUSTOM_JSON_OP_LENGTH`
 
-### Upstream Configuration
-
-Controls upstream API routing and behavior. Jussi supports two configuration formats:
-
-#### Format 1: Simplified Format (Quick Setup)
-
-Simple object-based configuration for basic use cases:
-
-```json
-{
-  "upstreams": {
-    "steemd": [
-      ["https://api.steem.fans", 1, 30],
-      ["https://api.justyy.com", 1, 30]
-    ],
-    "appbase": {
-      "condenser_api": [
-        ["https://api.steem.fans", 1, 30],
-        ["https://api.justyy.com", 1, 30]
-      ],
-      "database_api": [
-        ["https://api.steem.fans", 3, 30]
-      ]
-    }
-  }
-}
-```
-
-Each upstream entry is an array: `[URL, TTL, Timeout]`
-- **URL**: Upstream API endpoint
-- **TTL**: Cache TTL in seconds (or special values) - applies to entire namespace/API
-- **Timeout**: Request timeout in seconds
-
-#### Format 2: Legacy Format (Fine-Grained Control)
-
-Array-based configuration with fine-grained TTL and timeout control:
-
-```json
-{
-  "upstreams": [
-    {
-      "name": "steemd",
-      "translate_to_appbase": true,
-      "urls": [
-        ["steemd", "https://api.steem.fans"]
-      ],
-      "ttls": [
-        ["steemd", 3],
-        ["steemd.login_api", -1],
-        ["steemd.network_broadcast_api", -1],
-        ["steemd.database_api", 3],
-        ["steemd.database_api.get_block", -2],
-        ["steemd.database_api.get_state.params=['/trending']", 30]
-      ],
-      "timeouts": [
-        ["steemd", 5],
-        ["steemd.network_broadcast_api", 0]
-      ]
-    }
-  ]
-}
-```
-
-**Fine-Grained TTL Matching**:
-- Supports method-level TTL: `steemd.database_api.get_block`
-- Supports parameter-level TTL: `steemd.database_api.get_state.params=['/trending']`
-- Uses longest prefix matching (most specific match wins)
-
-**TTL Values**:
-
-| Value | Meaning |
-|-------|---------|
-| `0` | No expiration (cache forever) |
-| `-1` | No cache (don't cache response) |
-| `-2` | Expire if irreversible (cache until block is irreversible) |
-| `> 0` | TTL in seconds |
-
-**Upstream Configuration Fields**:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `test_urls` | bool | Test upstream URLs on startup |
-| `websocket_enabled` | bool | Enable WebSocket pools (default: `false`) |
-| `websocket_pool` | object | WebSocket pool configuration (only used if `websocket_enabled` is `true`) |
-
-**Environment Variables:**
-- `JUSSI_UPSTREAM_CONFIG_FILE` - Path to configuration file (default: `DEV_config.json`)
-- `JUSSI_TEST_UPSTREAM_URLS` - Test upstream URLs on startup
-- `JUSSI_WEBSOCKET_ENABLED` - Enable WebSocket pools
-
 ## Environment Variable Override
 
 All configuration values can be overridden using environment variables with the prefix `JUSSI_` and nested keys separated by underscores.
@@ -328,7 +236,6 @@ Jussi validates configuration on startup and will exit with an error if:
 
 - Required fields are missing
 - Values are out of valid ranges
-- Upstream URLs are unreachable (if validation is enabled)
 - JSON syntax is invalid
 
 ## Example Configurations
@@ -446,7 +353,7 @@ Jussi validates configuration on startup and will exit with an error if:
 
 ### Reliability
 
-1. **Multiple Upstreams**: Configure multiple upstream URLs for redundancy
+1. **Multiple Upstream URLs**: Configure multiple upstream URLs in the `upstreams` section for redundancy
 2. **Health Checks**: Monitor upstream API health
 3. **Graceful Degradation**: Configure fallback behavior for failures
 
@@ -460,7 +367,7 @@ Jussi validates configuration on startup and will exit with an error if:
 
 ### Runtime Issues
 
-1. **Connection Errors**: Verify upstream URLs are accessible
+1. **Connection Errors**: Verify upstream URLs in the `upstreams` configuration are accessible
 2. **Memory Issues**: Adjust cache sizes if memory usage is high
 3. **Performance Issues**: Review timeout and limit settings
 
