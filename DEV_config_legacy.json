@@ -6,10 +6,6 @@
     "tcp_backlog": 1024,
     "batch_size_limit": 100
   },
-  "upstream": {
-    "test_urls": true,
-    "websocket_enabled": false
-  },
   "cache": {
     "enabled": true,
     "memory": {

@@ -31,7 +31,8 @@ type RequestProcessor struct {
 	cacheGroup *cache.CacheGroup
 	router     *upstream.Router
 	httpClient *upstream.HTTPClient
-	wsPools    map[string]*ws.Pool
+	// TODO: WebSocket support - temporarily disabled
+	// wsPools    map[string]*ws.Pool
 }
 
 // NewRequestProcessor creates a new request processor
@@ -39,13 +40,14 @@ func NewRequestProcessor(
 	cacheGroup *cache.CacheGroup,
 	router *upstream.Router,
 	httpClient *upstream.HTTPClient,
-	wsPools map[string]*ws.Pool,
+	wsPools map[string]*ws.Pool, // TODO: WebSocket support - temporarily disabled, can be nil
 ) *RequestProcessor {
 	return &RequestProcessor{
 		cacheGroup: cacheGroup,
 		router:     router,
 		httpClient: httpClient,
-		wsPools:    wsPools,
+		// TODO: WebSocket support - temporarily disabled
+		// wsPools:    wsPools,
 	}
 }
 
@@ -112,19 +114,20 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	upstreamURL := upstreamConfig.URL
 
 	startTime := time.Now()
-	if strings.HasPrefix(upstreamURL, "ws://") || strings.HasPrefix(upstreamURL, "wss://") {
-		// WebSocket upstream
-		ctx, wsSpan := telemetry.StartSpan(ctx, "jussi.upstream.websocket")
-		response, err = p.callWebSocketUpstream(ctx, jsonrpcReq, upstreamURL)
-		wsSpan.End()
-		UpstreamRequests.WithLabelValues(upstreamURL, "websocket").Inc()
-	} else {
+	// TODO: WebSocket support - temporarily disabled
+	// if strings.HasPrefix(upstreamURL, "ws://") || strings.HasPrefix(upstreamURL, "wss://") {
+	// 	// WebSocket upstream
+	// 	ctx, wsSpan := telemetry.StartSpan(ctx, "jussi.upstream.websocket")
+	// 	response, err = p.callWebSocketUpstream(ctx, jsonrpcReq, upstreamURL)
+	// 	wsSpan.End()
+	// 	UpstreamRequests.WithLabelValues(upstreamURL, "websocket").Inc()
+	// } else {
 		// HTTP upstream
 		ctx, httpSpan := telemetry.StartSpan(ctx, "jussi.upstream.http")
 		response, err = p.callHTTPUpstream(ctx, jsonrpcReq, upstreamURL)
 		httpSpan.End()
 		UpstreamRequests.WithLabelValues(upstreamURL, "http").Inc()
-	}
+	// }
 	duration := time.Since(startTime).Seconds()
 	UpstreamRequestDuration.WithLabelValues(upstreamURL, getProtocol(upstreamURL)).Observe(duration)
 
@@ -192,44 +195,45 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	return p.httpClient.Request(ctx, url, payload, headers)
 }
 
+// TODO: WebSocket support - temporarily disabled
 // callWebSocketUpstream calls WebSocket upstream with retry logic
-func (p *RequestProcessor) callWebSocketUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
-	retryConfig := upstream.DefaultRetryConfig()
-
-	return upstream.RetryWithResult(ctx, retryConfig, func() (map[string]interface{}, error) {
-		pool, exists := p.wsPools[url]
-		if !exists {
-			// Create pool on demand
-			var err error
-			pool, err = ws.NewPool(url, 8, 8) // Default pool size
-			if err != nil {
-				return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to create WebSocket pool: %w", err)}
-			}
-			p.wsPools[url] = pool
-		}
-
-		// Acquire connection
-		client, err := pool.Acquire(ctx)
-		if err != nil {
-			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to acquire connection: %w", err)}
-		}
-		defer pool.Release(client)
-
-		// Send request
-		payload := jsonrpcReq.ToUpstreamRequest()
-		if err := client.Send(ctx, payload); err != nil {
-			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to send: %w", err)}
-		}
-
-		// Receive response
-		response, err := client.Receive(ctx)
-		if err != nil {
-			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to receive: %w", err)}
-		}
-
-		return response, nil
-	})
-}
+// func (p *RequestProcessor) callWebSocketUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
+// 	retryConfig := upstream.DefaultRetryConfig()
+//
+// 	return upstream.RetryWithResult(ctx, retryConfig, func() (map[string]interface{}, error) {
+// 		pool, exists := p.wsPools[url]
+// 		if !exists {
+// 			// Create pool on demand
+// 			var err error
+// 			pool, err = ws.NewPool(url, 8, 8) // Default pool size
+// 			if err != nil {
+// 				return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to create WebSocket pool: %w", err)}
+// 			}
+// 			p.wsPools[url] = pool
+// 		}
+//
+// 		// Acquire connection
+// 		client, err := pool.Acquire(ctx)
+// 		if err != nil {
+// 			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to acquire connection: %w", err)}
+// 		}
+// 		defer pool.Release(client)
+//
+// 		// Send request
+// 		payload := jsonrpcReq.ToUpstreamRequest()
+// 		if err := client.Send(ctx, payload); err != nil {
+// 			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to send: %w", err)}
+// 		}
+//
+// 		// Receive response
+// 		response, err := client.Receive(ctx)
+// 		if err != nil {
+// 			return nil, &upstream.RetryableError{Err: fmt.Errorf("failed to receive: %w", err)}
+// 		}
+//
+// 		return response, nil
+// 	})
+// }
 
 // ProcessBatchRequest processes a batch of JSON-RPC requests
 func (p *RequestProcessor) ProcessBatchRequest(ctx context.Context, requests []*request.JSONRPCRequest) ([]map[string]interface{}, error) {

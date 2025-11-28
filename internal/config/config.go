@@ -10,40 +10,40 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	Server      ServerConfig      `mapstructure:"server"`
-	Upstream    UpstreamConfig    `mapstructure:"upstream"`
-	Cache       CacheConfig       `mapstructure:"cache"`
-	Logging     LoggingConfig     `mapstructure:"logging"`
-	Telemetry   TelemetryConfig   `mapstructure:"telemetry"`
-	Prometheus  PrometheusConfig  `mapstructure:"prometheus"`
-	Limits      LimitsConfig      `mapstructure:"limits"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Upstream   UpstreamConfig   `mapstructure:"upstream"`
+	Cache      CacheConfig      `mapstructure:"cache"`
+	Logging    LoggingConfig    `mapstructure:"logging"`
+	Telemetry  TelemetryConfig  `mapstructure:"telemetry"`
+	Prometheus PrometheusConfig `mapstructure:"prometheus"`
+	Limits     LimitsConfig     `mapstructure:"limits"`
 }
 
 // ServerConfig holds server configuration
 type ServerConfig struct {
-	Host            string `mapstructure:"host"`
-	Port            int    `mapstructure:"port"`
-	Workers         int    `mapstructure:"workers"`
-	TCPBacklog      int    `mapstructure:"tcp_backlog"`
-	BatchSizeLimit  int    `mapstructure:"batch_size_limit"`
+	Host           string `mapstructure:"host"`
+	Port           int    `mapstructure:"port"`
+	Workers        int    `mapstructure:"workers"`
+	TCPBacklog     int    `mapstructure:"tcp_backlog"`
+	BatchSizeLimit int    `mapstructure:"batch_size_limit"`
 }
 
 // UpstreamConfig holds upstream configuration
 type UpstreamConfig struct {
 	TestURLs         bool                `mapstructure:"test_urls"`
 	WebSocketEnabled bool                `mapstructure:"websocket_enabled"`
-	WebSocketPool    WebSocketPoolConfig  `mapstructure:"websocket_pool"`
-	RawConfig        *UpstreamRawConfig   `mapstructure:"-"`
+	WebSocketPool    WebSocketPoolConfig `mapstructure:"websocket_pool"`
+	RawConfig        *UpstreamRawConfig  `mapstructure:"-"`
 }
 
 // WebSocketPoolConfig holds WebSocket pool configuration
 type WebSocketPoolConfig struct {
-	MinSize      int `mapstructure:"min_size"`
-	MaxSize      int `mapstructure:"max_size"`
-	QueueSize    int `mapstructure:"queue_size"`
-	ReadLimit    int `mapstructure:"read_limit"`
-	WriteLimit   int `mapstructure:"write_limit"`
-	MaxMsgSize   int `mapstructure:"max_msg_size"`
+	MinSize    int `mapstructure:"min_size"`
+	MaxSize    int `mapstructure:"max_size"`
+	QueueSize  int `mapstructure:"queue_size"`
+	ReadLimit  int `mapstructure:"read_limit"`
+	WriteLimit int `mapstructure:"write_limit"`
+	MaxMsgSize int `mapstructure:"max_msg_size"`
 }
 
 // CacheConfig holds cache configuration
@@ -52,7 +52,7 @@ type CacheConfig struct {
 	Memory          MemoryCacheConfig `mapstructure:"memory"`
 	Redis           RedisConfig       `mapstructure:"redis"`
 	RedisURL        string            `mapstructure:"redis_url"` // Direct URL from environment variable
-	ReadReplicaURLs []string         `mapstructure:"read_replica_urls"`
+	ReadReplicaURLs []string          `mapstructure:"read_replica_urls"`
 	ReadTimeout     float64           `mapstructure:"read_timeout"`
 	TestBeforeAdd   bool              `mapstructure:"test_before_add"`
 }
@@ -64,14 +64,14 @@ type MemoryCacheConfig struct {
 
 // RedisConfig holds Redis cache configuration
 type RedisConfig struct {
-	Address     string `mapstructure:"address"`
-	Password    string `mapstructure:"password"`
-	DB          int    `mapstructure:"db"`
-	PoolSize    int    `mapstructure:"pool_size"`
-	ReadTimeout int    `mapstructure:"read_timeout"`
-	WriteTimeout int   `mapstructure:"write_timeout"`
-	DialTimeout  int   `mapstructure:"dial_timeout"`
-	Compression  bool  `mapstructure:"compression"`
+	Address      string `mapstructure:"address"`
+	Password     string `mapstructure:"password"`
+	DB           int    `mapstructure:"db"`
+	PoolSize     int    `mapstructure:"pool_size"`
+	ReadTimeout  int    `mapstructure:"read_timeout"`
+	WriteTimeout int    `mapstructure:"write_timeout"`
+	DialTimeout  int    `mapstructure:"dial_timeout"`
+	Compression  bool   `mapstructure:"compression"`
 }
 
 // GetRedisURL returns the Redis URL, either from direct RedisURL or constructed from Redis config
@@ -80,12 +80,12 @@ func (c *CacheConfig) GetRedisURL() string {
 	if c.RedisURL != "" {
 		return c.RedisURL
 	}
-	
+
 	// Construct URL from Redis config
 	if c.Redis.Address == "" {
 		return ""
 	}
-	
+
 	url := "redis://"
 	if c.Redis.Password != "" {
 		url += c.Redis.Password + "@"
@@ -94,7 +94,7 @@ func (c *CacheConfig) GetRedisURL() string {
 	if c.Redis.DB > 0 {
 		url += "/" + fmt.Sprintf("%d", c.Redis.DB)
 	}
-	
+
 	return url
 }
 
@@ -121,13 +121,13 @@ type PrometheusConfig struct {
 	Enabled       bool     `mapstructure:"enabled"`
 	Path          string   `mapstructure:"path"`
 	LocalhostOnly bool     `mapstructure:"localhost_only"`
-	AllowedIPs   []string `mapstructure:"allowed_ips"`
+	AllowedIPs    []string `mapstructure:"allowed_ips"`
 }
 
 // LimitsConfig holds rate limiting configuration
 type LimitsConfig struct {
-	BlacklistAccounts    []string `mapstructure:"blacklist_accounts"`
-	AccountHistoryLimit  int      `mapstructure:"account_history_limit"`
+	BlacklistAccounts   []string `mapstructure:"blacklist_accounts"`
+	AccountHistoryLimit int      `mapstructure:"account_history_limit"`
 }
 
 // LoadConfig loads configuration from environment variables and config file
@@ -169,18 +169,18 @@ func LoadConfig() (*Config, error) {
 // UpstreamRawConfig represents the raw upstream configuration from JSON
 // Supports both Legacy format (upstreams array) and simplified format (upstreams object)
 type UpstreamRawConfig struct {
-	Limits     map[string]interface{} `json:"limits"`
-	Upstreams  []UpstreamDefinition   `json:"upstreams"`  // Legacy format: array of upstream definitions
-	UpstreamsMap map[string]interface{} `json:"upstreams"` // Simplified format: object map (when upstreams is not an array)
+	Limits       map[string]interface{} `json:"limits"`
+	Upstreams    []UpstreamDefinition   `json:"-"` // Legacy format: array of upstream definitions (manually parsed)
+	UpstreamsMap map[string]interface{} `json:"-"` // Simplified format: object map (manually parsed)
 }
 
 // UpstreamDefinition represents a single upstream configuration
 type UpstreamDefinition struct {
-	Name              string          `json:"name"`
-	TranslateToAppbase bool           `json:"translate_to_appbase"`
-	URLs              [][]interface{} `json:"urls"`
-	TTLs              [][]interface{} `json:"ttls"`
-	Timeouts          [][]interface{} `json:"timeouts"`
+	Name               string          `json:"name"`
+	TranslateToAppbase bool            `json:"translate_to_appbase"`
+	URLs               [][]interface{} `json:"urls"`
+	TTLs               [][]interface{} `json:"ttls"`
+	Timeouts           [][]interface{} `json:"timeouts"`
 }
 
 func loadUpstreamConfig(filename string) (*UpstreamRawConfig, error) {
@@ -196,7 +196,7 @@ func loadUpstreamConfig(filename string) (*UpstreamRawConfig, error) {
 	}
 
 	var config UpstreamRawConfig
-	
+
 	// Check if upstreams exists and what format it is
 	if upstreamsRaw, ok := raw["upstreams"]; ok {
 		// Try to determine if it's an array (Legacy format) or object (simplified format)
@@ -266,4 +266,3 @@ func setDefaults() {
 	viper.SetDefault("TEST_UPSTREAM_URLS", true)
 	viper.SetDefault("WEBSOCKET_ENABLED", false)
 }
-

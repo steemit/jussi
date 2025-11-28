@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
+
+	// TODO: WebSocket support - temporarily disabled
+	// "strings"
 	"syscall"
 	"time"
 
@@ -18,7 +20,9 @@ import (
 	"github.com/steemit/jussi/internal/middleware"
 	"github.com/steemit/jussi/internal/telemetry"
 	"github.com/steemit/jussi/internal/upstream"
-	"github.com/steemit/jussi/internal/ws"
+
+	// TODO: WebSocket support - temporarily disabled
+	// "github.com/steemit/jussi/internal/ws"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
@@ -29,8 +33,9 @@ type App struct {
 	cacheGroup *cache.CacheGroup
 	router     *upstream.Router
 	httpClient *upstream.HTTPClient
-	wsPools    map[string]*ws.Pool
-	shutdown   func()
+	// TODO: WebSocket support - temporarily disabled
+	// wsPools    map[string]*ws.Pool
+	shutdown func()
 }
 
 // NewApp creates a new application instance
@@ -70,11 +75,13 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// Initialize HTTP client
 	httpClient := upstream.NewHTTPClient()
 
+	// TODO: WebSocket support - temporarily disabled
 	// Initialize WebSocket pools
-	wsPools, err := initWebSocketPools(cfg, router, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize WebSocket pools: %w", err)
-	}
+	// wsPools, err := initWebSocketPools(cfg, router, logger)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to initialize WebSocket pools: %w", err)
+	// }
+	// var wsPools map[string]*ws.Pool = nil
 
 	// Initialize OpenTelemetry if enabled
 	var shutdownTelemetry func()
@@ -99,8 +106,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 		cacheGroup: cacheGroup,
 		router:     router,
 		httpClient: httpClient,
-		wsPools:    wsPools,
-		shutdown:   shutdownTelemetry,
+		// TODO: WebSocket support - temporarily disabled
+		// wsPools:    wsPools,
+		shutdown: shutdownTelemetry,
 	}
 
 	return app, nil
@@ -126,62 +134,63 @@ func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, e
 	return cache.NewCacheGroup(memoryCache, redisCache), nil
 }
 
+// TODO: WebSocket support - temporarily disabled
 // initWebSocketPools initializes WebSocket connection pools
-func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *logging.Logger) (map[string]*ws.Pool, error) {
-	pools := make(map[string]*ws.Pool)
-
-	// Skip WebSocket pool initialization if disabled
-	if !cfg.Upstream.WebSocketEnabled {
-		logger.Info().Msg("WebSocket pools disabled by configuration")
-		return pools, nil
-	}
-
-	// Get all upstream URLs
-	allURLs := router.GetAllURLs()
-
-	// WebSocket pool configuration
-	minSize := cfg.Upstream.WebSocketPool.MinSize
-	maxSize := cfg.Upstream.WebSocketPool.MaxSize
-
-	// Default values if not configured
-	if minSize <= 0 {
-		minSize = 8
-	}
-	if maxSize <= 0 {
-		maxSize = 8
-	}
-	if minSize > maxSize {
-		maxSize = minSize
-	}
-
-	// Create pools for WebSocket URLs
-	for _, urlStr := range allURLs {
-		if strings.HasPrefix(urlStr, "ws://") || strings.HasPrefix(urlStr, "wss://") {
-			logger.Info().
-				Str("url", urlStr).
-				Int("min_size", minSize).
-				Int("max_size", maxSize).
-				Msg("Initializing WebSocket pool")
-
-			pool, err := ws.NewPool(urlStr, minSize, maxSize)
-			if err != nil {
-				logger.Warn().
-					Err(err).
-					Str("url", urlStr).
-					Msg("Failed to initialize WebSocket pool, will create on demand")
-				// Don't fail startup, pools will be created on demand
-				continue
-			}
-
-			pools[urlStr] = pool
-			logger.Info().
-				Str("url", urlStr).
-				Msg("WebSocket pool initialized")
-		}
-	}
-
-	return pools, nil
-}
+// func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *logging.Logger) (map[string]*ws.Pool, error) {
+// 	pools := make(map[string]*ws.Pool)
+//
+// 	// Skip WebSocket pool initialization if disabled
+// 	if !cfg.Upstream.WebSocketEnabled {
+// 		logger.Info().Msg("WebSocket pools disabled by configuration")
+// 		return pools, nil
+// 	}
+//
+// 	// Get all upstream URLs
+// 	allURLs := router.GetAllURLs()
+//
+// 	// WebSocket pool configuration
+// 	minSize := cfg.Upstream.WebSocketPool.MinSize
+// 	maxSize := cfg.Upstream.WebSocketPool.MaxSize
+//
+// 	// Default values if not configured
+// 	if minSize <= 0 {
+// 		minSize = 8
+// 	}
+// 	if maxSize <= 0 {
+// 		maxSize = 8
+// 	}
+// 	if minSize > maxSize {
+// 		maxSize = minSize
+// 	}
+//
+// 	// Create pools for WebSocket URLs
+// 	for _, urlStr := range allURLs {
+// 		if strings.HasPrefix(urlStr, "ws://") || strings.HasPrefix(urlStr, "wss://") {
+// 			logger.Info().
+// 				Str("url", urlStr).
+// 				Int("min_size", minSize).
+// 				Int("max_size", maxSize).
+// 				Msg("Initializing WebSocket pool")
+//
+// 			pool, err := ws.NewPool(urlStr, minSize, maxSize)
+// 			if err != nil {
+// 				logger.Warn().
+// 					Err(err).
+// 					Str("url", urlStr).
+// 					Msg("Failed to initialize WebSocket pool, will create on demand")
+// 				// Don't fail startup, pools will be created on demand
+// 				continue
+// 			}
+//
+// 			pools[urlStr] = pool
+// 			logger.Info().
+// 				Str("url", urlStr).
+// 				Msg("WebSocket pool initialized")
+// 		}
+// 	}
+//
+// 	return pools, nil
+// }
 
 // SetupRouter configures the Gin router
 func (a *App) SetupRouter() *gin.Engine {
@@ -236,8 +245,10 @@ func (a *App) SetupRouter() *gin.Engine {
 		CacheGroup: a.cacheGroup,
 		Router:     a.router,
 		HTTPClient: a.httpClient,
-		WSPools:    a.wsPools,
-		Logger:     a.logger,
+		// TODO: WebSocket support - temporarily disabled
+		// WSPools:    a.wsPools,
+		WSPools: nil,
+		Logger:  a.logger,
 	}
 
 	// Get version information from environment or config
@@ -324,14 +335,15 @@ func (a *App) Run() error {
 		_ = a.httpClient.Close()
 	}
 
+	// TODO: WebSocket support - temporarily disabled
 	// Close WebSocket pools
-	for url, pool := range a.wsPools {
-		if err := pool.Close(); err != nil {
-			a.logger.Warn().Err(err).Str("url", url).Msg("Error closing WebSocket pool")
-		} else {
-			a.logger.Info().Str("url", url).Msg("WebSocket pool closed")
-		}
-	}
+	// for url, pool := range a.wsPools {
+	// 	if err := pool.Close(); err != nil {
+	// 		a.logger.Warn().Err(err).Str("url", url).Msg("Error closing WebSocket pool")
+	// 	} else {
+	// 		a.logger.Info().Str("url", url).Msg("WebSocket pool closed")
+	// 	}
+	// }
 
 	a.logger.Info().Msg("Server exited")
 	return nil
