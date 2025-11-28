@@ -28,16 +28,16 @@
   },
   "upstreams": {
     "steemd": [
-      ["https://api.steem.fans", 1, 30],
+      ["https://api.steemit.com", 1, 30],
       ["https://api.justyy.com", 1, 30]
     ],
     "appbase": {
       "condenser_api": [
-        ["https://api.steem.fans", 1, 30],
+        ["https://api.steemit.com", 1, 30],
         ["https://api.justyy.com", 1, 30]
       ],
       "database_api": [
-        ["https://api.steem.fans", 3, 30],
+        ["https://api.steemit.com", 3, 30],
         ["https://api.justyy.com", 3, 30]
       ]
     }

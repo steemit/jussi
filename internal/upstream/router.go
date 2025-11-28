@@ -47,7 +47,7 @@ func (r *Router) GetUpstream(urn string) (*UpstreamInfo, bool) {
 	if url == "" {
 		// Fallback to hardcoded default only if config is not available
 		return &UpstreamInfo{
-			URL:     "https://api.steem.fans",
+			URL:     "https://api.steemit.com",
 			TTL:     300,
 			Timeout: 30,
 		}, true
@@ -77,7 +77,7 @@ func (r *Router) GetAllURLs() []string {
 	}
 
 	// Fallback to hardcoded default
-	return []string{"https://api.steem.fans"}
+	return []string{"https://api.steemit.com"}
 }
 
 // GetNamespaces returns all configured namespaces

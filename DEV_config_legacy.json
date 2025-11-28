@@ -49,7 +49,7 @@
       "name": "steemd",
       "translate_to_appbase": true,
       "urls": [
-        ["steemd", "https://api.steem.fans"]
+        ["steemd", "https://api.steemit.com"]
       ],
       "ttls": [
         ["steemd", 3],
@@ -78,7 +78,7 @@
     {
       "name": "appbase",
       "urls": [
-        ["appbase", "https://api.steem.fans"]
+        ["appbase", "https://api.steemit.com"]
       ],
       "ttls": [
         ["appbase", -2],

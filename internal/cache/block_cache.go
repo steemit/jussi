@@ -96,7 +96,7 @@ func (bc *BlockCache) fetchLatestBlockNumber(ctx context.Context) (int64, error)
 
 	// Try multiple endpoints
 	endpoints := []string{
-		"https://api.steem.fans",
+		"https://api.steemit.com",
 		"https://api.justyy.com",
 	}
 
