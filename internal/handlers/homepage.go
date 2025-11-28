@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/upstream"
 )
 
 // HomepageHandler handles homepage GET requests
@@ -17,16 +18,16 @@ type HomepageHandler struct {
 	SourceCommit string
 	DockerTag    string
 	ServiceName  string
-	BlockCache   *cache.BlockCache
+	GlobalParams *cache.GlobalParams
 }
 
 // NewHomepageHandler creates a new homepage handler
-func NewHomepageHandler(sourceCommit, dockerTag, serviceName string) *HomepageHandler {
+func NewHomepageHandler(sourceCommit, dockerTag, serviceName string, router *upstream.Router) *HomepageHandler {
 	return &HomepageHandler{
 		SourceCommit: sourceCommit,
 		DockerTag:    dockerTag,
 		ServiceName:  serviceName,
-		BlockCache:   cache.NewBlockCache(),
+		GlobalParams: cache.NewGlobalParams(router),
 	}
 }
 
@@ -35,17 +36,17 @@ func NewHomepageHandler(sourceCommit, dockerTag, serviceName string) *HomepageHa
 func (h *HomepageHandler) HandleHomepage(c *gin.Context) {
 	// Get source commit from /etc/version file or environment
 	sourceCommit := h.getSourceCommit()
-	
+
 	// Get docker tag from environment
 	dockerTag := h.getDockerTag()
-	
+
 	// Get latest block number with caching
-	jussiNum, err := h.BlockCache.GetLatestBlockNumber(c.Request.Context())
+	jussiNum, err := h.GlobalParams.GetHeadBlockNumber(c.Request.Context())
 	if err != nil {
 		// If we can't get block number, use 0 as fallback
 		jussiNum = 0
 	}
-	
+
 	response := gin.H{
 		"status":        "OK",
 		"datetime":      time.Now().UTC().Format("2006-01-02T15:04:05.000000"),
@@ -53,12 +54,12 @@ func (h *HomepageHandler) HandleHomepage(c *gin.Context) {
 		"docker_tag":    dockerTag,
 		"jussi_num":     jussiNum,
 	}
-	
+
 	// Add CORS headers similar to legacy project
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	c.Header("Access-Control-Allow-Headers", "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range")
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -71,17 +72,17 @@ func (h *HomepageHandler) getSourceCommit() string {
 			return commit
 		}
 	}
-	
+
 	// Fallback to environment variable
 	if commit := os.Getenv("SOURCE_COMMIT"); commit != "" {
 		return commit
 	}
-	
+
 	// Fallback to handler's stored value
 	if h.SourceCommit != "" {
 		return h.SourceCommit
 	}
-	
+
 	return "unknown"
 }
 
@@ -91,11 +92,11 @@ func (h *HomepageHandler) getDockerTag() string {
 	if tag := os.Getenv("DOCKER_TAG"); tag != "" {
 		return tag
 	}
-	
+
 	// Fallback to handler's stored value
 	if h.DockerTag != "" {
 		return h.DockerTag
 	}
-	
+
 	return "latest"
 }

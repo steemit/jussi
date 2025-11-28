@@ -1,6 +1,8 @@
 package upstream
 
 import (
+	"fmt"
+
 	"github.com/steemit/jussi/internal/config"
 )
 
@@ -41,16 +43,12 @@ func NewRouter(upstreamConfig *config.UpstreamRawConfig) (*Router, error) {
 }
 
 // GetUpstream returns upstream information for a given URN
+// Panics if no upstream configuration is found
 func (r *Router) GetUpstream(urn string) (*UpstreamInfo, bool) {
 	// Try to get from configuration first
 	url := r.getURLFromConfig(urn)
 	if url == "" {
-		// Fallback to hardcoded default only if config is not available
-		return &UpstreamInfo{
-			URL:     "https://api.steemit.com",
-			TTL:     300,
-			Timeout: 30,
-		}, true
+		panic(fmt.Sprintf("no upstream configuration found for URN: %s", urn))
 	}
 
 	// Get TTL and Timeout from configuration (with longest prefix matching)
@@ -69,15 +67,73 @@ func (r *Router) ShouldTranslateToAppbase(namespace string) bool {
 	return r.translateToAppbase[namespace]
 }
 
+// GetSteemdURLs returns all configured steemd URLs
+// Panics if steemd is not configured (required for global params)
+func (r *Router) GetSteemdURLs() []string {
+	var urls []string
+	urlSet := make(map[string]bool)
+
+	if r.upstreamConfig == nil {
+		panic("upstream configuration is required but not found")
+	}
+
+	// Legacy format: collect from upstreams array
+	if len(r.upstreamConfig.Upstreams) > 0 {
+		for _, upstream := range r.upstreamConfig.Upstreams {
+			if upstream.Name == "steemd" {
+				for _, urlEntry := range upstream.URLs {
+					if len(urlEntry) >= 2 {
+						if url, ok := urlEntry[1].(string); ok {
+							if !urlSet[url] {
+								urls = append(urls, url)
+								urlSet[url] = true
+							}
+						}
+					}
+				}
+			}
+		}
+		if len(urls) > 0 {
+			return urls
+		}
+		panic("steemd upstream is required but not found in configuration")
+	}
+
+	// Simplified format: collect from upstreams map
+	if r.upstreamConfig.UpstreamsMap == nil {
+		panic("upstreams configuration is required but not found")
+	}
+
+	// Collect from steemd
+	if steemdRaw, ok := r.upstreamConfig.UpstreamsMap["steemd"]; ok {
+		if urlList, ok := steemdRaw.([]interface{}); ok {
+			for _, urlEntry := range urlList {
+				if urlArray, ok := urlEntry.([]interface{}); ok && len(urlArray) >= 1 {
+					if urlStr, ok := urlArray[0].(string); ok {
+						if !urlSet[urlStr] {
+							urls = append(urls, urlStr)
+							urlSet[urlStr] = true
+						}
+					}
+				}
+			}
+		}
+		if len(urls) > 0 {
+			return urls
+		}
+		panic("steemd upstream is configured but contains no valid URLs")
+	}
+
+	panic("steemd upstream is required but not found in configuration")
+}
+
 // GetAllURLs returns all configured URLs
 func (r *Router) GetAllURLs() []string {
 	urls := r.getAllURLsFromConfig()
-	if len(urls) > 0 {
-		return urls
+	if len(urls) == 0 {
+		panic("upstreams configuration is required but contains no URLs")
 	}
-
-	// Fallback to hardcoded default
-	return []string{"https://api.steemit.com"}
+	return urls
 }
 
 // GetNamespaces returns all configured namespaces
@@ -113,7 +169,7 @@ func (r *Router) parseLegacyFormat() {
 	for _, upstream := range r.upstreamConfig.Upstreams {
 		name := upstream.Name
 		r.namespaces[name] = true
-		
+
 		if upstream.TranslateToAppbase {
 			r.translateToAppbase[name] = true
 		}
@@ -303,6 +359,7 @@ func (r *Router) getTimeoutFromConfig(urn string) int {
 }
 
 // getAllURLsFromConfig collects all URLs from configuration
+// Returns empty slice if no configuration (caller should panic)
 func (r *Router) getAllURLsFromConfig() []string {
 	var urls []string
 	urlSet := make(map[string]bool)

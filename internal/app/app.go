@@ -262,7 +262,7 @@ func (a *App) SetupRouter() *gin.Engine {
 	}
 
 	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName)
-	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName)
+	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName, a.router)
 	metricsHandler := &handlers.MetricsHandler{}
 
 	// Register routes
