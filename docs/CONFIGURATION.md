@@ -4,13 +4,25 @@
 
 Jussi supports configuration through JSON files and environment variables. This guide covers all available configuration options.
 
-## Configuration Sources
+## Configuration Sources and Priority
 
 Configuration is loaded in the following order (later sources override earlier ones):
 
-1. Default values
-2. Configuration file (`config.json`)
-3. Environment variables
+1. **Default values** - Hardcoded defaults in the application
+2. **Configuration file** (`DEV_config.json` or specified via `JUSSI_UPSTREAM_CONFIG_FILE`) - Base configuration
+3. **Environment variables** - **Highest priority**, overrides configuration file values
+
+**Important**: Environment variables with the `JUSSI_` prefix will override values from the configuration file. This allows you to:
+- Use configuration files for base settings
+- Override sensitive values (like Redis passwords) via environment variables
+- Deploy the same configuration file across environments with different overrides
+
+Example:
+```bash
+# Configuration file has: "redis": { "address": "redis:6379" }
+# Environment variable overrides: JUSSI_CACHE_REDIS_URL=redis://prod-redis:6379/1
+# Result: Uses prod-redis:6379/1 instead of redis:6379
+```
 
 ## Configuration File Format
 
@@ -113,33 +125,56 @@ Controls application logging behavior.
 
 ### Telemetry Configuration
 
-Controls OpenTelemetry tracing.
+Controls OpenTelemetry tracing. Can be disabled for minimal overhead.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `jaeger.endpoint` | string | `""` | Jaeger collector endpoint |
-| `jaeger.service_name` | string | `"jussi"` | Service name for tracing |
-| `jaeger.environment` | string | `"development"` | Environment name |
+| `enabled` | bool | `true` | Enable OpenTelemetry tracing |
+| `service_name` | string | `"jussi"` | Service name for tracing |
+| `otlp_endpoint` | string | `""` | OTLP collector endpoint (e.g., `jaeger:4318`) |
+| `resource_attributes` | string | `""` | Additional resource attributes |
+
+**To disable telemetry:**
+```json
+{
+  "telemetry": {
+    "enabled": false
+  }
+}
+```
 
 **Environment Variables:**
-- `JUSSI_TELEMETRY_JAEGER_ENDPOINT`
-- `JUSSI_TELEMETRY_JAEGER_SERVICE_NAME`
-- `JUSSI_TELEMETRY_JAEGER_ENVIRONMENT`
+- `JUSSI_TELEMETRY_ENABLED` - Enable/disable telemetry
+- `JUSSI_TELEMETRY_SERVICE_NAME`
+- `JUSSI_TELEMETRY_OTLP_ENDPOINT`
+- `JUSSI_TELEMETRY_RESOURCE_ATTRIBUTES`
 
 ### Prometheus Configuration
 
-Controls Prometheus metrics collection.
+Controls Prometheus metrics collection. Metrics are exposed on the same HTTP server as the main application. Can be disabled for minimal overhead.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | bool | `true` | Enable Prometheus metrics |
-| `port` | int | `9090` | Metrics server port |
-| `path` | string | `"/metrics"` | Metrics endpoint path |
+| `path` | string | `"/metrics"` | Metrics endpoint path (e.g., `http://localhost:8080/metrics`) |
+| `localhost_only` | bool | `true` | Restrict metrics endpoint to localhost only |
+| `allowed_ips` | array | `[]` | List of allowed IP addresses (if `localhost_only` is false) |
+
+**To disable Prometheus:**
+```json
+{
+  "prometheus": {
+    "enabled": false
+  }
+}
+```
+
+**Note**: Metrics are served on the same port as the main application. There is no separate metrics port. Use the `path` to access metrics (e.g., `http://your-server:8080/metrics`).
 
 **Environment Variables:**
-- `JUSSI_PROMETHEUS_ENABLED`
-- `JUSSI_PROMETHEUS_PORT`
+- `JUSSI_PROMETHEUS_ENABLED` - Enable/disable Prometheus metrics
 - `JUSSI_PROMETHEUS_PATH`
+- `JUSSI_PROMETHEUS_LOCALHOST_ONLY`
 
 ### Cache Configuration
 
@@ -190,26 +225,26 @@ Controls request processing limits.
 
 ### Upstream Configuration
 
-Controls upstream API routing and behavior.
+Controls upstream API routing and behavior. Jussi supports two configuration formats:
 
-#### Upstreams Definition
+#### Format 1: Simplified Format (Quick Setup)
 
-The `upstreams` section defines available upstream APIs:
+Simple object-based configuration for basic use cases:
 
 ```json
 {
   "upstreams": {
     "steemd": [
-      ["https://api.steemit.com", 1, 30],
+      ["https://api.steem.fans", 1, 30],
       ["https://api.justyy.com", 1, 30]
     ],
     "appbase": {
       "condenser_api": [
-        ["https://api.steemit.com", 1, 30],
+        ["https://api.steem.fans", 1, 30],
         ["https://api.justyy.com", 1, 30]
       ],
       "database_api": [
-        ["https://api.steemit.com", 3, 30]
+        ["https://api.steem.fans", 3, 30]
       ]
     }
   }
@@ -217,12 +252,46 @@ The `upstreams` section defines available upstream APIs:
 ```
 
 Each upstream entry is an array: `[URL, TTL, Timeout]`
-
 - **URL**: Upstream API endpoint
-- **TTL**: Cache TTL in seconds (or special values)
+- **TTL**: Cache TTL in seconds (or special values) - applies to entire namespace/API
 - **Timeout**: Request timeout in seconds
 
-#### TTL Values
+#### Format 2: Legacy Format (Fine-Grained Control)
+
+Array-based configuration with fine-grained TTL and timeout control:
+
+```json
+{
+  "upstreams": [
+    {
+      "name": "steemd",
+      "translate_to_appbase": true,
+      "urls": [
+        ["steemd", "https://api.steem.fans"]
+      ],
+      "ttls": [
+        ["steemd", 3],
+        ["steemd.login_api", -1],
+        ["steemd.network_broadcast_api", -1],
+        ["steemd.database_api", 3],
+        ["steemd.database_api.get_block", -2],
+        ["steemd.database_api.get_state.params=['/trending']", 30]
+      ],
+      "timeouts": [
+        ["steemd", 5],
+        ["steemd.network_broadcast_api", 0]
+      ]
+    }
+  ]
+}
+```
+
+**Fine-Grained TTL Matching**:
+- Supports method-level TTL: `steemd.database_api.get_block`
+- Supports parameter-level TTL: `steemd.database_api.get_state.params=['/trending']`
+- Uses longest prefix matching (most specific match wins)
+
+**TTL Values**:
 
 | Value | Meaning |
 |-------|---------|
@@ -231,42 +300,18 @@ Each upstream entry is an array: `[URL, TTL, Timeout]`
 | `-2` | Expire if irreversible (cache until block is irreversible) |
 | `> 0` | TTL in seconds |
 
-#### TTLs Configuration
+**Upstream Configuration Fields**:
 
-Override TTL for specific methods:
+| Field | Type | Description |
+|-------|------|-------------|
+| `test_urls` | bool | Test upstream URLs on startup |
+| `websocket_enabled` | bool | Enable WebSocket pools (default: `false`) |
+| `websocket_pool` | object | WebSocket pool configuration (only used if `websocket_enabled` is `true`) |
 
-```json
-{
-  "ttls": {
-    "steemd": {
-      "get_block": -2,
-      "get_dynamic_global_properties": 1
-    },
-    "appbase": {
-      "condenser_api": {
-        "get_block": -2,
-        "get_dynamic_global_properties": 1
-      }
-    }
-  }
-}
-```
-
-#### Timeouts Configuration
-
-Override timeout for specific namespaces:
-
-```json
-{
-  "timeouts": {
-    "steemd": 30,
-    "appbase": {
-      "condenser_api": 30,
-      "database_api": 60
-    }
-  }
-}
-```
+**Environment Variables:**
+- `JUSSI_UPSTREAM_CONFIG_FILE` - Path to configuration file (default: `DEV_config.json`)
+- `JUSSI_TEST_UPSTREAM_URLS` - Test upstream URLs on startup
+- `JUSSI_WEBSOCKET_ENABLED` - Enable WebSocket pools
 
 ## Environment Variable Override
 

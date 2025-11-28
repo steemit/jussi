@@ -40,22 +40,21 @@ func ValidateConfig(cfg *Config) error {
 		return fmt.Errorf("invalid log format: %s", cfg.Logging.Format)
 	}
 
-	// Validate OpenTelemetry configuration
-	if cfg.Telemetry.ServiceName == "" {
-		return fmt.Errorf("otel service name cannot be empty")
-	}
+	// Validate OpenTelemetry configuration (only if enabled)
+	if cfg.Telemetry.Enabled {
+		if cfg.Telemetry.ServiceName == "" {
+			return fmt.Errorf("otel service name cannot be empty when telemetry is enabled")
+		}
 
-	if cfg.Telemetry.TracesEndpoint != "" {
-		if _, err := url.Parse(cfg.Telemetry.TracesEndpoint); err != nil {
-			return fmt.Errorf("invalid otel collector endpoint: %w", err)
+		if cfg.Telemetry.TracesEndpoint != "" {
+			if _, err := url.Parse(cfg.Telemetry.TracesEndpoint); err != nil {
+				return fmt.Errorf("invalid otel collector endpoint: %w", err)
+			}
 		}
 	}
 
 	// Validate Prometheus configuration
 	if cfg.Prometheus.Enabled {
-		if cfg.Prometheus.Port <= 0 || cfg.Prometheus.Port > 65535 {
-			return fmt.Errorf("invalid prometheus port: %d", cfg.Prometheus.Port)
-		}
 		if cfg.Prometheus.Path == "" {
 			return fmt.Errorf("prometheus path cannot be empty")
 		}

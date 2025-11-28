@@ -76,13 +76,21 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to initialize WebSocket pools: %w", err)
 	}
 
-	// Initialize OpenTelemetry
-	shutdownTelemetry, err := telemetry.Setup(
-		cfg.Telemetry.ServiceName,
-		cfg.Telemetry.OTLPEndpoint,
-	)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to initialize OpenTelemetry")
+	// Initialize OpenTelemetry if enabled
+	var shutdownTelemetry func()
+	if cfg.Telemetry.Enabled {
+		shutdown, err := telemetry.Setup(
+			cfg.Telemetry.ServiceName,
+			cfg.Telemetry.OTLPEndpoint,
+		)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to initialize OpenTelemetry")
+		} else {
+			shutdownTelemetry = shutdown
+			logger.Info().Msg("OpenTelemetry initialized")
+		}
+	} else {
+		logger.Info().Msg("OpenTelemetry disabled by configuration")
 	}
 
 	app := &App{
@@ -103,8 +111,10 @@ func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, e
 	var memoryCache cache.Cache = cache.NewMemoryCache()
 	var redisCache cache.Cache
 
-	if cfg.Cache.RedisURL != "" {
-		redis, err := cache.NewRedisCache(cfg.Cache.RedisURL)
+	// Get Redis URL from config (supports both direct URL and constructed from config)
+	redisURL := cfg.Cache.GetRedisURL()
+	if redisURL != "" {
+		redis, err := cache.NewRedisCache(redisURL)
 		if err != nil {
 			logger.Warn().Err(err).Msg("Failed to connect to Redis, using memory cache only")
 		} else {
@@ -119,6 +129,12 @@ func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, e
 // initWebSocketPools initializes WebSocket connection pools
 func initWebSocketPools(cfg *config.Config, router *upstream.Router, logger *logging.Logger) (map[string]*ws.Pool, error) {
 	pools := make(map[string]*ws.Pool)
+
+	// Skip WebSocket pool initialization if disabled
+	if !cfg.Upstream.WebSocketEnabled {
+		logger.Info().Msg("WebSocket pools disabled by configuration")
+		return pools, nil
+	}
 
 	// Get all upstream URLs
 	allURLs := router.GetAllURLs()
@@ -178,8 +194,10 @@ func (a *App) SetupRouter() *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 
-	// OpenTelemetry middleware
-	router.Use(otelgin.Middleware(a.config.Telemetry.ServiceName))
+	// OpenTelemetry middleware (only if enabled)
+	if a.config.Telemetry.Enabled {
+		router.Use(otelgin.Middleware(a.config.Telemetry.ServiceName))
+	}
 
 	// Request ID middleware
 	router.Use(middleware.RequestIDMiddleware())

@@ -8,30 +8,12 @@
   },
   "upstream": {
     "test_urls": true,
-    "websocket_enabled": false,
-    "websocket_pool": {
-      "min_size": 4,
-      "max_size": 8,
-      "queue_size": 16,
-      "read_limit": 1048576,
-      "write_limit": 1048576,
-      "max_msg_size": 1048576
-    }
+    "websocket_enabled": false
   },
   "cache": {
     "enabled": true,
     "memory": {
       "max_size": 100000
-    },
-    "redis": {
-      "address": "redis:6379",
-      "password": "",
-      "db": 0,
-      "pool_size": 10,
-      "read_timeout": 3,
-      "write_timeout": 3,
-      "dial_timeout": 5,
-      "compression": true
     }
   },
   "logging": {
@@ -40,21 +22,13 @@
     "output": "stdout"
   },
   "telemetry": {
-    "enabled": true,
-    "service_name": "jussi-go",
-    "otlp_endpoint": "jaeger:4318",
-    "resource_attributes": "environment=development"
+    "enabled": false
   },
   "prometheus": {
-    "enabled": true,
-    "path": "/metrics",
-    "localhost_only": true,
-    "allowed_ips": []
+    "enabled": false
   },
   "limits": {
-    "accounts_blacklist": [
-      "accounttoblock"
-    ]
+    "accounts_blacklist": []
   },
   "upstreams": {
     "steemd": [
@@ -73,3 +47,4 @@
     }
   }
 }
+
