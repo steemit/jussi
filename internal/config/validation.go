@@ -82,40 +82,23 @@ func ValidateUpstreamConfig(rawConfig *UpstreamRawConfig) error {
 		return fmt.Errorf("upstream configuration is nil")
 	}
 
-	// Check if steemd is configured in Legacy format
-	if len(rawConfig.Upstreams) > 0 {
-		steemdFound := false
-		for _, upstream := range rawConfig.Upstreams {
-			if upstream.Name == "steemd" && len(upstream.URLs) > 0 {
-				steemdFound = true
-				break
-			}
-		}
-		if !steemdFound {
-			return fmt.Errorf("steemd upstream is required but not found in configuration")
-		}
-		return nil
-	}
-
-	// Check if steemd is configured in simplified format
-	if rawConfig.UpstreamsMap == nil {
+	// Check if steemd is configured
+	if len(rawConfig.Upstreams) == 0 {
 		return fmt.Errorf("upstreams configuration is required but not found")
 	}
 
-	steemdRaw, ok := rawConfig.UpstreamsMap["steemd"]
-	if !ok {
-		return fmt.Errorf("steemd upstream is required but not found in configuration")
-	}
-
-	// Validate that steemd has at least one URL
-	if urlList, ok := steemdRaw.([]interface{}); ok {
-		if len(urlList) == 0 {
-			return fmt.Errorf("steemd upstream is configured but contains no URLs")
-		}
-		// Validate that URLs are valid strings
-		for _, urlEntry := range urlList {
-			if urlArray, ok := urlEntry.([]interface{}); ok && len(urlArray) >= 1 {
-				if urlStr, ok := urlArray[0].(string); ok {
+	steemdFound := false
+	for _, upstream := range rawConfig.Upstreams {
+		if upstream.Name == "steemd" {
+			if len(upstream.URLs) == 0 {
+				return fmt.Errorf("steemd upstream is configured but contains no URLs")
+			}
+			// Validate that URLs are valid
+			for _, urlEntry := range upstream.URLs {
+				if len(urlEntry) < 2 {
+					return fmt.Errorf("steemd upstream URL entry has invalid format")
+				}
+				if urlStr, ok := urlEntry[1].(string); ok {
 					if urlStr == "" {
 						return fmt.Errorf("steemd upstream contains empty URL")
 					}
@@ -123,9 +106,13 @@ func ValidateUpstreamConfig(rawConfig *UpstreamRawConfig) error {
 					return fmt.Errorf("steemd upstream URL must be a string")
 				}
 			}
+			steemdFound = true
+			break
 		}
-	} else {
-		return fmt.Errorf("steemd upstream configuration has invalid format")
+	}
+
+	if !steemdFound {
+		return fmt.Errorf("steemd upstream is required but not found in configuration")
 	}
 
 	return nil

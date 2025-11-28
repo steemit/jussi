@@ -41,20 +41,56 @@
   },
   "limits": {
   },
-  "upstreams": {
-    "steemd": [
-      ["https://api.steemit.com", 1, 30],
-      ["https://api.justyy.com", 1, 30]
-    ],
-    "appbase": {
-      "condenser_api": [
-        ["https://api.steemit.com", 1, 30],
-        ["https://api.justyy.com", 1, 30]
+  "upstreams": [
+    {
+      "name": "steemd",
+      "translate_to_appbase": true,
+      "urls": [
+        ["steemd", "https://api.steemit.com"]
       ],
-      "database_api": [
-        ["https://api.steemit.com", 3, 30],
-        ["https://api.justyy.com", 3, 30]
+      "ttls": [
+        ["steemd", 3],
+        ["steemd.login_api", -1],
+        ["steemd.network_broadcast_api", -1],
+        ["steemd.follow_api", 10],
+        ["steemd.market_history_api", 1],
+        ["steemd.database_api", 3],
+        ["steemd.database_api.get_block", -2],
+        ["steemd.database_api.get_block_header", -2],
+        ["steemd.database_api.get_content", 1],
+        ["steemd.database_api.get_state", 1],
+        ["steemd.database_api.get_state.params=['/trending']", 30],
+        ["steemd.database_api.get_state.params=['trending']", 30],
+        ["steemd.database_api.get_state.params=['/hot']", 30],
+        ["steemd.database_api.get_state.params=['/welcome']", 30],
+        ["steemd.database_api.get_state.params=['/promoted']", 30],
+        ["steemd.database_api.get_state.params=['/created']", 10],
+        ["steemd.database_api.get_dynamic_global_properties", 1]
+      ],
+      "timeouts": [
+        ["steemd", 5],
+        ["steemd.network_broadcast_api", 0]
+      ]
+    },
+    {
+      "name": "appbase",
+      "urls": [
+        ["appbase", "https://api.steemit.com"]
+      ],
+      "ttls": [
+        ["appbase", -2],
+        ["appbase.block_api", -2],
+        ["appbase.database_api", 1]
+      ],
+      "timeouts": [
+        ["appbase", 3],
+        ["appbase.chain_api.push_block", 0],
+        ["appbase.chain_api.push_transaction", 0],
+        ["appbase.network_broadcast_api", 0],
+        ["appbase.condenser_api.broadcast_block", 0],
+        ["appbase.condenser_api.broadcast_transaction", 0],
+        ["appbase.condenser_api.broadcast_transaction_synchronous", 0]
       ]
     }
-  }
+  ]
 }

@@ -25,21 +25,31 @@
   },
   "limits": {
   },
-  "upstreams": {
-    "steemd": [
-      ["https://api.steemit.com", 1, 30],
-      ["https://api.justyy.com", 1, 30]
-    ],
-    "appbase": {
-      "condenser_api": [
-        ["https://api.steemit.com", 1, 30],
-        ["https://api.justyy.com", 1, 30]
+  "upstreams": [
+    {
+      "name": "steemd",
+      "translate_to_appbase": true,
+      "urls": [
+        ["steemd", "https://api.steemit.com"]
       ],
-      "database_api": [
-        ["https://api.steemit.com", 3, 30],
-        ["https://api.justyy.com", 3, 30]
+      "ttls": [
+        ["steemd", 3]
+      ],
+      "timeouts": [
+        ["steemd", 5]
+      ]
+    },
+    {
+      "name": "appbase",
+      "urls": [
+        ["appbase", "https://api.steemit.com"]
+      ],
+      "ttls": [
+        ["appbase", -2]
+      ],
+      "timeouts": [
+        ["appbase", 3]
       ]
     }
-  }
+  ]
 }
-

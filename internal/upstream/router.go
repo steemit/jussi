@@ -77,54 +77,31 @@ func (r *Router) GetSteemdURLs() []string {
 		panic("upstream configuration is required but not found")
 	}
 
-	// Legacy format: collect from upstreams array
-	if len(r.upstreamConfig.Upstreams) > 0 {
-		for _, upstream := range r.upstreamConfig.Upstreams {
-			if upstream.Name == "steemd" {
-				for _, urlEntry := range upstream.URLs {
-					if len(urlEntry) >= 2 {
-						if url, ok := urlEntry[1].(string); ok {
-							if !urlSet[url] {
-								urls = append(urls, url)
-								urlSet[url] = true
-							}
-						}
-					}
-				}
-			}
-		}
-		if len(urls) > 0 {
-			return urls
-		}
-		panic("steemd upstream is required but not found in configuration")
-	}
-
-	// Simplified format: collect from upstreams map
-	if r.upstreamConfig.UpstreamsMap == nil {
+	// Collect from upstreams array
+	if len(r.upstreamConfig.Upstreams) == 0 {
 		panic("upstreams configuration is required but not found")
 	}
 
-	// Collect from steemd
-	if steemdRaw, ok := r.upstreamConfig.UpstreamsMap["steemd"]; ok {
-		if urlList, ok := steemdRaw.([]interface{}); ok {
-			for _, urlEntry := range urlList {
-				if urlArray, ok := urlEntry.([]interface{}); ok && len(urlArray) >= 1 {
-					if urlStr, ok := urlArray[0].(string); ok {
-						if !urlSet[urlStr] {
-							urls = append(urls, urlStr)
-							urlSet[urlStr] = true
+	for _, upstream := range r.upstreamConfig.Upstreams {
+		if upstream.Name == "steemd" {
+			for _, urlEntry := range upstream.URLs {
+				if len(urlEntry) >= 2 {
+					if url, ok := urlEntry[1].(string); ok {
+						if !urlSet[url] {
+							urls = append(urls, url)
+							urlSet[url] = true
 						}
 					}
 				}
 			}
 		}
-		if len(urls) > 0 {
-			return urls
-		}
-		panic("steemd upstream is configured but contains no valid URLs")
 	}
 
-	panic("steemd upstream is required but not found in configuration")
+	if len(urls) == 0 {
+		panic("steemd upstream is required but not found in configuration")
+	}
+
+	return urls
 }
 
 // GetAllURLs returns all configured URLs
@@ -146,21 +123,15 @@ func (r *Router) GetNamespaces() []string {
 }
 
 // parseUpstreamConfig parses the upstream configuration
-// Supports both Legacy format (upstreams array) and simplified format (upstreams object)
+// Uses Legacy format: upstreams array with urls/ttls/timeouts
 func (r *Router) parseUpstreamConfig() {
 	if r.upstreamConfig == nil {
 		return
 	}
 
-	// Check if Legacy format (array) is used
+	// Parse Legacy format (array)
 	if len(r.upstreamConfig.Upstreams) > 0 {
 		r.parseLegacyFormat()
-		return
-	}
-
-	// Otherwise, use simplified format (object map)
-	if r.upstreamConfig.UpstreamsMap != nil {
-		r.parseSimplifiedFormat()
 	}
 }
 
@@ -213,74 +184,6 @@ func (r *Router) parseLegacyFormat() {
 						timeout = v
 					}
 					r.timeoutTrie.Insert(pattern, timeout)
-				}
-			}
-		}
-	}
-}
-
-// parseSimplifiedFormat parses simplified format: upstreams object map
-func (r *Router) parseSimplifiedFormat() {
-	// Parse steemd namespace
-	if steemdRaw, ok := r.upstreamConfig.UpstreamsMap["steemd"]; ok {
-		r.namespaces["steemd"] = true
-		if urls, ok := steemdRaw.([]interface{}); ok {
-			for _, urlEntry := range urls {
-				if urlArray, ok := urlEntry.([]interface{}); ok && len(urlArray) >= 1 {
-					if urlStr, ok := urlArray[0].(string); ok {
-						r.urlTrie.Insert("steemd", urlStr)
-						// Extract TTL and Timeout if provided [url, ttl, timeout]
-						if len(urlArray) >= 2 {
-							if ttl, ok := urlArray[1].(float64); ok {
-								r.ttlTrie.Insert("steemd", int(ttl))
-							} else if ttl, ok := urlArray[1].(int); ok {
-								r.ttlTrie.Insert("steemd", ttl)
-							}
-						}
-						if len(urlArray) >= 3 {
-							if timeout, ok := urlArray[2].(float64); ok {
-								r.timeoutTrie.Insert("steemd", int(timeout))
-							} else if timeout, ok := urlArray[2].(int); ok {
-								r.timeoutTrie.Insert("steemd", timeout)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Parse appbase namespace
-	if appbaseRaw, ok := r.upstreamConfig.UpstreamsMap["appbase"]; ok {
-		if appbaseMap, ok := appbaseRaw.(map[string]interface{}); ok {
-			for apiName, apiUrls := range appbaseMap {
-				namespace := "appbase." + apiName
-				r.namespaces[namespace] = true
-				r.translateToAppbase[namespace] = true
-
-				if urls, ok := apiUrls.([]interface{}); ok {
-					for _, urlEntry := range urls {
-						if urlArray, ok := urlEntry.([]interface{}); ok && len(urlArray) >= 1 {
-							if urlStr, ok := urlArray[0].(string); ok {
-								r.urlTrie.Insert(namespace, urlStr)
-								// Extract TTL and Timeout if provided [url, ttl, timeout]
-								if len(urlArray) >= 2 {
-									if ttl, ok := urlArray[1].(float64); ok {
-										r.ttlTrie.Insert(namespace, int(ttl))
-									} else if ttl, ok := urlArray[1].(int); ok {
-										r.ttlTrie.Insert(namespace, ttl)
-									}
-								}
-								if len(urlArray) >= 3 {
-									if timeout, ok := urlArray[2].(float64); ok {
-										r.timeoutTrie.Insert(namespace, int(timeout))
-									} else if timeout, ok := urlArray[2].(int); ok {
-										r.timeoutTrie.Insert(namespace, timeout)
-									}
-								}
-							}
-						}
-					}
 				}
 			}
 		}
@@ -368,58 +271,14 @@ func (r *Router) getAllURLsFromConfig() []string {
 		return urls
 	}
 
-	// Legacy format: collect from upstreams array
-	if len(r.upstreamConfig.Upstreams) > 0 {
-		for _, upstream := range r.upstreamConfig.Upstreams {
-			for _, urlEntry := range upstream.URLs {
-				if len(urlEntry) >= 2 {
-					if url, ok := urlEntry[1].(string); ok {
-						if !urlSet[url] {
-							urls = append(urls, url)
-							urlSet[url] = true
-						}
-					}
-				}
-			}
-		}
-		return urls
-	}
-
-	// Simplified format: collect from upstreams map
-	if r.upstreamConfig.UpstreamsMap == nil {
-		return urls
-	}
-
-	// Collect from steemd
-	if steemdRaw, ok := r.upstreamConfig.UpstreamsMap["steemd"]; ok {
-		if urlList, ok := steemdRaw.([]interface{}); ok {
-			for _, urlEntry := range urlList {
-				if urlArray, ok := urlEntry.([]interface{}); ok && len(urlArray) >= 1 {
-					if urlStr, ok := urlArray[0].(string); ok {
-						if !urlSet[urlStr] {
-							urls = append(urls, urlStr)
-							urlSet[urlStr] = true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Collect from appbase
-	if appbaseRaw, ok := r.upstreamConfig.UpstreamsMap["appbase"]; ok {
-		if appbaseMap, ok := appbaseRaw.(map[string]interface{}); ok {
-			for _, apiUrls := range appbaseMap {
-				if urlList, ok := apiUrls.([]interface{}); ok {
-					for _, urlEntry := range urlList {
-						if urlArray, ok := urlEntry.([]interface{}); ok && len(urlArray) >= 1 {
-							if urlStr, ok := urlArray[0].(string); ok {
-								if !urlSet[urlStr] {
-									urls = append(urls, urlStr)
-									urlSet[urlStr] = true
-								}
-							}
-						}
+	// Collect from upstreams array
+	for _, upstream := range r.upstreamConfig.Upstreams {
+		for _, urlEntry := range upstream.URLs {
+			if len(urlEntry) >= 2 {
+				if url, ok := urlEntry[1].(string); ok {
+					if !urlSet[url] {
+						urls = append(urls, url)
+						urlSet[url] = true
 					}
 				}
 			}

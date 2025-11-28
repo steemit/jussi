@@ -166,11 +166,10 @@ func LoadConfig() (*Config, error) {
 }
 
 // UpstreamRawConfig represents the raw upstream configuration from JSON
-// Supports both Legacy format (upstreams array) and simplified format (upstreams object)
+// Uses Legacy format: upstreams array with urls/ttls/timeouts
 type UpstreamRawConfig struct {
-	Limits       map[string]interface{} `json:"limits"`
-	Upstreams    []UpstreamDefinition   `json:"-"` // Legacy format: array of upstream definitions (manually parsed)
-	UpstreamsMap map[string]interface{} `json:"-"` // Simplified format: object map (manually parsed)
+	Limits    map[string]interface{} `json:"limits"`
+	Upstreams []UpstreamDefinition   `json:"upstreams"` // Legacy format: array of upstream definitions
 }
 
 // UpstreamDefinition represents a single upstream configuration
@@ -196,21 +195,11 @@ func loadUpstreamConfig(filename string) (*UpstreamRawConfig, error) {
 
 	var config UpstreamRawConfig
 
-	// Check if upstreams exists and what format it is
+	// Load upstreams (must be array format)
 	if upstreamsRaw, ok := raw["upstreams"]; ok {
-		// Try to determine if it's an array (Legacy format) or object (simplified format)
-		switch v := upstreamsRaw.(type) {
-		case []interface{}:
-			// Legacy format: array of upstream definitions
-			upstreamsJSON, _ := json.Marshal(v)
-			if err := json.Unmarshal(upstreamsJSON, &config.Upstreams); err != nil {
-				return nil, fmt.Errorf("failed to parse upstreams array: %w", err)
-			}
-		case map[string]interface{}:
-			// Simplified format: object map
-			config.UpstreamsMap = v
-		default:
-			return nil, fmt.Errorf("upstreams must be either an array or an object, got %T", v)
+		upstreamsJSON, _ := json.Marshal(upstreamsRaw)
+		if err := json.Unmarshal(upstreamsJSON, &config.Upstreams); err != nil {
+			return nil, fmt.Errorf("failed to parse upstreams array: %w", err)
 		}
 	}
 
