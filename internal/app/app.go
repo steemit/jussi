@@ -236,7 +236,6 @@ func (a *App) SetupRouter() *gin.Engine {
 	limitsConfig := &middleware.LimitsConfig{
 		BatchSizeLimit:      a.config.Server.BatchSizeLimit,
 		AccountHistoryLimit: a.config.Limits.AccountHistoryLimit,
-		BlacklistAccounts:   a.config.Limits.BlacklistAccounts,
 	}
 	router.Use(middleware.LimitsMiddleware(limitsConfig))
 

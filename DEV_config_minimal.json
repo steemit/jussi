@@ -24,7 +24,6 @@
     "enabled": false
   },
   "limits": {
-    "accounts_blacklist": []
   },
   "upstreams": {
     "steemd": [

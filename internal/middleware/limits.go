@@ -7,9 +7,8 @@ import (
 
 // LimitsConfig holds rate limiting configuration
 type LimitsConfig struct {
-	BatchSizeLimit       int
-	AccountHistoryLimit  int
-	BlacklistAccounts    []string
+	BatchSizeLimit      int
+	AccountHistoryLimit int
 }
 
 // LimitsMiddleware enforces rate limits

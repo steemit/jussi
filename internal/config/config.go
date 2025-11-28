@@ -126,8 +126,7 @@ type PrometheusConfig struct {
 
 // LimitsConfig holds rate limiting configuration
 type LimitsConfig struct {
-	BlacklistAccounts   []string `mapstructure:"blacklist_accounts"`
-	AccountHistoryLimit int      `mapstructure:"account_history_limit"`
+	AccountHistoryLimit int `mapstructure:"account_history_limit"`
 }
 
 // LoadConfig loads configuration from environment variables and config file

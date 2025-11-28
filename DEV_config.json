@@ -40,9 +40,6 @@
     "allowed_ips": []
   },
   "limits": {
-    "accounts_blacklist": [
-      "accounttoblock"
-    ]
   },
   "upstreams": {
     "steemd": [

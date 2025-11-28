@@ -39,9 +39,6 @@
     "allowed_ips": []
   },
   "limits": {
-    "accounts_blacklist": [
-      "accounttoblock"
-    ],
     "account_history_limit": 100
   },
   "upstreams": [
