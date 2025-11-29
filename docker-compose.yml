@@ -12,7 +12,6 @@ services:
       - JUSSI_LOGGING_FORMAT=json
       - JUSSI_TELEMETRY_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
       - JUSSI_PROMETHEUS_ENABLED=true
-      - JUSSI_PROMETHEUS_PORT=9093
     volumes:
       - ./DEV_config.json:/app/DEV_config.json:ro
     depends_on:
