@@ -2,9 +2,6 @@ services:
   jussi:
     build:
       context: .
-      args:
-        - HTTPS_PROXY=http://192.168.199.11:8001
-        - HTTP_PROXY=http://192.168.199.11:8001
     ports:
       - "8081:8080"
     environment:
