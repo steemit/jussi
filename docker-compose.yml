@@ -49,6 +49,7 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
+    user: "0:0"
     ports:
       - "19090:9090"
     volumes:
