@@ -1,0 +1,44 @@
+services:
+  jussi-test:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        - HTTPS_PROXY=${HTTPS_PROXY:-}
+        - HTTP_PROXY=${HTTP_PROXY:-}
+        - NO_PROXY=${NO_PROXY:-}
+    # Don't expose port to host - test-runner accesses via internal network
+    # ports:
+    #   - "8080:8080"
+    environment:
+      - JUSSI_SERVER_HOST=0.0.0.0
+      - JUSSI_SERVER_PORT=8080
+      - JUSSI_LOGGING_LEVEL=info
+      - JUSSI_LOGGING_FORMAT=json
+      - JUSSI_TELEMETRY_ENABLED=false
+      - JUSSI_PROMETHEUS_ENABLED=false
+    volumes:
+      - ../DEV_config.json:/app/DEV_config.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  test-runner:
+    image: python:3.11-slim
+    working_dir: /tests
+    volumes:
+      - .:/tests
+      - ../legacy/tests/data:/tests/data:ro
+    depends_on:
+      jussi-test:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        pip install requests -q &&
+        python3 legacy_runner/run_tests.py --jussi-url http://jussi-test:8080 --test-data /tests/data
+

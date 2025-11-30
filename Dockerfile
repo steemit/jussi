@@ -1,6 +1,16 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
+# Build arguments for proxy support
+ARG HTTPS_PROXY
+ARG HTTP_PROXY
+ARG NO_PROXY
+
+# Set proxy environment variables if provided
+ENV HTTPS_PROXY=${HTTPS_PROXY}
+ENV HTTP_PROXY=${HTTP_PROXY}
+ENV NO_PROXY=${NO_PROXY}
+
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
 
