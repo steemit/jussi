@@ -145,23 +145,45 @@ func FromRequest(request map[string]interface{}) (*URN, error) {
 				}, nil
 			}
 		} else {
-			// Steemd format: [api_index, method, params]
-			apiIndex, ok := paramsList[0].(float64)
-			if !ok {
-				return nil, fmt.Errorf("call method first param must be numeric API index")
-			}
-
-			apiIdx := int(apiIndex)
-			if apiIdx < 0 || apiIdx >= len(STEEMD_NUMERIC_API_MAPPING) {
-				return nil, fmt.Errorf("invalid API index: %d", apiIdx)
-			}
-
-			api := STEEMD_NUMERIC_API_MAPPING[apiIdx]
+			// When params length is 3, extract api, method, and params
+			// First check if api is a string (appbase format) or number (steemd format)
+			apiRaw := paramsList[0]
 			method, _ := paramsList[1].(string)
 			methodParams := paramsList[2]
 
+			// Check if first param is a number (steemd format)
+			if apiIndex, ok := apiRaw.(float64); ok {
+				// Steemd format: [api_index, method, params]
+				apiIdx := int(apiIndex)
+				if apiIdx < 0 || apiIdx >= len(STEEMD_NUMERIC_API_MAPPING) {
+					return nil, fmt.Errorf("invalid API index: %d", apiIdx)
+				}
+
+				api := STEEMD_NUMERIC_API_MAPPING[apiIdx]
+				return &URN{
+					Namespace: "steemd",
+					API:       api,
+					Method:    method,
+					Params:    normalizeParams(methodParams),
+				}, nil
+			}
+
+			// Appbase format: ["condenser_api", "method", params] or ["network_broadcast_api", "method", params]
+			api, ok := apiRaw.(string)
+			if !ok {
+				return nil, fmt.Errorf("call method first param must be string (API name) or number (API index)")
+			}
+
+			// Determine namespace based on API name and params type
+			namespace := "appbase"
+			if api == "condenser_api" || isDict(methodParams) || api == "jsonrpc" {
+				namespace = "appbase"
+			} else {
+				namespace = "steemd"
+			}
+
 			return &URN{
-				Namespace: "steemd",
+				Namespace: namespace,
 				API:       api,
 				Method:    method,
 				Params:    normalizeParams(methodParams),
