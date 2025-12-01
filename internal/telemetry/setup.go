@@ -3,6 +3,8 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -29,10 +31,29 @@ func Setup(serviceName, tracesEndpoint string) (func(), error) {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
+	// Parse endpoint URL to extract host:port
+	// WithEndpoint expects host:port format, not full URL
+	endpoint := tracesEndpoint
+	if strings.HasPrefix(tracesEndpoint, "http://") || strings.HasPrefix(tracesEndpoint, "https://") {
+		parsedURL, err := url.Parse(tracesEndpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse endpoint URL: %w", err)
+		}
+		endpoint = parsedURL.Host
+		if parsedURL.Port() == "" {
+			// Default port based on scheme
+			if parsedURL.Scheme == "https" {
+				endpoint += ":4318"
+			} else {
+				endpoint += ":4318"
+			}
+		}
+	}
+
 	// Setup trace exporter
 	traceExporter, err := otlptrace.New(ctx,
 		otlptracehttp.NewClient(
-			otlptracehttp.WithEndpoint(tracesEndpoint),
+			otlptracehttp.WithEndpoint(endpoint),
 			otlptracehttp.WithInsecure(), // Use TLS in production
 		),
 	)
