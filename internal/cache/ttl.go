@@ -42,7 +42,9 @@ func IsCacheable(ttl int) bool {
 }
 
 // ShouldExpire checks if cached value should expire
+// TTLExpireIfIrreversible means it should expire when block becomes irreversible
+// So it should return true (should expire)
 func ShouldExpire(ttl int) bool {
-	return ttl != TTLNoExpire && ttl != TTLExpireIfIrreversible
+	return ttl != TTLNoExpire
 }
 

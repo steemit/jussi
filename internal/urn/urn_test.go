@@ -118,34 +118,44 @@ func TestURNString(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "steemd method",
+			name: "steemd method with params",
 			urn: URN{
 				Namespace: "steemd",
-				API:       "",
+				API:       "database_api",
 				Method:    "get_block",
-				Params:    "1000",
+				Params:    []interface{}{1000},
 			},
-			expected: "steemd.get_block",
+			expected: `steemd.database_api.get_block.params=[1000]`,
 		},
 		{
-			name: "appbase method",
+			name: "appbase method with params",
 			urn: URN{
 				Namespace: "appbase",
 				API:       "condenser_api",
 				Method:    "get_block",
-				Params:    "1000",
+				Params:    []interface{}{1000},
 			},
-			expected: "appbase.condenser_api.get_block",
+			expected: `appbase.condenser_api.get_block.params=[1000]`,
 		},
 		{
 			name: "empty params",
 			urn: URN{
 				Namespace: "steemd",
-				API:       "",
+				API:       "database_api",
 				Method:    "get_dynamic_global_properties",
-				Params:    "",
+				Params:    []interface{}{},
 			},
-			expected: "steemd.get_dynamic_global_properties",
+			expected: `steemd.database_api.get_dynamic_global_properties.params=[]`,
+		},
+		{
+			name: "nil params",
+			urn: URN{
+				Namespace: "steemd",
+				API:       "database_api",
+				Method:    "get_dynamic_global_properties",
+				Params:    nil,
+			},
+			expected: "steemd.database_api.get_dynamic_global_properties",
 		},
 	}
 

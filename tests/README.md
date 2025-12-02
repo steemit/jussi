@@ -6,8 +6,8 @@ This directory contains tests for the new Go implementation of jussi.
 
 ```
 tests/
-├── legacy_runner/      # Scripts to run legacy tests against new binary
-├── integration/        # Go integration tests (to be created)
+├── legacy_runner/      # ⚠️ Deprecated: E2E test runner (to be removed after integration tests migration)
+├── integration/        # Go integration tests (to be created - will replace legacy_runner)
 ├── unit/              # Additional unit tests (to be created)
 └── data/              # Test data (symlink or copy from legacy/tests/data)
 ```
@@ -82,11 +82,57 @@ python3 legacy_runner/run_tests.py \
 
 ## Test Migration Status
 
+### Completed Migrations
+
 - [x] URN parsing tests (`internal/urn/urn_test.go`)
-- [ ] Router/upstream tests
-- [ ] Validation tests
-- [ ] Cache tests
-- [ ] Integration/E2E tests
+  - Migrated from `legacy/tests/test_urn.py`
+  - Tests URN parsing, string representation, and equality
+
+- [x] Router/upstream tests (`internal/upstream/router_test.go`)
+  - Migrated from `legacy/tests/test_upstreams.py`
+  - Tests upstream configuration, URL routing, TTL/timeout lookup, namespace handling
+  - Tests translate_to_appbase configuration
+
+- [x] Cache key tests (`internal/cache/key_test.go`)
+  - Migrated from `legacy/tests/test_cache_key.py`
+  - Tests cache key generation from URN and JSON-RPC requests
+  - Verifies cache key matches URN string representation
+
+- [x] Validators tests (`internal/validators/validators_test.go`)
+  - Extended with comprehensive test cases
+  - Tests JSON-RPC request/response validation
+  - Tests batch request validation
+  - Tests ID and params type validation
+
+- [x] TTL tests (`internal/cache/ttl_test.go`)
+  - Tests TTL calculation and cacheability
+
+- [x] Trie tests (`internal/upstream/trie_test.go`)
+  - Tests prefix trie for URL/TTL/timeout lookup
+
+### Pending Migrations
+
+- [ ] Integration/E2E tests (⚠️ **Critical - legacy_runner depends on this**)
+  - HTTP request/response tests
+  - Middleware tests
+  - Full request flow tests
+  - Migration of `legacy/tests/data/jsonrpc/appbase.json` and `steemd.json` test cases
+  - Once complete, `legacy_runner/` can be removed
+
+- [ ] Additional validator tests
+  - Get block request detection
+  - Broadcast transaction validation
+  - Custom JSON operation validation
+
+- [ ] Cache middleware tests
+  - Cache hit/miss behavior
+  - Cache expiration logic
+  - Cache group operations
+
+- [ ] Error handling tests
+  - Upstream error propagation
+  - JSON-RPC error formatting
+  - Timeout handling
 
 ## Adding New Tests
 
@@ -125,7 +171,9 @@ func TestJSONRPCRequest(t *testing.T) {
 
 ## Legacy Test Runner
 
-The legacy test runner (`legacy_runner/run_tests.py`) allows running legacy Python test cases against the new Go binary without converting them.
+> **⚠️ Deprecated**: The legacy test runner is kept for now to provide E2E integration testing until Go integration tests are fully migrated. It will be removed once `tests/integration/` tests are complete.
+
+The legacy test runner (`legacy_runner/run_tests.py`) allows running legacy Python test cases against the new Go binary without converting them. It provides end-to-end HTTP request/response testing using real JSON-RPC test data.
 
 ### Usage
 

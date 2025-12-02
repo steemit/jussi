@@ -1,6 +1,7 @@
 package urn
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -16,12 +17,23 @@ type URN struct {
 }
 
 // String returns the string representation of the URN
+// Format: namespace.api.method or namespace.api.method.params=JSON(params)
+// This matches the legacy Python implementation for cache key compatibility
 func (u *URN) String() string {
 	parts := []string{u.Namespace}
 	if u.API != "" {
 		parts = append(parts, u.API)
 	}
 	parts = append(parts, u.Method)
+	
+	// Add params if present (not nil and not empty)
+	if u.Params != nil {
+		paramsJSON, err := json.Marshal(u.Params)
+		if err == nil {
+			parts = append(parts, fmt.Sprintf("params=%s", string(paramsJSON)))
+		}
+	}
+	
 	return strings.Join(parts, ".")
 }
 
