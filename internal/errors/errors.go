@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // JSONRPCError represents a JSON-RPC 2.0 error
@@ -21,6 +22,11 @@ func (e *JSONRPCError) Error() string {
 
 // ToResponse converts error to JSON-RPC error response
 func (e *JSONRPCError) ToResponse(id interface{}) map[string]interface{} {
+	return e.ToResponseWithRequestID(id, "", "")
+}
+
+// ToResponseWithRequestID converts error to JSON-RPC error response with jussi request ID and trace ID
+func (e *JSONRPCError) ToResponseWithRequestID(id interface{}, jussiRequestID string, traceID string) map[string]interface{} {
 	response := map[string]interface{}{
 		"jsonrpc": "2.0",
 		"id":      id,
@@ -30,8 +36,29 @@ func (e *JSONRPCError) ToResponse(id interface{}) map[string]interface{} {
 		},
 	}
 
+	// Build error data
+	errorData := make(map[string]interface{})
+	
+	// Copy existing data
 	if len(e.Data) > 0 {
-		response["error"].(map[string]interface{})["data"] = e.Data
+		for k, v := range e.Data {
+			errorData[k] = v
+		}
+	}
+	
+	// Add jussi_request_id if provided
+	if jussiRequestID != "" {
+		errorData["jussi_request_id"] = jussiRequestID
+	}
+	
+	// Add trace_id if provided
+	if traceID != "" {
+		errorData["trace_id"] = traceID
+	}
+	
+	// Only add data field if there's data to include
+	if len(errorData) > 0 {
+		response["error"].(map[string]interface{})["data"] = errorData
 	}
 
 	return response
@@ -117,6 +144,20 @@ func HandleError(c *gin.Context, err error, requestID interface{}) {
 		jsonrpcErr = NewInternalError(err.Error())
 	}
 
-	c.JSON(http.StatusOK, jsonrpcErr.ToResponse(requestID))
+	// Get jussi_request_id from context if available
+	jussiRequestID := ""
+	if jussiID, exists := c.Get("jussi_request_id"); exists {
+		if idStr, ok := jussiID.(string); ok {
+			jussiRequestID = idStr
+		}
+	}
+
+	// Get OpenTelemetry trace ID from context if available
+	traceID := ""
+	if span := trace.SpanFromContext(c.Request.Context()); span.SpanContext().IsValid() {
+		traceID = span.SpanContext().TraceID().String()
+	}
+
+	c.JSON(http.StatusOK, jsonrpcErr.ToResponseWithRequestID(requestID, jussiRequestID, traceID))
 }
 

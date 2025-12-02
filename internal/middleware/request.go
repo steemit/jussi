@@ -17,12 +17,6 @@ func RequestIDMiddleware() gin.HandlerFunc {
 		c.Set("jussi_request_id", requestID)
 		c.Header("x-jussi-request-id", requestID)
 
-		// Get trace ID
-		traceID := c.GetHeader("x-amzn-trace-id")
-		if traceID != "" {
-			c.Set("amzn_trace_id", traceID)
-		}
-
 		c.Next()
 	}
 }

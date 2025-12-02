@@ -15,7 +15,6 @@ type JSONRPCRequest struct {
 	Params        interface{} `json:"params,omitempty"`
 	URN           *urn.URN
 	Upstream      *UpstreamConfig
-	AmznTraceID   string
 	JussiRequestID string
 	BatchIndex    int
 	OriginalRequest map[string]interface{}
@@ -54,9 +53,6 @@ func (r *JSONRPCRequest) UpstreamHeaders() map[string]string {
 	headers := map[string]string{
 		"x-jussi-request-id": r.JussiRequestID,
 	}
-	if r.AmznTraceID != "" {
-		headers["x-amzn-trace-id"] = r.AmznTraceID
-	}
 	return headers
 }
 
@@ -87,7 +83,6 @@ func FromHTTPRequest(httpReq *HTTPRequest, batchIndex int, rawRequest map[string
 		Params:         params,
 		URN:            urn,
 		Upstream:       upstream,
-		AmznTraceID:    httpReq.AmznTraceID,
 		JussiRequestID: httpReq.JussiRequestID,
 		BatchIndex:     batchIndex,
 		OriginalRequest: rawRequest,
@@ -96,7 +91,6 @@ func FromHTTPRequest(httpReq *HTTPRequest, batchIndex int, rawRequest map[string
 
 // HTTPRequest represents an HTTP request wrapper
 type HTTPRequest struct {
-	AmznTraceID   string
 	JussiRequestID string
 	Body          []byte
 }

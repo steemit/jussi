@@ -8,6 +8,9 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // HTTPClient handles HTTP upstream requests
@@ -61,6 +64,13 @@ func (c *HTTPClient) doRequest(ctx context.Context, url string, payload map[stri
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
+
+	// Inject OpenTelemetry trace context into HTTP headers
+	// This ensures trace continuity across service boundaries
+	propagator := otel.GetTextMapPropagator()
+	propagator.Inject(ctx, propagation.HeaderCarrier(req.Header))
+
+	// Set custom headers (after trace context to avoid conflicts)
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -97,4 +107,3 @@ func (c *HTTPClient) Close() error {
 	// HTTP client doesn't need explicit closing
 	return nil
 }
-

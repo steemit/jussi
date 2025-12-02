@@ -60,11 +60,9 @@ func (h *JSONRPCHandler) handleSingleRequest(c *gin.Context, req map[string]inte
 
 	// Get request ID from context
 	jussiRequestID, _ := c.Get("jussi_request_id")
-	amznTraceID, _ := c.Get("amzn_trace_id")
 
 	// Create HTTP request wrapper
 	httpReq := &request.HTTPRequest{
-		AmznTraceID:    getString(amznTraceID),
 		JussiRequestID: getString(jussiRequestID),
 	}
 
@@ -94,12 +92,10 @@ func (h *JSONRPCHandler) handleSingleRequest(c *gin.Context, req map[string]inte
 func (h *JSONRPCHandler) handleBatchRequest(c *gin.Context, reqs []interface{}) {
 	// Get request ID from context
 	jussiRequestID, _ := c.Get("jussi_request_id")
-	amznTraceID, _ := c.Get("amzn_trace_id")
 
 	// Parse all requests
 	jsonrpcReqs := make([]*request.JSONRPCRequest, 0, len(reqs))
 	httpReq := &request.HTTPRequest{
-		AmznTraceID:    getString(amznTraceID),
 		JussiRequestID: getString(jussiRequestID),
 	}
 
