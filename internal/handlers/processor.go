@@ -122,11 +122,11 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	// 	wsSpan.End()
 	// 	UpstreamRequests.WithLabelValues(upstreamURL, "websocket").Inc()
 	// } else {
-		// HTTP upstream
-		ctx, httpSpan := telemetry.StartSpan(ctx, "jussi.upstream.http")
-		response, err = p.callHTTPUpstream(ctx, jsonrpcReq, upstreamURL)
-		httpSpan.End()
-		UpstreamRequests.WithLabelValues(upstreamURL, "http").Inc()
+	// HTTP upstream
+	ctx, httpSpan := telemetry.StartSpan(ctx, "jussi.upstream.http")
+	response, err = p.callHTTPUpstream(ctx, jsonrpcReq, upstreamURL)
+	httpSpan.End()
+	UpstreamRequests.WithLabelValues(upstreamURL, "http").Inc()
 	// }
 	duration := time.Since(startTime).Seconds()
 	UpstreamRequestDuration.WithLabelValues(upstreamURL, getProtocol(upstreamURL)).Observe(duration)
@@ -166,8 +166,45 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 
 	// Ensure response has correct ID
 	response["id"] = jsonrpcReq.ID
-	telemetry.SetSpanSuccess(span)
-	RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "success").Inc()
+
+	// If response contains an error, add trace ID to error data
+	if errField, ok := response["error"].(map[string]interface{}); ok {
+		// Get trace ID from context
+		if spanCtx := span.SpanContext(); spanCtx.IsValid() {
+			traceID := spanCtx.TraceID().String()
+
+			// Get or create error data
+			var errorData map[string]interface{}
+			if data, exists := errField["data"]; exists {
+				if dataMap, ok := data.(map[string]interface{}); ok {
+					errorData = dataMap
+				} else {
+					errorData = make(map[string]interface{})
+				}
+			} else {
+				errorData = make(map[string]interface{})
+			}
+
+			// Add trace ID to error data
+			errorData["trace_id"] = traceID
+
+			// Add jussi_request_id if available
+			if jsonrpcReq.JussiRequestID != "" {
+				errorData["jussi_request_id"] = jsonrpcReq.JussiRequestID
+			}
+
+			// Update error data in response
+			errField["data"] = errorData
+		}
+
+		// Mark span as error
+		telemetry.RecordSpanError(span, fmt.Errorf("upstream returned error: %v", errField["message"]))
+		RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "error").Inc()
+	} else {
+		telemetry.SetSpanSuccess(span)
+		RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "success").Inc()
+	}
+
 	return response, nil
 }
 
