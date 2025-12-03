@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"encoding/json"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -33,5 +34,28 @@ func RecordSpanError(span trace.Span, err error) {
 // SetSpanSuccess marks a span as successful
 func SetSpanSuccess(span trace.Span) {
 	span.SetStatus(codes.Ok, "Success")
+}
+
+// RecordSpanParams records request parameters as a span event
+// This allows viewing params in Jaeger UI under the Logs section
+func RecordSpanParams(span trace.Span, params interface{}) {
+	if params == nil {
+		return
+	}
+
+	// Serialize params to JSON for logging
+	var paramsJSON string
+	if paramsBytes, err := json.Marshal(params); err == nil {
+		paramsJSON = string(paramsBytes)
+	} else {
+		paramsJSON = "failed to serialize params"
+	}
+
+	// Add as event (shows in Logs section in Jaeger UI)
+	span.AddEvent("request.params",
+		trace.WithAttributes(
+			attribute.String("params", paramsJSON),
+		),
+	)
 }
 

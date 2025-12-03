@@ -67,6 +67,9 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 		"jussi.request_id": jsonrpcReq.JussiRequestID,
 	})
 
+	// Record request parameters as span event (shows in Logs section)
+	telemetry.RecordSpanParams(span, jsonrpcReq.Params)
+
 	// Get upstream configuration
 	upstreamConfig, found := p.router.GetUpstream(jsonrpcReq.URN.String())
 	if !found {
