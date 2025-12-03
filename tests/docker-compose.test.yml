@@ -27,11 +27,10 @@ services:
       start_period: 10s
 
   test-runner:
-    image: python:3.11-slim
-    working_dir: /tests
+    image: golang:1.21-alpine
+    working_dir: /app
     volumes:
-      - .:/tests
-      - ../legacy/tests/data:/tests/data:ro
+      - ..:/app
     depends_on:
       jussi-test:
         condition: service_healthy
@@ -39,6 +38,6 @@ services:
       - sh
       - -c
       - |
-        pip install requests -q &&
-        python3 legacy_runner/run_tests.py --jussi-url http://jussi-test:8080 --test-data /tests/data
+        apk add --no-cache git &&
+        go test ./tests/integration/... -v -timeout 300s
 

@@ -3,6 +3,10 @@ package validators
 import (
 	"fmt"
 	"reflect"
+	"strconv"
+
+	"github.com/steemit/jussi/internal/errors"
+	"github.com/steemit/jussi/internal/request"
 )
 
 // JSONRPCRequestKeys are the valid keys in a JSON-RPC request
@@ -160,5 +164,265 @@ func isValidParamsType(v interface{}) bool {
 		}
 	}
 	return false
+}
+
+// Broadcast transaction method names
+var BroadcastTransactionMethods = map[string]bool{
+	"broadcast_transaction":             true,
+	"broadcast_transaction_synchronous": true,
+}
+
+// IsGetBlockRequest checks if the request is a get_block request
+func IsGetBlockRequest(req *request.JSONRPCRequest) bool {
+	if req == nil || req.URN == nil {
+		return false
+	}
+	return (req.URN.Namespace == "steemd" || req.URN.Namespace == "appbase") &&
+		req.URN.Method == "get_block"
+}
+
+// IsGetBlockHeaderRequest checks if the request is a get_block_header request
+func IsGetBlockHeaderRequest(req *request.JSONRPCRequest) bool {
+	if req == nil || req.URN == nil {
+		return false
+	}
+	return (req.URN.Namespace == "steemd" || req.URN.Namespace == "appbase") &&
+		req.URN.Method == "get_block_header"
+}
+
+// IsBroadcastTransactionRequest checks if the request is a broadcast transaction request
+func IsBroadcastTransactionRequest(req *request.JSONRPCRequest) bool {
+	if req == nil || req.URN == nil {
+		return false
+	}
+	return BroadcastTransactionMethods[req.URN.Method]
+}
+
+// BlockNumFromID extracts block number from block ID (first 8 hex digits)
+func BlockNumFromID(blockID string) (int, error) {
+	if len(blockID) < 8 {
+		return 0, fmt.Errorf("block ID too short: %s", blockID)
+	}
+	blockNumStr := blockID[:8]
+	blockNum, err := strconv.ParseInt(blockNumStr, 16, 32)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse block number from ID: %w", err)
+	}
+	return int(blockNum), nil
+}
+
+// IsValidGetBlockResponse validates that the response matches the get_block request
+func IsValidGetBlockResponse(req *request.JSONRPCRequest, response map[string]interface{}) bool {
+	if !IsGetBlockRequest(req) {
+		return false
+	}
+
+	if !IsValidNonErrorResponse(response) {
+		return false
+	}
+
+	// Check if result is nil (block doesn't exist yet)
+	result, ok := response["result"].(map[string]interface{})
+	if !ok || result == nil {
+		return false
+	}
+
+	// Extract block_id from response
+	var blockID string
+	if id, ok := result["block_id"].(string); ok {
+		blockID = id
+	} else if block, ok := result["block"].(map[string]interface{}); ok {
+		if id, ok := block["block_id"].(string); ok {
+			blockID = id
+		}
+	}
+
+	if blockID == "" {
+		return false
+	}
+
+	// Extract block number from request params
+	var requestBlockNum interface{}
+	switch params := req.URN.Params.(type) {
+	case []interface{}:
+		if len(params) > 0 {
+			requestBlockNum = params[0]
+		}
+	case map[string]interface{}:
+		requestBlockNum = params["block_num"]
+	}
+
+	if requestBlockNum == nil {
+		return false
+	}
+
+	// Convert request block num to int
+	var reqBlockNum int
+	switch v := requestBlockNum.(type) {
+	case int:
+		reqBlockNum = v
+	case float64:
+		reqBlockNum = int(v)
+	case string:
+		num, err := strconv.Atoi(v)
+		if err != nil {
+			return false
+		}
+		reqBlockNum = num
+	default:
+		return false
+	}
+
+	// Extract block number from response block ID
+	respBlockNum, err := BlockNumFromID(blockID)
+	if err != nil {
+		return false
+	}
+
+	return reqBlockNum == respBlockNum
+}
+
+// LimitCustomJSONOpLength validates custom JSON operation length
+func LimitCustomJSONOpLength(ops []interface{}, sizeLimit int) error {
+	for _, op := range ops {
+		opList, ok := op.([]interface{})
+		if !ok || len(opList) < 2 {
+			continue
+		}
+
+		opType, ok := opList[0].(string)
+		if !ok || opType != "custom_json" {
+			continue
+		}
+
+		opData, ok := opList[1].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		jsonStr, ok := opData["json"].(string)
+		if !ok {
+			continue
+		}
+
+		// Check UTF-8 encoded length
+		jsonBytes := []byte(jsonStr)
+		if len(jsonBytes) > sizeLimit {
+			return errors.NewCustomJSONOpLengthError(len(jsonBytes), sizeLimit)
+		}
+	}
+
+	return nil
+}
+
+// LimitCustomJSONAccount validates custom JSON account blacklist
+func LimitCustomJSONAccount(ops []interface{}, blacklistAccounts map[string]bool) error {
+	if blacklistAccounts == nil || len(blacklistAccounts) == 0 {
+		return nil
+	}
+
+	for _, op := range ops {
+		opList, ok := op.([]interface{})
+		if !ok || len(opList) < 2 {
+			continue
+		}
+
+		opType, ok := opList[0].(string)
+		if !ok || opType != "custom_json" {
+			continue
+		}
+
+		opData, ok := opList[1].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Check required_posting_auths
+		if postingAuths, ok := opData["required_posting_auths"].([]interface{}); ok {
+			for _, auth := range postingAuths {
+				if authStr, ok := auth.(string); ok {
+					if blacklistAccounts[authStr] {
+						return errors.NewLimitsError(fmt.Sprintf("account %s is blacklisted", authStr))
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// LimitBroadcastTransactionRequest validates broadcast transaction request limits
+func LimitBroadcastTransactionRequest(req *request.JSONRPCRequest, limits map[string]interface{}) error {
+	if !IsBroadcastTransactionRequest(req) {
+		return nil
+	}
+
+	// Extract operations from request params
+	var operations []interface{}
+	switch params := req.URN.Params.(type) {
+	case []interface{}:
+		if len(params) > 0 {
+			if trx, ok := params[0].(map[string]interface{}); ok {
+				if ops, ok := trx["operations"].([]interface{}); ok {
+					operations = ops
+				}
+			}
+		}
+	case map[string]interface{}:
+		if trx, ok := params["trx"].(map[string]interface{}); ok {
+			if ops, ok := trx["operations"].([]interface{}); ok {
+				operations = ops
+			}
+		}
+	}
+
+	if len(operations) == 0 {
+		return nil
+	}
+
+	// Filter custom_json operations
+	var customJSONOps []interface{}
+	for _, op := range operations {
+		opList, ok := op.([]interface{})
+		if !ok || len(opList) < 2 {
+			continue
+		}
+		if opType, ok := opList[0].(string); ok && opType == "custom_json" {
+			customJSONOps = append(customJSONOps, op)
+		}
+	}
+
+	if len(customJSONOps) == 0 {
+		return nil
+	}
+
+	// Validate custom JSON op length (default limit: 8192 bytes)
+	sizeLimit := 8192
+	if limit, ok := limits["custom_json_size_limit"].(float64); ok {
+		sizeLimit = int(limit)
+	} else if limit, ok := limits["custom_json_size_limit"].(int); ok {
+		sizeLimit = limit
+	}
+
+	if err := LimitCustomJSONOpLength(customJSONOps, sizeLimit); err != nil {
+		return err
+	}
+
+	// Validate account blacklist
+	blacklistAccounts := make(map[string]bool)
+	if accounts, ok := limits["accounts_blacklist"].([]interface{}); ok {
+		for _, acc := range accounts {
+			if accStr, ok := acc.(string); ok {
+				blacklistAccounts[accStr] = true
+			}
+		}
+	} else if accounts, ok := limits["accounts_blacklist"].([]string); ok {
+		for _, acc := range accounts {
+			blacklistAccounts[acc] = true
+		}
+	}
+
+	return LimitCustomJSONAccount(customJSONOps, blacklistAccounts)
 }
 

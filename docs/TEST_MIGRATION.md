@@ -90,8 +90,10 @@ func TestCondenserAPIGetAccounts(t *testing.T) {
 
 **Implementation**:
 
-```python
-# tests/legacy_runner.py
+✅ **All legacy tests have been migrated to Go integration tests.**
+
+```go
+// tests/integration/jsonrpc_test.go
 import json
 import requests
 import sys
@@ -149,9 +151,7 @@ if __name__ == '__main__':
 1. **Create test directory structure**:
    ```
    tests/
-   ├── unit/           # Go unit tests (converted from legacy)
-   ├── integration/    # HTTP integration tests
-   ├── legacy_runner/  # Scripts to run legacy tests
+   ├── integration/    # HTTP integration tests (replaces legacy_runner)
    └── data/           # Test data (copied from legacy/tests/data)
    ```
 
@@ -211,10 +211,8 @@ docker run -d --name jussi-test -p 8080:8080 jussi-test
 # Wait for server to be ready
 sleep 5
 
-# Run legacy test runner
-python3 tests/legacy_runner/run_tests.py \
-    --jussi-url http://localhost:8080 \
-    --test-data legacy/tests/data
+# Run Go integration tests
+go test ./tests/integration/... -v
 
 # Cleanup
 docker stop jussi-test
