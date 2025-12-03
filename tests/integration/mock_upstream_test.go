@@ -15,10 +15,10 @@ import (
 )
 
 // mockUpstreamServer creates a mock upstream server that returns predefined responses
-func mockUpstreamServer(t *testing.T, responses map[string]interface{}) *httptest.Server {
+func mockUpstreamServer(responses map[string]interface{}) *httptest.Server {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	
+
 	r.POST("/", func(c *gin.Context) {
 		var requestBody map[string]interface{}
 		if err := c.ShouldBindJSON(&requestBody); err != nil {
@@ -28,8 +28,11 @@ func mockUpstreamServer(t *testing.T, responses map[string]interface{}) *httptes
 			return
 		}
 
-		method, _ := requestBody["method"].(string)
-		id, _ := requestBody["id"]
+		method, ok := requestBody["method"].(string)
+		if !ok {
+			method = ""
+		}
+		id := requestBody["id"]
 
 		// Look up response by method
 		if response, ok := responses[method]; ok {
@@ -138,7 +141,7 @@ func TestUpstreamRequest(t *testing.T) {
 			},
 		},
 	}
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server pointing to mock upstream
@@ -179,7 +182,7 @@ func TestCacheHit(t *testing.T) {
 			},
 		},
 	}
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server pointing to mock upstream
@@ -222,7 +225,7 @@ func TestBatchRequestWithUpstream(t *testing.T) {
 			"result": map[string]interface{}{"value": "response2"},
 		},
 	}
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server pointing to mock upstream
@@ -280,4 +283,3 @@ func responsesEqual(a, b map[string]interface{}) bool {
 	bBytes, _ := json.Marshal(b)
 	return string(aBytes) == string(bBytes)
 }
-

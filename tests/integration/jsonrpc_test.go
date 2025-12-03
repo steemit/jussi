@@ -94,7 +94,7 @@ func TestAppbaseJSONRPC(t *testing.T) {
 		}
 	}
 
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server
@@ -153,7 +153,7 @@ func TestSteemdJSONRPC(t *testing.T) {
 		}
 	}
 
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server

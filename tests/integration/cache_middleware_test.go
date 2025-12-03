@@ -13,60 +13,6 @@ import (
 	"github.com/steemit/jussi/internal/upstream"
 )
 
-// setupCacheMiddlewareTestServer creates a test server with cache middleware
-func setupCacheMiddlewareTestServer(t *testing.T, upstreamURL string) *httptest.Server {
-	// Create test upstream config
-	upstreamConfig := &config.UpstreamRawConfig{
-		Upstreams: []config.UpstreamDefinition{
-			{
-				Name: "steemd",
-				URLs: [][]interface{}{
-					{"steemd", upstreamURL},
-				},
-				TTLs: [][]interface{}{
-					{"steemd", 3},
-				},
-				Timeouts: [][]interface{}{
-					{"steemd", 5},
-				},
-			},
-		},
-	}
-
-	// Create router
-	router, err := upstream.NewRouter(upstreamConfig)
-	if err != nil {
-		t.Fatalf("Failed to create router: %v", err)
-	}
-
-	// Create cache group (memory only for testing)
-	memoryCache := cache.NewMemoryCache()
-	cacheGroup := cache.NewCacheGroup(memoryCache, nil)
-
-	// Create HTTP client
-	httpClient := upstream.NewHTTPClient()
-
-	// Create handler
-	handler := &handlers.JSONRPCHandler{
-		CacheGroup: cacheGroup,
-		Router:     router,
-		HTTPClient: httpClient,
-		WSPools:    nil,
-	}
-
-	// Setup Gin router with cache middleware
-	// Order matters: ResponseCapture -> CacheLookup -> Handler -> CacheStore
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	r.Use(middleware.RequestIDMiddleware())
-	r.Use(middleware.ResponseCaptureMiddleware())
-	r.Use(middleware.CacheLookupMiddleware(cacheGroup))
-	r.Use(middleware.CacheStoreMiddleware(cacheGroup)) // Must be before handler to execute after
-	r.POST("/", handler.HandleJSONRPC)
-
-	return httptest.NewServer(r)
-}
-
 // TestCacheMiddlewareHit tests cache hit behavior
 // Note: Cache is handled in processor, not middleware in current implementation
 func TestCacheMiddlewareHit(t *testing.T) {
@@ -74,12 +20,12 @@ func TestCacheMiddlewareHit(t *testing.T) {
 	mockResponses := map[string]interface{}{
 		"get_dynamic_global_properties": map[string]interface{}{
 			"result": map[string]interface{}{
-				"head_block_number": 19552491,
+				"head_block_number":           19552491,
 				"last_irreversible_block_num": 19552476,
 			},
 		},
 	}
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server (processor handles caching)
@@ -87,7 +33,7 @@ func TestCacheMiddlewareHit(t *testing.T) {
 	defer server.Close()
 
 	requestBody := map[string]interface{}{
-		"id":     1,
+		"id":      1,
 		"jsonrpc": "2.0",
 		"method":  "get_dynamic_global_properties",
 	}
@@ -129,7 +75,7 @@ func TestCacheMiddlewareMiss(t *testing.T) {
 			},
 		},
 	}
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server
@@ -137,7 +83,7 @@ func TestCacheMiddlewareMiss(t *testing.T) {
 	defer server.Close()
 
 	requestBody := map[string]interface{}{
-		"id":     1,
+		"id":      1,
 		"jsonrpc": "2.0",
 		"method":  "get_block",
 		"params":  []interface{}{1000},
@@ -167,7 +113,7 @@ func TestCacheMiddlewareBatchRequest(t *testing.T) {
 			},
 		},
 	}
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server
@@ -176,13 +122,13 @@ func TestCacheMiddlewareBatchRequest(t *testing.T) {
 
 	requestBody := []interface{}{
 		map[string]interface{}{
-			"id":     1,
+			"id":      1,
 			"jsonrpc": "2.0",
 			"method":  "get_block",
 			"params":  []interface{}{1000},
 		},
 		map[string]interface{}{
-			"id":     2,
+			"id":      2,
 			"jsonrpc": "2.0",
 			"method":  "get_block",
 			"params":  []interface{}{1001},
@@ -217,7 +163,7 @@ func TestCacheMiddlewareNoCacheTTL(t *testing.T) {
 			},
 		},
 	}
-	mockUpstream := mockUpstreamServer(t, mockResponses)
+	mockUpstream := mockUpstreamServer(mockResponses)
 	defer mockUpstream.Close()
 
 	// Create test server with TTL=-1 (no cache) for login_api
@@ -265,7 +211,7 @@ func TestCacheMiddlewareNoCacheTTL(t *testing.T) {
 
 	// Request with no-cache TTL (login_api has TTL=-1)
 	requestBody := map[string]interface{}{
-		"id":     1,
+		"id":      1,
 		"jsonrpc": "2.0",
 		"method":  "call",
 		"params":  []interface{}{"login_api", "login", []interface{}{"username", "password"}},
@@ -288,4 +234,3 @@ func TestCacheMiddlewareNoCacheTTL(t *testing.T) {
 		t.Errorf("Expected responses from both requests")
 	}
 }
-

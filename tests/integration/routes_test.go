@@ -17,7 +17,7 @@ func contains(s, substr string) bool {
 }
 
 // setupRoutesTestServer creates a test server with all routes
-func setupRoutesTestServer(t *testing.T) *httptest.Server {
+func setupRoutesTestServer() *httptest.Server {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(middleware.RequestIDMiddleware())
@@ -44,7 +44,7 @@ func setupRoutesTestServer(t *testing.T) *httptest.Server {
 
 // TestHealthCheckRoute tests the health check endpoint
 func TestHealthCheckRoute(t *testing.T) {
-	server := setupRoutesTestServer(t)
+	server := setupRoutesTestServer()
 	defer server.Close()
 
 	// Test GET /health
@@ -66,7 +66,7 @@ func TestHealthCheckRoute(t *testing.T) {
 
 // TestHealthCheckWellKnownRoute tests the .well-known/healthcheck.json endpoint
 func TestHealthCheckWellKnownRoute(t *testing.T) {
-	server := setupRoutesTestServer(t)
+	server := setupRoutesTestServer()
 	defer server.Close()
 
 	// Test GET /.well-known/healthcheck.json
@@ -84,7 +84,7 @@ func TestHealthCheckWellKnownRoute(t *testing.T) {
 // TestRestrictedRoutes tests that certain HTTP methods work correctly
 // Note: Gin allows all methods by default, so we test that GET works
 func TestRestrictedRoutes(t *testing.T) {
-	server := setupRoutesTestServer(t)
+	server := setupRoutesTestServer()
 	defer server.Close()
 
 	tests := []struct {
@@ -154,7 +154,7 @@ func TestRestrictedRoutes(t *testing.T) {
 
 // TestRootRoute tests the root POST route
 func TestRootRoute(t *testing.T) {
-	server := setupRoutesTestServer(t)
+	server := setupRoutesTestServer()
 	defer server.Close()
 
 	// Test POST / (should be allowed)
@@ -174,4 +174,3 @@ func TestRootRoute(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 }
-
