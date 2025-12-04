@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
@@ -82,7 +83,14 @@ func (h *JSONRPCHandler) handleSingleRequest(c *gin.Context, req map[string]inte
 	ctx := c.Request.Context()
 	response, err := h.processor.ProcessSingleRequest(ctx, jsonrpcReq)
 	if err != nil {
-		errors.HandleError(c, errors.NewInternalError(err.Error()), requestID)
+		// Check if it's a namespace/upstream configuration error
+		if strings.Contains(err.Error(), "no upstream configuration found") {
+			// Use NewInvalidNamespaceError which already exists
+			namespace := jsonrpcReq.URN.Namespace
+			errors.HandleError(c, errors.NewInvalidNamespaceError(namespace), requestID)
+		} else {
+			errors.HandleError(c, errors.NewInternalError(err.Error()), requestID)
+		}
 		return
 	}
 

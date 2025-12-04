@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Namespace Fallback and Error Handling Improvements
+
+#### Namespace Fallback Logic
+- Automatic fallback to `appbase` or `steemd` configuration for unconfigured namespaces
+- Improved error handling for missing namespace configurations
+- Requests to unconfigured namespaces (e.g., `bridge.get_ranked_posts`) now automatically fall back to default upstreams
+- Fallback order: `appbase` first, then `steemd` if `appbase` is not available
+- Prevents 500 errors for unconfigured namespaces when default upstreams are available
+
+#### Error Handling Improvements
+- Removed panic from `GetUpstream()` when namespace is not found
+- Improved error messages for namespace configuration errors
+- Added trace ID and request ID to error responses for better debugging
+- Proper JSON-RPC error codes for invalid namespace errors (code 1200)
+
+#### Documentation Updates
+- Added comprehensive upstreams configuration documentation
+- Documented namespace routing and fallback behavior
+- Added examples for fallback scenarios
+- Updated troubleshooting guide with namespace fallback information
+
 ### Added - Testing, Documentation and Deployment (Phase 11)
 
 #### Testing Framework

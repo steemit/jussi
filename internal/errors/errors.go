@@ -133,6 +133,15 @@ func NewUpstreamError(message string) *JSONRPCError {
 	}
 }
 
+// NewInvalidNamespace creates an invalid namespace error
+func NewInvalidNamespace(message string) *JSONRPCError {
+	return &JSONRPCError{
+		Code:    CodeInvalidNamespace,
+		Message: "Invalid namespace",
+		Data:    map[string]interface{}{"details": message},
+	}
+}
+
 // HandleError handles errors and returns appropriate JSON-RPC response
 func HandleError(c *gin.Context, err error, requestID interface{}) {
 	var jsonrpcErr *JSONRPCError

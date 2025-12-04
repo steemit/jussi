@@ -1,8 +1,6 @@
 package upstream
 
 import (
-	"fmt"
-
 	"github.com/steemit/jussi/internal/config"
 )
 
@@ -43,12 +41,12 @@ func NewRouter(upstreamConfig *config.UpstreamRawConfig) (*Router, error) {
 }
 
 // GetUpstream returns upstream information for a given URN
-// Panics if no upstream configuration is found
+// Returns false if no upstream configuration is found
 func (r *Router) GetUpstream(urn string) (*UpstreamInfo, bool) {
 	// Try to get from configuration first
 	url := r.getURLFromConfig(urn)
 	if url == "" {
-		panic(fmt.Sprintf("no upstream configuration found for URN: %s", urn))
+		return nil, false
 	}
 
 	// Get TTL and Timeout from configuration (with longest prefix matching)
@@ -191,6 +189,7 @@ func (r *Router) parseLegacyFormat() {
 }
 
 // getURLFromConfig tries to get URL from configuration
+// Falls back to appbase or steemd if namespace is not configured
 func (r *Router) getURLFromConfig(urn string) string {
 	// Try exact match first
 	if _, value, found := r.urlTrie.LongestPrefix(urn); found {
@@ -208,12 +207,30 @@ func (r *Router) getURLFromConfig(urn string) string {
 				return urlStr
 			}
 		}
+
+		// Fallback: if namespace not found, try appbase first, then steemd
+		// This matches legacy behavior where unconfigured namespaces fall back to appbase/steemd
+		if namespace != "appbase" && namespace != "steemd" {
+			// Try appbase
+			if _, value, found := r.urlTrie.LongestPrefix("appbase"); found {
+				if urlStr, ok := value.(string); ok {
+					return urlStr
+				}
+			}
+			// Try steemd
+			if _, value, found := r.urlTrie.LongestPrefix("steemd"); found {
+				if urlStr, ok := value.(string); ok {
+					return urlStr
+				}
+			}
+		}
 	}
 
 	return ""
 }
 
 // getTTLFromConfig gets TTL for a given URN using longest prefix matching
+// Falls back to appbase or steemd if namespace is not configured
 func (r *Router) getTTLFromConfig(urn string) int {
 	// Try longest prefix match
 	if _, value, found := r.ttlTrie.LongestPrefix(urn); found {
@@ -231,13 +248,30 @@ func (r *Router) getTTLFromConfig(urn string) int {
 				return ttl
 			}
 		}
+
+		// Fallback: if namespace not found, try appbase first, then steemd
+		if namespace != "appbase" && namespace != "steemd" {
+			// Try appbase
+			if _, value, found := r.ttlTrie.LongestPrefix("appbase"); found {
+				if ttl, ok := value.(int); ok {
+					return ttl
+				}
+			}
+			// Try steemd
+			if _, value, found := r.ttlTrie.LongestPrefix("steemd"); found {
+				if ttl, ok := value.(int); ok {
+					return ttl
+				}
+			}
+		}
 	}
 
 	// Default TTL
-	return 300
+	return 3
 }
 
 // getTimeoutFromConfig gets Timeout for a given URN using longest prefix matching
+// Falls back to appbase or steemd if namespace is not configured
 func (r *Router) getTimeoutFromConfig(urn string) int {
 	// Try longest prefix match
 	if _, value, found := r.timeoutTrie.LongestPrefix(urn); found {
@@ -253,6 +287,22 @@ func (r *Router) getTimeoutFromConfig(urn string) int {
 		if _, value, found := r.timeoutTrie.LongestPrefix(namespace); found {
 			if timeout, ok := value.(int); ok {
 				return timeout
+			}
+		}
+
+		// Fallback: if namespace not found, try appbase first, then steemd
+		if namespace != "appbase" && namespace != "steemd" {
+			// Try appbase
+			if _, value, found := r.timeoutTrie.LongestPrefix("appbase"); found {
+				if timeout, ok := value.(int); ok {
+					return timeout
+				}
+			}
+			// Try steemd
+			if _, value, found := r.timeoutTrie.LongestPrefix("steemd"); found {
+				if timeout, ok := value.(int); ok {
+					return timeout
+				}
 			}
 		}
 	}

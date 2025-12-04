@@ -378,6 +378,77 @@ func TestHash(t *testing.T) {
 	}
 }
 
+// TestFallbackToAppbaseOrSteemd tests that unconfigured namespaces fall back to appbase or steemd
+func TestFallbackToAppbaseOrSteemd(t *testing.T) {
+	// Create config with appbase and steemd, but no bridge
+	config := &config.UpstreamRawConfig{
+		Upstreams: []config.UpstreamDefinition{
+			{
+				Name: "steemd",
+				URLs: [][]interface{}{
+					{"steemd", "https://api.steemit.com"},
+				},
+				TTLs: [][]interface{}{
+					{"steemd", 3},
+				},
+				Timeouts: [][]interface{}{
+					{"steemd", 5},
+				},
+			},
+			{
+				Name: "appbase",
+				URLs: [][]interface{}{
+					{"appbase", "https://api.steemit.com"},
+				},
+				TTLs: [][]interface{}{
+					{"appbase", -2},
+				},
+				Timeouts: [][]interface{}{
+					{"appbase", 3},
+				},
+			},
+		},
+	}
+
+	router, err := NewRouter(config)
+	if err != nil {
+		t.Fatalf("failed to create router: %v", err)
+	}
+
+	// Test bridge namespace (not configured) - should fallback to appbase
+	bridgeURN, err := urn.FromRequest(map[string]interface{}{
+		"method": "bridge.get_ranked_posts",
+		"params": map[string]interface{}{
+			"sort":  "trending",
+			"tag":   "",
+			"limit": 20,
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to create URN: %v", err)
+	}
+
+	upstream, found := router.GetUpstream(bridgeURN.String())
+	if !found {
+		t.Fatal("expected to find upstream (should fallback to appbase)")
+	}
+
+	// Should fallback to appbase URL
+	if upstream.URL != "https://api.steemit.com" {
+		t.Errorf("expected URL 'https://api.steemit.com' (from appbase), got '%s'", upstream.URL)
+	}
+
+	// Should fallback to appbase TTL
+	if upstream.TTL != -2 {
+		t.Errorf("expected TTL -2 (from appbase), got %d", upstream.TTL)
+	}
+
+	// Should fallback to appbase timeout
+	if upstream.Timeout != 3 {
+		t.Errorf("expected timeout 3 (from appbase), got %d", upstream.Timeout)
+	}
+}
+
 func TestHashIneq(t *testing.T) {
 	router1, err := NewRouter(simpleConfig)
 	if err != nil {

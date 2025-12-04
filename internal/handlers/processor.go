@@ -73,7 +73,7 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	// Get upstream configuration
 	upstreamConfig, found := p.router.GetUpstream(jsonrpcReq.URN.String())
 	if !found {
-		err := fmt.Errorf("failed to get upstream configuration")
+		err := fmt.Errorf("no upstream configuration found for namespace: %s (URN: %s)", jsonrpcReq.URN.Namespace, jsonrpcReq.URN.String())
 		telemetry.RecordSpanError(span, err)
 		return nil, err
 	}

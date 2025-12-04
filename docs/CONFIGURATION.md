@@ -73,11 +73,33 @@ Example:
     "account_history_limit": 1000,
     "custom_json_op_length": 8192
   },
-  "upstreams": {
-    "steemd": [
-      ["https://api.steemit.com", 1, 30]
-    ]
-  }
+  "upstreams": [
+    {
+      "name": "steemd",
+      "translate_to_appbase": true,
+      "urls": [
+        ["steemd", "https://api.steemit.com"]
+      ],
+      "ttls": [
+        ["steemd", 3]
+      ],
+      "timeouts": [
+        ["steemd", 5]
+      ]
+    },
+    {
+      "name": "appbase",
+      "urls": [
+        ["appbase", "https://api.steemit.com"]
+      ],
+      "ttls": [
+        ["appbase", -2]
+      ],
+      "timeouts": [
+        ["appbase", 3]
+      ]
+    }
+  ]
 }
 ```
 
@@ -220,6 +242,116 @@ Controls request processing limits.
 - `JUSSI_LIMITS_BATCH_SIZE`
 - `JUSSI_LIMITS_ACCOUNT_HISTORY_LIMIT`
 - `JUSSI_LIMITS_CUSTOM_JSON_OP_LENGTH`
+
+### Upstreams Configuration
+
+Controls upstream service routing and behavior. Each upstream defines a namespace and its associated configuration.
+
+#### Configuration Format
+
+```json
+{
+  "upstreams": [
+    {
+      "name": "steemd",
+      "translate_to_appbase": true,
+      "urls": [
+        ["steemd", "https://api.steemit.com"],
+        ["steemd.database_api", "https://database.steemit.com"]
+      ],
+      "ttls": [
+        ["steemd", 3],
+        ["steemd.database_api.get_block", -2]
+      ],
+      "timeouts": [
+        ["steemd", 5],
+        ["steemd.network_broadcast_api", 0]
+      ]
+    },
+    {
+      "name": "appbase",
+      "urls": [
+        ["appbase", "https://api.steemit.com"]
+      ],
+      "ttls": [
+        ["appbase", -2]
+      ],
+      "timeouts": [
+        ["appbase", 3]
+      ]
+    }
+  ]
+}
+```
+
+#### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Namespace name (e.g., "steemd", "appbase") |
+| `translate_to_appbase` | bool | No | Whether to translate requests to appbase format (default: false) |
+| `urls` | array | Yes | Array of `[prefix, url]` pairs for routing |
+| `ttls` | array | No | Array of `[prefix, ttl]` pairs for cache TTL configuration |
+| `timeouts` | array | No | Array of `[prefix, timeout]` pairs for request timeout configuration |
+
+#### Namespace Routing
+
+Jussi uses **longest prefix matching** to route requests to upstream services:
+
+1. **Exact match**: First tries to match the full URN (e.g., `steemd.database_api.get_block`)
+2. **Namespace match**: Then tries to match the namespace (e.g., `steemd`)
+3. **Fallback**: If no match is found, falls back to `appbase` or `steemd` configuration
+
+**Example:**
+- Request: `bridge.get_ranked_posts`
+- If `bridge` namespace is not configured:
+  - Falls back to `appbase` configuration (if available)
+  - Otherwise falls back to `steemd` configuration (if available)
+  - This ensures unconfigured namespaces can still be routed to default upstreams
+
+#### TTL Values
+
+| Value | Meaning |
+|-------|---------|
+| `-1` | No caching (do not cache) |
+| `-2` | Cache only if irreversible (expire when block becomes irreversible) |
+| `0` | Cache forever (no expiration) |
+| `> 0` | Cache for N seconds |
+
+#### Timeout Values
+
+| Value | Meaning |
+|-------|---------|
+| `0` | No timeout (wait indefinitely) |
+| `> 0` | Timeout after N seconds |
+
+#### Fallback Behavior
+
+When a namespace is not explicitly configured, Jussi automatically falls back to default namespaces in the following order:
+
+1. **appbase** - If `appbase` namespace is configured
+2. **steemd** - If `steemd` namespace is configured
+
+This allows requests to unconfigured namespaces (like `bridge.get_ranked_posts`) to be routed to default upstream services without requiring explicit configuration for every namespace.
+
+**Example:**
+```json
+{
+  "upstreams": [
+    {
+      "name": "appbase",
+      "urls": [["appbase", "https://api.steemit.com"]],
+      "ttls": [["appbase", -2]],
+      "timeouts": [["appbase", 3]]
+    }
+  ]
+}
+```
+
+With this configuration, a request to `bridge.get_ranked_posts` (where `bridge` is not configured) will:
+- Use `appbase` URL: `https://api.steemit.com`
+- Use `appbase` TTL: `-2` (cache only if irreversible)
+- Use `appbase` timeout: `3` seconds
 
 ## Environment Variable Override
 
@@ -370,6 +502,7 @@ Jussi validates configuration on startup and will exit with an error if:
 1. **Connection Errors**: Verify upstream URLs in the `upstreams` configuration are accessible
 2. **Memory Issues**: Adjust cache sizes if memory usage is high
 3. **Performance Issues**: Review timeout and limit settings
+4. **Namespace Not Found**: If a namespace is not configured, check if `appbase` or `steemd` fallback is available. Requests will automatically fall back to these default namespaces if configured.
 
 ### Validation
 

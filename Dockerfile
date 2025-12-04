@@ -29,8 +29,8 @@ COPY . .
 # Get current commit hash and write to /tmp/commit_hash
 RUN git rev-parse HEAD > /tmp/commit_hash 2>/dev/null || echo "unknown" > /tmp/commit_hash
 
-# Tidy dependencies and build the application
-RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
+# Tidy dependencies and build the application (without go mod tidy)
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
 
 # Final stage
 FROM golang:1.23-alpine
