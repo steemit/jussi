@@ -274,13 +274,58 @@ class RequestTimeoutError(JsonRpcError):
     def to_dict(self):
         data = super().to_dict()
         try:
-            if self.http_request and hasattr(self.http_request, 'timings'):
+            # Strictly check http_request type, ensure it is an HTTPRequest instance
+            if self.http_request and isinstance(self.http_request, HTTPRequest) and hasattr(self.http_request, 'timings'):
                 timings = fmt_timings(self.http_request.timings)
                 if timings:
                     data['timings'] = timings
+                
+                # Add user submitted JSON-RPC request data
+                try:
+                    if hasattr(self.http_request, 'jsonrpc') and self.http_request.jsonrpc:
+                        jrpc = self.http_request.jsonrpc
+                        if isinstance(jrpc, list):
+                            # Batch request
+                            data['request_data'] = [
+                                {
+                                    'method': req.method if hasattr(req, 'method') else None,
+                                    'params': req.params if hasattr(req, 'params') else None
+                                }
+                                for req in jrpc if hasattr(req, 'method')
+                            ]
+                        elif hasattr(jrpc, 'method'):
+                            # Single request
+                            data['request_data'] = {
+                                'method': jrpc.method,
+                                'params': jrpc.params if hasattr(jrpc, 'params') else None
+                            }
+                except Exception as e:
+                    logger.debug('error adding request data to RequestTimeoutError', e=e)
         except Exception as e:
             logger.info('error adding timing data to RequestTimeoutError', e=e)
         return data
+
+    def to_sanic_response(self) -> HTTPResponse:
+        self.log()
+        error_data = self.to_dict()
+        error = {
+            'jsonrpc': '2.0',
+            'id': self.jrpc_request_id,
+            'error': {
+                'code': self.code,
+                'message': self.format_message(),
+                'data': {
+                    'error_id': self.error_id,
+                    'jussi_request_id': self.jussi_request_id
+                }
+            }
+        }
+        # Add extra data (e.g. timings and request_data) from to_dict() to error.data
+        if 'timings' in error_data:
+            error['error']['data']['timings'] = error_data['timings']
+        if 'request_data' in error_data:
+            error['error']['data']['request_data'] = error_data['request_data']
+        return response.json(error, headers={'x-jussi-error-id': self.error_id})
 
 
 class ResponseTimeoutError(JsonRpcError):
@@ -290,13 +335,58 @@ class ResponseTimeoutError(JsonRpcError):
     def to_dict(self):
         data = super().to_dict()
         try:
-            if self.http_request and hasattr(self.http_request, 'timings'):
+            # Strictly check http_request type, ensure it is an HTTPRequest instance
+            if self.http_request and isinstance(self.http_request, HTTPRequest) and hasattr(self.http_request, 'timings'):
                 timings = fmt_timings(self.http_request.timings)
                 if timings:
                     data['timings'] = timings
+                
+                # Add user submitted JSON-RPC request data
+                try:
+                    if hasattr(self.http_request, 'jsonrpc') and self.http_request.jsonrpc:
+                        jrpc = self.http_request.jsonrpc
+                        if isinstance(jrpc, list):
+                            # Batch request
+                            data['request_data'] = [
+                                {
+                                    'method': req.method if hasattr(req, 'method') else None,
+                                    'params': req.params if hasattr(req, 'params') else None
+                                }
+                                for req in jrpc if hasattr(req, 'method')
+                            ]
+                        elif hasattr(jrpc, 'method'):
+                            # Single request
+                            data['request_data'] = {
+                                'method': jrpc.method,
+                                'params': jrpc.params if hasattr(jrpc, 'params') else None
+                            }
+                except Exception as e:
+                    logger.debug('error adding request data to ResponseTimeoutError', e=e)
         except Exception as e:
             logger.info('error adding timing data to ResponseTimeoutError', e=e)
         return data
+
+    def to_sanic_response(self) -> HTTPResponse:
+        self.log()
+        error_data = self.to_dict()
+        error = {
+            'jsonrpc': '2.0',
+            'id': self.jrpc_request_id,
+            'error': {
+                'code': self.code,
+                'message': self.format_message(),
+                'data': {
+                    'error_id': self.error_id,
+                    'jussi_request_id': self.jussi_request_id
+                }
+            }
+        }
+        # Add extra data (e.g. timings and request_data) from to_dict() to error.data
+        if 'timings' in error_data:
+            error['error']['data']['timings'] = error_data['timings']
+        if 'request_data' in error_data:
+            error['error']['data']['request_data'] = error_data['request_data']
+        return response.json(error, headers={'x-jussi-error-id': self.error_id})
 
 class UpstreamResponseError(JsonRpcError):
     code = 1100
