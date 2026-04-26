@@ -8,6 +8,7 @@ from enum import IntEnum
 import structlog
 
 from aredis import StrictRedis
+from aredis import ConnectionPool
 
 
 from .cache_group import CacheGroup
@@ -33,7 +34,9 @@ def setup_caches(app: WebApp, loop) -> Any:
     caches = []
     if args.redis_url:
         try:
-            redis_client = StrictRedis().from_url(args.redis_url)
+            pool = ConnectionPool.from_url(args.redis_url,
+                                            max_connections=20)
+            redis_client = StrictRedis(connection_pool=pool)
             redis_cache = Cache(redis_client)
             if redis_cache:
                 caches.append(CacheGroupItem(cache=redis_cache,
@@ -49,7 +52,9 @@ def setup_caches(app: WebApp, loop) -> Any:
                             read_replica=url,
                             host=url.hostname,
                             port=url.port)
-                redis_client = StrictRedis().from_url(url_string)
+                replica_pool = ConnectionPool.from_url(url_string,
+                                                       max_connections=20)
+                redis_client = StrictRedis(connection_pool=replica_pool)
                 redis_cache = Cache(redis_client)
                 if redis_cache:
                     caches.append(
