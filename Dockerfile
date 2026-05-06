@@ -14,16 +14,11 @@ ENV LOG_LEVEL INFO
 ENV PIPENV_VENV_IN_PROJECT 1
 ENV APP_ROOT /app
 
-
-
 # jussi settings
 ENV APP_CMD jussi.serve
 ENV JUSSI_SERVER_HOST 0.0.0.0
 ENV JUSSI_SERVER_PORT 9000
 ENV JUSSI_MONITOR_PORT 7777
-
-# all nginx env vars must also be changed in service/nginx/nginx.conf
-ENV NGINX_SERVER_PORT 8080
 
 RUN \
     apt-get update && \
@@ -43,10 +38,7 @@ RUN \
         libssl-dev \
         libxml2-dev \
         libxslt-dev \
-        nginx \
-        nginx-extras \
         make \
-        lua-zlib \
         runit \
         tk-dev \
         wget && \
@@ -61,24 +53,6 @@ RUN \
     make altinstall && \
     cd .. && \
     rm -rf Python-3.6.5.tar.xz Python-3.6.5/
-
-# nginx
-RUN \
-  mkdir -p /var/lib/nginx/body && \
-  mkdir -p /var/lib/nginx/scgi && \
-  mkdir -p /var/lib/nginx/uwsgi && \
-  mkdir -p /var/lib/nginx/fastcgi && \
-  mkdir -p /var/lib/nginx/proxy && \
-  chown -R www-data:www-data /var/lib/nginx && \
-  mkdir -p /var/log/nginx && \
-  touch /var/log/nginx/access.log && \
-  touch /var/log/nginx/access.json && \
-  touch /var/log/nginx/error.log && \
-  chown www-data:www-data /var/log/nginx/* && \
-  touch /var/run/nginx.pid && \
-  chown www-data:www-data /var/run/nginx.pid && \
-  mkdir -p /var/www/.cache && \
-  chown www-data:www-data /var/www/.cache
 
 RUN \
     python3.6 -m pip install --upgrade pip && \
@@ -113,7 +87,7 @@ RUN chown -R www-data . && \
         /usr/include \
         /usr/local/include
 
-RUN pipenv run pytest
+RUN pipenv.run pytest
 
-EXPOSE ${NGINX_SERVER_PORT}
+EXPOSE ${JUSSI_SERVER_PORT}
 EXPOSE ${JUSSI_MONITOR_PORT}
