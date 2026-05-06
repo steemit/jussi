@@ -87,7 +87,7 @@ RUN chown -R www-data . && \
         /usr/include \
         /usr/local/include
 
-RUN pipenv.run pytest
+RUN pipenv run pytest
 
 EXPOSE ${JUSSI_SERVER_PORT}
 EXPOSE ${JUSSI_MONITOR_PORT}
