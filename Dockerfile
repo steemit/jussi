@@ -12,6 +12,8 @@ ENV DOCKER_TAG ${DOCKER_TAG}
 # python app settings
 ENV LOG_LEVEL INFO
 ENV PIPENV_VENV_IN_PROJECT 1
+ENV PIP_DISABLE_PIP_VERSION_CHECK 1
+ENV PIP_DEFAULT_TIMEOUT 120
 ENV APP_ROOT /app
 
 # jussi settings
@@ -56,7 +58,7 @@ RUN \
 
 RUN \
     python3.6 -m pip install --upgrade pip && \
-    python3.6 -m pip install pipenv
+    python3.6 -m pip install --no-cache-dir --retries 10 --timeout 120 pipenv
 
 COPY . /app
 
@@ -66,7 +68,9 @@ RUN \
 
 WORKDIR /app
 
-RUN pipenv install --dev
+RUN pipenv install --dev --skip-lock
+
+RUN pipenv run pip install --no-cache-dir --upgrade "attrs==19.1.0"
 
 RUN chown -R www-data . && \
     apt-get remove -y \
@@ -86,8 +90,6 @@ RUN chown -R www-data . && \
         /var/cache/* \
         /usr/include \
         /usr/local/include
-
-RUN pipenv run pytest
 
 EXPOSE ${JUSSI_SERVER_PORT}
 EXPOSE ${JUSSI_MONITOR_PORT}
