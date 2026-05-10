@@ -44,7 +44,7 @@ vprof = "*"
 attrs = "==19.1.0"
 aiodns = "*"
 aiohttp = "*"
-aredis = "*"
+redis = {version = ">=5.0.0", extras = ["hiredis"]}
 cchardet = "*"
 configargparse = "*"
 cytoolz = "*"

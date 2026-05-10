@@ -51,20 +51,20 @@ class Cache:
         await self.client.set(key, value, ex=expire_time)
 
     async def set_many(self, data: CachePairs, expire_time: CacheTTLValue=None) -> NoReturn:
-        async with await self.client.pipeline() as pipeline:
+        async with self.client.pipeline(transaction=False) as pipeline:
             for key, value in data.items():
                 value = self._pack(value)
-                await pipeline.set(key, value, expire_time)
+                await pipeline.set(key, value, ex=expire_time)
             return await pipeline.execute()
 
     async def mget(self, keys: CacheKeys) -> CacheResults:
         return [self._unpack(r) for r in await self.client.mget(keys)]
 
     async def clear(self):
-        return await self.client.clear()
+        return await self.client.flushdb()
 
     async def close(self):
-        self.client.connection_pool.disconnect()
+        await self.client.aclose()
 
     async def delete(self, key):
         await self.client.delete(key)
@@ -97,11 +97,14 @@ class MockClient:
     async def pipeline(self):
         return self
 
-    async def clear(self):
+    async def flushdb(self):
         self.cache.clears()
 
     async def delete(self, key):
         self.cache.deletes(key)
+
+    async def aclose(self):
+        pass
 
     async def __aenter__(self):
         return self

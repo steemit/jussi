@@ -150,7 +150,7 @@ class CacheGroup:
 
     async def close(self) -> NoReturn:
         for cache in self._all_caches:
-            cache.close()
+            await cache.close()
 
     # jsonrpc related methods
     #
