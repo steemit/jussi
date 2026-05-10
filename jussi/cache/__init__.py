@@ -34,6 +34,41 @@ POOL_RETRY_ON_TIMEOUT = True
 POOL_HEALTH_CHECK_INTERVAL = 30   # seconds — redis-py will ping idle connections
 
 
+class HealthCheckedConnectionPool(ConnectionPool):
+    """ConnectionPool subclass that properly discards dead connections.
+
+    redis-py 4.x has a bug where release() does not decrement
+    _created_connections when a connection is returned to the pool,
+    even if the connection is dead/broken. This causes _created_connections
+    to grow until max_connections is reached, after which no new connections
+    can be created — the same bug as aredis.
+
+    This subclass overrides release() to check connection health and
+    properly decrement the counter for dead connections.
+    """
+
+    async def release(self, connection):
+        """Release connection back to pool, discarding dead ones."""
+        self._checkpid()
+        async with self._lock:
+            try:
+                self._in_use_connections.remove(connection)
+            except KeyError:
+                pass
+
+            # Check if connection is actually alive before returning it
+            if not self.owns_connection(connection) or not connection.is_connected:
+                # Discard dead connection and allow a new one to be created
+                self._created_connections -= 1
+                try:
+                    await connection.disconnect()
+                except Exception:
+                    pass
+                return
+
+            self._available_connections.append(connection)
+
+
 # pylint: disable=unused-argument,too-many-branches,too-many-nested-blocks
 def setup_caches(app: WebApp, loop) -> Any:
     logger.info('cache.setup_caches', when='before_server_start')
@@ -41,7 +76,7 @@ def setup_caches(app: WebApp, loop) -> Any:
     caches = []
     if args.redis_url:
         try:
-            pool = ConnectionPool.from_url(
+            pool = HealthCheckedConnectionPool.from_url(
                 args.redis_url,
                 max_connections=POOL_MAX_CONNECTIONS,
                 socket_connect_timeout=POOL_SOCKET_CONNECT_TIMEOUT,
@@ -65,7 +100,7 @@ def setup_caches(app: WebApp, loop) -> Any:
                             read_replica=url,
                             host=url.hostname,
                             port=url.port)
-                replica_pool = ConnectionPool.from_url(
+                replica_pool = HealthCheckedConnectionPool.from_url(
                     url_string,
                     max_connections=POOL_MAX_CONNECTIONS,
                     socket_connect_timeout=POOL_SOCKET_CONNECT_TIMEOUT,
