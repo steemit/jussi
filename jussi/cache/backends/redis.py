@@ -64,7 +64,7 @@ class Cache:
         return await self.client.flushdb()
 
     async def close(self):
-        await self.client.aclose()
+        await self.client.close()
 
     async def delete(self, key):
         await self.client.delete(key)
@@ -103,7 +103,7 @@ class MockClient:
     async def delete(self, key):
         self.cache.deletes(key)
 
-    async def aclose(self):
+    async def close(self):
         pass
 
     async def __aenter__(self):
