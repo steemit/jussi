@@ -89,7 +89,11 @@ class JSONRPCRequest:
 
     @property
     def upstream_id(self) -> int:
-        return int(self.jussi_request_id) + self.batch_index
+        # jussi_request_id is a hex string from nginx $request_id,
+        # cannot be converted with int(). Use the original request id
+        # plus batch_index for upstream request/response matching.
+        base_id = self.id if isinstance(self.id, int) else id(self)
+        return base_id + self.batch_index
 
     @property
     def translated(self) -> bool:
