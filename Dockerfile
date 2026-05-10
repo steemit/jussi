@@ -68,7 +68,7 @@ RUN \
 
 WORKDIR /app
 
-RUN pipenv install --dev --skip-lock
+RUN pipenv install --dev
 
 RUN pipenv run pip install --no-cache-dir --upgrade "attrs==19.1.0"
 
