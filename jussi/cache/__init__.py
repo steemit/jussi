@@ -7,8 +7,8 @@ from enum import IntEnum
 
 import structlog
 
-from aredis import StrictRedis
-from aredis import ConnectionPool
+from redis.asyncio import Redis
+from redis.asyncio import ConnectionPool
 
 
 from .cache_group import CacheGroup
@@ -26,6 +26,48 @@ class SpeedTier(IntEnum):
 
 CacheGroupItem = namedtuple('CacheGroupItem', ('cache', 'read', 'write', 'speed_tier'))
 
+# Default pool config to prevent connection leaks
+POOL_MAX_CONNECTIONS = 20
+POOL_SOCKET_CONNECT_TIMEOUT = 3   # seconds
+POOL_SOCKET_TIMEOUT = 5           # seconds
+POOL_RETRY_ON_TIMEOUT = True
+POOL_HEALTH_CHECK_INTERVAL = 30   # seconds — redis-py will ping idle connections
+
+
+class HealthCheckedConnectionPool(ConnectionPool):
+    """ConnectionPool subclass that properly discards dead connections.
+
+    redis-py 4.x has a bug where release() does not decrement
+    _created_connections when a connection is returned to the pool,
+    even if the connection is dead/broken. This causes _created_connections
+    to grow until max_connections is reached, after which no new connections
+    can be created — the same bug as aredis.
+
+    This subclass overrides release() to check connection health and
+    properly decrement the counter for dead connections.
+    """
+
+    async def release(self, connection):
+        """Release connection back to pool, discarding dead ones."""
+        self._checkpid()
+        async with self._lock:
+            try:
+                self._in_use_connections.remove(connection)
+            except KeyError:
+                pass
+
+            # Check if connection is actually alive before returning it
+            if not self.owns_connection(connection) or not connection.is_connected:
+                # Discard dead connection and allow a new one to be created
+                self._created_connections -= 1
+                try:
+                    await connection.disconnect()
+                except Exception:
+                    pass
+                return
+
+            self._available_connections.append(connection)
+
 
 # pylint: disable=unused-argument,too-many-branches,too-many-nested-blocks
 def setup_caches(app: WebApp, loop) -> Any:
@@ -34,9 +76,15 @@ def setup_caches(app: WebApp, loop) -> Any:
     caches = []
     if args.redis_url:
         try:
-            pool = ConnectionPool.from_url(args.redis_url,
-                                            max_connections=20)
-            redis_client = StrictRedis(connection_pool=pool)
+            pool = HealthCheckedConnectionPool.from_url(
+                args.redis_url,
+                max_connections=POOL_MAX_CONNECTIONS,
+                socket_connect_timeout=POOL_SOCKET_CONNECT_TIMEOUT,
+                socket_timeout=POOL_SOCKET_TIMEOUT,
+                retry_on_timeout=POOL_RETRY_ON_TIMEOUT,
+                health_check_interval=POOL_HEALTH_CHECK_INTERVAL,
+            )
+            redis_client = Redis(connection_pool=pool)
             redis_cache = Cache(redis_client)
             if redis_cache:
                 caches.append(CacheGroupItem(cache=redis_cache,
@@ -52,9 +100,15 @@ def setup_caches(app: WebApp, loop) -> Any:
                             read_replica=url,
                             host=url.hostname,
                             port=url.port)
-                replica_pool = ConnectionPool.from_url(url_string,
-                                                       max_connections=20)
-                redis_client = StrictRedis(connection_pool=replica_pool)
+                replica_pool = HealthCheckedConnectionPool.from_url(
+                    url_string,
+                    max_connections=POOL_MAX_CONNECTIONS,
+                    socket_connect_timeout=POOL_SOCKET_CONNECT_TIMEOUT,
+                    socket_timeout=POOL_SOCKET_TIMEOUT,
+                    retry_on_timeout=POOL_RETRY_ON_TIMEOUT,
+                    health_check_interval=POOL_HEALTH_CHECK_INTERVAL,
+                )
+                redis_client = Redis(connection_pool=replica_pool)
                 redis_cache = Cache(redis_client)
                 if redis_cache:
                     caches.append(

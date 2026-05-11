@@ -7,6 +7,9 @@ from jussi.errors import InvalidUpstreamHost
 from jussi.errors import InvalidUpstreamURL
 from jussi.upstream import _Upstreams
 
+# Use *.invalid hostnames (RFC 6761 reserved) so socket.gethostbyname fails during
+# validation. Public domains like test.com resolve in CI/Docker and broke
+# test_validate_urls_raises.
 SIMPLE_CONFIG = {
     "limits": {},
     "upstreams":
@@ -15,7 +18,7 @@ SIMPLE_CONFIG = {
             "name": "test",
             "translate_to_appbase": True,
             "urls": [
-                ["test", 'http://test.com']
+                ["test", 'http://jussi-test.invalid']
             ],
             "ttls": [
                 ["test", 1]
@@ -30,7 +33,7 @@ SIMPLE_CONFIG = {
             "urls": [
                 {
                     "prefix": "test2",
-                    "upstream_url": "http://test2.com"
+                    "upstream_url": "http://jussi-test2.invalid"
                 }
             ],
             "ttls": [
@@ -124,7 +127,9 @@ def test_namespaces_config_is_jsonrpc():
 
 def test_urls_config():
     upstreams = _Upstreams(SIMPLE_CONFIG, validate=False)
-    assert upstreams.urls == frozenset(['http://test.com', 'http://test2.com'])
+    assert upstreams.urls == frozenset([
+        'http://jussi-test.invalid',
+        'http://jussi-test2.invalid'])
 
 
 def test_translate_to_appbase_config_true():
@@ -145,14 +150,14 @@ def test_url_pair():
     from jussi.urn import URN
     urn = URN('test', 'api', 'method', False)
     upstreams = _Upstreams(SIMPLE_CONFIG, validate=False)
-    assert upstreams.url(urn) == 'http://test.com'
+    assert upstreams.url(urn) == 'http://jussi-test.invalid'
 
 
 def test_url_object():
     from jussi.urn import URN
     urn = URN('test2', 'api', 'method', False)
     upstreams = _Upstreams(SIMPLE_CONFIG, validate=False)
-    assert upstreams.url(urn) == 'http://test2.com'
+    assert upstreams.url(urn) == 'http://jussi-test2.invalid'
 
 
 def test_timeout_pair():
