@@ -944,3 +944,155 @@ func TestLimitBroadcastTransactionRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestLimitAccountHistoryCountRequest(t *testing.T) {
+	maxLimit := 100
+
+	tests := []struct {
+		name     string
+		req      *request.JSONRPCRequest
+		maxLimit int
+		hasError bool
+	}{
+		{
+			name: "within limit - array params",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "condenser_api",
+					Method:    "get_account_history",
+					Params:    []interface{}{"alice", float64(-1), float64(50)},
+				},
+			},
+			maxLimit: maxLimit,
+			hasError: false,
+		},
+		{
+			name: "exceeds limit - array params",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "condenser_api",
+					Method:    "get_account_history",
+					Params:    []interface{}{"alice", float64(-1), float64(10000)},
+				},
+			},
+			maxLimit: maxLimit,
+			hasError: true,
+		},
+		{
+			name: "exactly at limit - array params",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "condenser_api",
+					Method:    "get_account_history",
+					Params:    []interface{}{"alice", float64(-1), float64(100)},
+				},
+			},
+			maxLimit: maxLimit,
+			hasError: false,
+		},
+		{
+			name: "within limit - dict params",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "database_api",
+					Method:    "get_account_history",
+					Params:    map[string]interface{}{"account": "alice", "start": float64(-1), "limit": float64(50)},
+				},
+			},
+			maxLimit: maxLimit,
+			hasError: false,
+		},
+		{
+			name: "exceeds limit - dict params",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "database_api",
+					Method:    "get_account_history",
+					Params:    map[string]interface{}{"account": "alice", "start": float64(-1), "limit": float64(500)},
+				},
+			},
+			maxLimit: maxLimit,
+			hasError: true,
+		},
+		{
+			name: "not get_account_history method",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "condenser_api",
+					Method:    "get_accounts",
+					Params:    []interface{}{[]interface{}{"alice"}},
+				},
+			},
+			maxLimit: maxLimit,
+			hasError: false,
+		},
+		{
+			name: "nil URN",
+			req: &request.JSONRPCRequest{
+				URN: nil,
+			},
+			maxLimit: maxLimit,
+			hasError: false,
+		},
+		{
+			name:     "nil request",
+			req:      nil,
+			maxLimit: maxLimit,
+			hasError: false,
+		},
+		{
+			name: "zero maxLimit disables check",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "condenser_api",
+					Method:    "get_account_history",
+					Params:    []interface{}{"alice", float64(-1), float64(99999)},
+				},
+			},
+			maxLimit: 0,
+			hasError: false,
+		},
+		{
+			name: "missing params",
+			req: &request.JSONRPCRequest{
+				URN: &urn.URN{
+					Namespace: "appbase",
+					API:       "condenser_api",
+					Method:    "get_account_history",
+					Params:    nil,
+				},
+			},
+			maxLimit: maxLimit,
+			hasError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := LimitAccountHistoryCountRequest(tt.req, tt.maxLimit)
+			if tt.hasError && err == nil {
+				t.Error("expected error, got nil")
+			}
+			if !tt.hasError && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			// Verify error type when error is expected
+			if tt.hasError {
+				if jrpcErr, ok := err.(*errors.JSONRPCError); ok {
+					if jrpcErr.Code != errors.CodeAccountHistoryLimit {
+						t.Errorf("expected error code %d, got %d", errors.CodeAccountHistoryLimit, jrpcErr.Code)
+					}
+				} else {
+					t.Errorf("expected *errors.JSONRPCError, got %T", err)
+				}
+			}
+		})
+	}
+}

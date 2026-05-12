@@ -352,6 +352,71 @@ func LimitCustomJSONAccount(ops []interface{}, blacklistAccounts map[string]bool
 	return nil
 }
 
+// LimitAccountHistoryCountRequest validates get_account_history request limit count.
+//
+// This is a temporary measure to protect ahnode backend performance.
+// get_account_history is one of the heaviest Steem blockchain queries — it scans
+// the account_history index table. When clients request a large limit (e.g. 10000),
+// it severely degrades ahnode response times.
+//
+// Ported from legacy Python jussi (commit 94e3ef2, PR #235).
+// The limit is configurable via limits.account_history_limit in DEV_config.json
+// (default: 100).
+//
+// Legacy reference:
+//   - jussi/validators.py:limit_account_history_count_request()
+//   - jussi/middlewares/limits.py:account_history_limit()
+//   - Error code 1701 (JussiAccountHistoryLimitsError)
+func LimitAccountHistoryCountRequest(req *request.JSONRPCRequest, maxLimit int) error {
+	if req == nil || req.URN == nil {
+		return nil
+	}
+
+	if req.URN.Method != "get_account_history" {
+		return nil
+	}
+
+	if maxLimit <= 0 {
+		return nil
+	}
+
+	var limitCount int
+	switch params := req.URN.Params.(type) {
+	case []interface{}:
+		// Array format: [account, start, limit]
+		if len(params) >= 3 {
+			switch v := params[2].(type) {
+			case float64:
+				limitCount = int(v)
+			case int:
+				limitCount = v
+			default:
+				return nil
+			}
+		}
+	case map[string]interface{}:
+		// Dict format: {"account": ..., "start": ..., "limit": ...}
+		if v, ok := params["limit"]; ok {
+			switch val := v.(type) {
+			case float64:
+				limitCount = int(val)
+			case int:
+				limitCount = val
+			default:
+				return nil
+			}
+		}
+	default:
+		return nil
+	}
+
+	if limitCount > maxLimit {
+		return errors.NewAccountHistoryLimitError(limitCount, maxLimit)
+	}
+
+	return nil
+}
+
 // LimitBroadcastTransactionRequest validates broadcast transaction request limits
 func LimitBroadcastTransactionRequest(req *request.JSONRPCRequest, limits map[string]interface{}) error {
 	if !IsBroadcastTransactionRequest(req) {

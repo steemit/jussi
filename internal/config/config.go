@@ -250,6 +250,13 @@ func setDefaults() {
 	viper.SetDefault("PROMETHEUS_PATH", "/metrics")
 	viper.SetDefault("PROMETHEUS_LOCALHOST_ONLY", true)
 
+	// Limits defaults
+	// account_history_limit: temporary protection for ahnode backend.
+	// Ported from legacy Python jussi (commit 94e3ef2, PR #235).
+	// get_account_history with large limit values severely degrades ahnode
+	// performance, so we cap it at 100 at the gateway level.
+	viper.SetDefault("LIMITS_ACCOUNT_HISTORY_LIMIT", 100)
+
 	// Upstream defaults
 	viper.SetDefault("TEST_UPSTREAM_URLS", true)
 	viper.SetDefault("WEBSOCKET_ENABLED", false)
