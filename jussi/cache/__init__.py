@@ -27,7 +27,7 @@ class SpeedTier(IntEnum):
 CacheGroupItem = namedtuple('CacheGroupItem', ('cache', 'read', 'write', 'speed_tier'))
 
 # Default pool config to prevent connection leaks
-POOL_MAX_CONNECTIONS = 5
+POOL_MAX_CONNECTIONS = 20
 POOL_SOCKET_CONNECT_TIMEOUT = 3   # seconds
 POOL_SOCKET_TIMEOUT = 5           # seconds
 POOL_RETRY_ON_TIMEOUT = True
