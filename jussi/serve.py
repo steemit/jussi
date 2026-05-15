@@ -125,6 +125,16 @@ def parse_args(args: list = None):
                         help='redis://[:password]@host:6379/0',
                         nargs='*')
 
+    # redis pool config (env-overridable; defaults match historical hardcoded values)
+    parser.add_argument('--redis_pool_max_connections', type=int,
+                        env_var='JUSSI_REDIS_POOL_MAX_CONNECTIONS', default=20)
+    parser.add_argument('--redis_pool_socket_connect_timeout', type=float,
+                        env_var='JUSSI_REDIS_POOL_SOCKET_CONNECT_TIMEOUT', default=3.0)
+    parser.add_argument('--redis_pool_socket_timeout', type=float,
+                        env_var='JUSSI_REDIS_POOL_SOCKET_TIMEOUT', default=5.0)
+    parser.add_argument('--redis_pool_health_check_interval', type=int,
+                        env_var='JUSSI_REDIS_POOL_HEALTH_CHECK_INTERVAL', default=30)
+
     # statsd statsd://host:port
     parser.add_argument('--statsd_url', type=str, env_var='JUSSI_STATSD_URL',
                         help='statsd://host:port',

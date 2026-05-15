@@ -26,12 +26,14 @@ class SpeedTier(IntEnum):
 
 CacheGroupItem = namedtuple('CacheGroupItem', ('cache', 'read', 'write', 'speed_tier'))
 
-# Default pool config to prevent connection leaks
-POOL_MAX_CONNECTIONS = 20
-POOL_SOCKET_CONNECT_TIMEOUT = 3   # seconds
-POOL_SOCKET_TIMEOUT = 5           # seconds
+# Default pool config (env-overridable; see jussi/serve.py argparse)
+# Historical defaults retained as fallback to keep behavior identical when
+# --redis_pool_* args are not provided.
+POOL_MAX_CONNECTIONS = 20             # JUSSI_REDIS_POOL_MAX_CONNECTIONS
+POOL_SOCKET_CONNECT_TIMEOUT = 3       # JUSSI_REDIS_POOL_SOCKET_CONNECT_TIMEOUT (seconds)
+POOL_SOCKET_TIMEOUT = 5               # JUSSI_REDIS_POOL_SOCKET_TIMEOUT (seconds)
 POOL_RETRY_ON_TIMEOUT = True
-POOL_HEALTH_CHECK_INTERVAL = 30   # seconds — redis-py will ping idle connections
+POOL_HEALTH_CHECK_INTERVAL = 30       # JUSSI_REDIS_POOL_HEALTH_CHECK_INTERVAL (seconds)
 
 
 class HealthCheckedConnectionPool(ConnectionPool):
@@ -73,16 +75,30 @@ class HealthCheckedConnectionPool(ConnectionPool):
 def setup_caches(app: WebApp, loop) -> Any:
     logger.info('cache.setup_caches', when='before_server_start')
     args = app.config.args
+    # Env-overridable pool config; fall back to module-level defaults when the
+    # corresponding argparse attribute is missing (e.g. unit tests that build
+    # an args object directly).
+    max_conns = getattr(args, 'redis_pool_max_connections', POOL_MAX_CONNECTIONS)
+    sock_connect_to = getattr(args, 'redis_pool_socket_connect_timeout',
+                              POOL_SOCKET_CONNECT_TIMEOUT)
+    sock_to = getattr(args, 'redis_pool_socket_timeout', POOL_SOCKET_TIMEOUT)
+    health_iv = getattr(args, 'redis_pool_health_check_interval',
+                        POOL_HEALTH_CHECK_INTERVAL)
+    logger.info('redis pool config',
+                max_connections=max_conns,
+                socket_connect_timeout=sock_connect_to,
+                socket_timeout=sock_to,
+                health_check_interval=health_iv)
     caches = []
     if args.redis_url:
         try:
             pool = HealthCheckedConnectionPool.from_url(
                 args.redis_url,
-                max_connections=POOL_MAX_CONNECTIONS,
-                socket_connect_timeout=POOL_SOCKET_CONNECT_TIMEOUT,
-                socket_timeout=POOL_SOCKET_TIMEOUT,
+                max_connections=max_conns,
+                socket_connect_timeout=sock_connect_to,
+                socket_timeout=sock_to,
                 retry_on_timeout=POOL_RETRY_ON_TIMEOUT,
-                health_check_interval=POOL_HEALTH_CHECK_INTERVAL,
+                health_check_interval=health_iv,
             )
             redis_client = Redis(connection_pool=pool)
             redis_cache = Cache(redis_client)
@@ -102,11 +118,11 @@ def setup_caches(app: WebApp, loop) -> Any:
                             port=url.port)
                 replica_pool = HealthCheckedConnectionPool.from_url(
                     url_string,
-                    max_connections=POOL_MAX_CONNECTIONS,
-                    socket_connect_timeout=POOL_SOCKET_CONNECT_TIMEOUT,
-                    socket_timeout=POOL_SOCKET_TIMEOUT,
+                    max_connections=max_conns,
+                    socket_connect_timeout=sock_connect_to,
+                    socket_timeout=sock_to,
                     retry_on_timeout=POOL_RETRY_ON_TIMEOUT,
-                    health_check_interval=POOL_HEALTH_CHECK_INTERVAL,
+                    health_check_interval=health_iv,
                 )
                 redis_client = Redis(connection_pool=replica_pool)
                 redis_cache = Cache(redis_client)
