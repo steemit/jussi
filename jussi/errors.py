@@ -300,7 +300,7 @@ class ResponseTimeoutError(JsonRpcError):
 
 class UpstreamResponseError(JsonRpcError):
     code = 1100
-    message = 'Upstream response error'
+    message = 'Upstream response error: {reason}'
 
 
 class InvalidNamespaceError(JsonRpcError):

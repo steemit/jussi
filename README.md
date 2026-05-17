@@ -103,6 +103,12 @@ Certain features of jussi can be configured using environment variables. If you 
 
 `JUSSI_UPSTREAM_CONFIG_FILE` - Specifies the location of your config file
 `JUSSI_REDIS_URL` - In the format of: `redis://host:port`
+`JUSSI_REDIS_READ_REPLICA_URLS` - Space-separated list of read replicas, each in the format of: `redis://host:port`
+`JUSSI_REDIS_POOL_MAX_CONNECTIONS` - Max connections per Redis pool (primary and each replica). Default `20`. Each Sanic worker creates its own pool, so total connections per jussi instance ≈ `workers × (1 + replicas) × this value`.
+`JUSSI_REDIS_POOL_SOCKET_CONNECT_TIMEOUT` - TCP connect timeout for Redis pool sockets, in seconds. Default `3.0`.
+`JUSSI_REDIS_POOL_SOCKET_TIMEOUT` - Read/write timeout for Redis pool sockets, in seconds. Default `5.0`.
+`JUSSI_REDIS_POOL_HEALTH_CHECK_INTERVAL` - Interval (seconds) at which idle pool connections are pinged. Default `30`.
+`JUSSI_REDIS_POOL_IN_USE_MAX_AGE` - Max seconds an in-use Redis connection can be held before it is forcibly reaped. Recovers from the redis-py 4.x asyncio-cancel leak (a cancelled task can drop its connection without releasing it back to the pool, accumulating "ghost" connections until the pool reports `Too many connections`). Default `30`. Must be larger than `JUSSI_CACHE_READ_TIMEOUT`.
 `JUSSI_JSONRPC_BATCH_SIZE_LIMIT` - The number of batch requests to allow
 `JUSSI_SERVER_PORT` - The port to run on, default is `9000`
 `JUSSI_STATSD_URL` - In the format of: `statsd://host:port`

@@ -183,7 +183,25 @@ async def fetch_http(http_request: HTTPRequest,
                             json=upstream_request,
                             headers=jrpc_request.upstream_headers) as resp:
         jrpc_request.timings.append((perf(), 'fetch_http.response'))
-        upstream_response = await resp.json(encoding='utf-8', content_type=None)
+        resp_body = await resp.text()
+        if not resp_body or not resp_body.strip():
+            raise UpstreamResponseError(
+                http_request=http_request,
+                jrpc_request=jrpc_request,
+                reason=f'upstream returned empty body with HTTP {resp.status}'
+            )
+        try:
+            upstream_response = loads(resp_body)
+        except Exception as e:
+            raise UpstreamResponseError(
+                http_request=http_request,
+                jrpc_request=jrpc_request,
+                reason=f'upstream returned invalid JSON: {e!r}'
+            )
+        if resp.status != 200:
+            logger.warning('upstream returned non-200 status',
+                           status=resp.status,
+                           request_id=jrpc_request.jussi_request_id)
     upstream_response['id'] = jrpc_request.id
     jrpc_request.timings.append((perf(), 'fetch_http.exit'))
     return upstream_response
