@@ -302,6 +302,34 @@ class UpstreamResponseError(JsonRpcError):
     code = 1100
     message = 'Upstream response error: {reason}'
 
+    def to_dict(self):
+        data = super().to_dict()
+        # include the user's JSON-RPC request data for diagnosis
+        try:
+            if self.jsonrpc_request:
+                data['request_data'] = self.jsonrpc_request.to_dict()
+        except Exception:
+            pass
+        # include the real client IP for openresty blocking.
+        # openresty's real_ip_header already restores the true client IP
+        # to $remote_addr, then passes it as X-Real-IP to jussi.
+        # X-Forwarded-For ($proxy_add_x_forwarded_for) contains the full
+        # proxy chain and is used as fallback.
+        try:
+            if self.http_request:
+                xri = self.http_request.headers.get('X-Real-IP', '')
+                if xri:
+                    data['client_ip'] = xri
+                else:
+                    xff = self.http_request.headers.get('X-Forwarded-For', '')
+                    if xff:
+                        data['client_ip'] = xff.split(',')[0].strip()
+                    else:
+                        data['client_ip'] = getattr(self.http_request, 'ip', 'unknown')
+        except Exception:
+            pass
+        return data
+
 
 class InvalidNamespaceError(JsonRpcError):
     code = 1200
