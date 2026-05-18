@@ -132,13 +132,18 @@ type LimitsConfig struct {
 // LoadConfig loads configuration from environment variables and config file
 func LoadConfig() (*Config, error) {
 	viper.SetEnvPrefix("JUSSI")
-	viper.AutomaticEnv()
+
+	// Use explicit env binding instead of AutomaticEnv() because Viper's
+	// default key replacer converts ALL underscores to dots (e.g.,
+	// TELEMETRY_OTLP_ENDPOINT → telemetry.otlp.endpoint instead of
+	// telemetry.otlp_endpoint), which breaks nested struct unmarshaling.
+	bindEnvOverrides()
 
 	// Set defaults
 	setDefaults()
 
 	// Load config file if specified
-	configFile := viper.GetString("UPSTREAM_CONFIG_FILE")
+	configFile := viper.GetString("upstream_config_file")
 	if configFile == "" {
 		configFile = "DEV_config.json"
 	}
@@ -163,6 +168,69 @@ func LoadConfig() (*Config, error) {
 	config.Upstream.RawConfig = upstreamConfig
 
 	return &config, nil
+}
+
+// bindEnvOverrides reads JUSSI_* environment variables and sets them as Viper
+// config values using correct dot-separated keys. Viper's AutomaticEnv() uses
+// a key replacer that converts ALL underscores to dots, which breaks mapping
+// for nested fields that contain underscores (e.g., otlp_endpoint).
+func bindEnvOverrides() {
+	envMappings := []struct {
+		envKey string
+		cfgKey string
+	}{
+		// Server
+		{"JUSSI_SERVER_HOST", "server.host"},
+		{"JUSSI_SERVER_PORT", "server.port"},
+		{"JUSSI_SERVER_WORKERS", "server.workers"},
+		{"JUSSI_SERVER_TCP_BACKLOG", "server.tcp_backlog"},
+		{"JUSSI_JSONRPC_BATCH_SIZE_LIMIT", "server.batch_size_limit"},
+
+		// Upstream
+		{"JUSSI_UPSTREAM_CONFIG_FILE", "upstream_config_file"},
+		{"JUSSI_TEST_UPSTREAM_URLS", "upstream.test_urls"},
+		{"JUSSI_WEBSOCKET_ENABLED", "upstream.websocket_enabled"},
+		{"JUSSI_WEBSOCKET_POOL_MINSIZE", "upstream.websocket_pool.min_size"},
+		{"JUSSI_WEBSOCKET_POOL_MAXSIZE", "upstream.websocket_pool.max_size"},
+		{"JUSSI_WEBSOCKET_QUEUE_SIZE", "upstream.websocket_pool.queue_size"},
+		{"JUSSI_WEBSOCKET_READ_LIMIT", "upstream.websocket_pool.read_limit"},
+		{"JUSSI_WEBSOCKET_WRITE_LIMIT", "upstream.websocket_pool.write_limit"},
+
+		// Cache
+		{"JUSSI_CACHE_ENABLED", "cache.enabled"},
+		{"JUSSI_CACHE_READ_TIMEOUT", "cache.read_timeout"},
+		{"JUSSI_CACHE_TEST_BEFORE_ADD", "cache.test_before_add"},
+		{"JUSSI_CACHE_REDIS_URL", "cache.redis_url"},
+		{"JUSSI_CACHE_REDIS_POOL_SIZE", "cache.redis.pool_size"},
+
+		// Logging
+		{"JUSSI_LOGGING_LEVEL", "logging.level"},
+		{"JUSSI_LOGGING_FORMAT", "logging.format"},
+		{"JUSSI_LOGGING_OUTPUT", "logging.output"},
+		{"JUSSI_LOGGING_INCLUDE_CALLER", "logging.include_caller"},
+		{"JUSSI_LOGGING_TIMESTAMP_FORMAT", "logging.timestamp_format"},
+
+		// Telemetry
+		{"JUSSI_TELEMETRY_ENABLED", "telemetry.enabled"},
+		{"JUSSI_TELEMETRY_SERVICE_NAME", "telemetry.service_name"},
+		{"JUSSI_TELEMETRY_OTLP_ENDPOINT", "telemetry.otlp_endpoint"},
+		{"JUSSI_TELEMETRY_TRACES_ENDPOINT", "telemetry.traces_endpoint"},
+		{"JUSSI_TELEMETRY_RESOURCE_ATTRIBUTES", "telemetry.resource_attributes"},
+
+		// Prometheus
+		{"JUSSI_PROMETHEUS_ENABLED", "prometheus.enabled"},
+		{"JUSSI_PROMETHEUS_PATH", "prometheus.path"},
+		{"JUSSI_PROMETHEUS_LOCALHOST_ONLY", "prometheus.localhost_only"},
+
+		// Limits
+		{"JUSSI_LIMITS_ACCOUNT_HISTORY_LIMIT", "limits.account_history_limit"},
+	}
+
+	for _, m := range envMappings {
+		if val, ok := os.LookupEnv(m.envKey); ok {
+			viper.Set(m.cfgKey, val)
+		}
+	}
 }
 
 // UpstreamRawConfig represents the raw upstream configuration from JSON

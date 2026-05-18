@@ -44,19 +44,18 @@ WORKDIR /app
 # Copy binary from builder stage
 COPY --from=builder /app/jussi .
 
-# Copy configuration files
-COPY --from=builder /app/config ./config
+# Copy default upstream JSON (no top-level config/ dir in this repo)
 COPY --from=builder /app/DEV_config.json .
 
 # Copy the commit hash to /etc/version
 COPY --from=builder /tmp/commit_hash /etc/version
 
 # Expose port
-EXPOSE 8080
+EXPOSE 9000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:9000/health || exit 1
 
 # Set environment variable for configuration file
 ENV JUSSI_UPSTREAM_CONFIG_FILE=DEV_config.json

@@ -29,16 +29,25 @@ The provided `docker-compose.yml` includes:
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
+The Go service uses the `JUSSI_` prefix (see [CONFIGURATION.md](CONFIGURATION.md)). Common deployment variables:
+
+| Variable | Description | Default / notes |
+|----------|-------------|-----------------|
 | `JUSSI_SERVER_HOST` | Server bind address | `0.0.0.0` |
-| `JUSSI_SERVER_PORT` | Server port | `8080` |
-| `JUSSI_CACHE_REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
-| `JUSSI_LOGGING_LEVEL` | Log level (debug, info, warn, error) | `info` |
-| `JUSSI_LOGGING_FORMAT` | Log format (json, text) | `json` |
-| `JUSSI_TELEMETRY_JAEGER_ENDPOINT` | Jaeger collector endpoint | `http://localhost:14268/api/traces` |
-| `JUSSI_PROMETHEUS_ENABLED` | Enable Prometheus metrics | `true` |
-| `JUSSI_PROMETHEUS_PORT` | Prometheus metrics port | `9090` |
+| `JUSSI_SERVER_PORT` | HTTP listen port (JSON-RPC, `/health`, `/metrics`) | `9000` (many configs); `8080` in sample `DEV_config.json` |
+| `JUSSI_UPSTREAM_CONFIG_FILE` | Path to upstream JSON inside the container | e.g. `/app/configfiles.json` |
+| `JUSSI_CACHE_REDIS_URL` | Redis URL (`cache.redis_url`) | `redis://host:6379` |
+| `LOG_LEVEL` | Log level | `INFO` / `info` (validated case-insensitively) |
+| `LOG_FORMAT` | Log format | `json`, `text` |
+| `JUSSI_TELEMETRY_ENABLED` | OpenTelemetry traces | `true` |
+| `JUSSI_TELEMETRY_OTLP_ENDPOINT` | OTLP **HTTP** collector URL (host must reach Jaeger) | e.g. `http://watchtower-private-ip:4318` |
+| `JUSSI_TELEMETRY_SERVICE_NAME` | Trace service name | `jussi` |
+| `JUSSI_TELEMETRY_RESOURCE_ATTRIBUTES` | Extra resource attributes | e.g. `deployment.environment=dev` |
+| `JUSSI_PROMETHEUS_ENABLED` | Expose Prometheus on the **same** port as the app | `true` |
+| `JUSSI_PROMETHEUS_PATH` | Metrics path | `/metrics` |
+| `JUSSI_PROMETHEUS_LOCALHOST_ONLY` | If `true`, only localhost can scrape | Set `false` when Prometheus runs on another host (e.g. Watchtower) |
+
+**Watchtower**: the shared observability stack exposes OTLP HTTP on **4318** and OTLP gRPC on **4317**; the Go exporter uses **HTTP** (`otlptracehttp`), so point `JUSSI_TELEMETRY_OTLP_ENDPOINT` at `http://<watchtower-private-ip>:4318`. Allow the Watchtower security group (or instance IP) to reach Jussi on `JUSSI_SERVER_PORT` for Prometheus scrape targets (`/metrics`). See the Watchtower repository README for ports and SG guidance.
 
 ## AWS Elastic Beanstalk Deployment
 
@@ -60,13 +69,15 @@ The provided `docker-compose.yml` includes:
    eb create production --instance-type t3.medium
    ```
 
-3. **Configure environment variables:**
+3. **Configure environment variables** (adjust OTLP host to your Watchtower instance private IP in VPC):
    ```bash
    eb setenv JUSSI_SERVER_HOST=0.0.0.0 \
-            JUSSI_SERVER_PORT=8080 \
+            JUSSI_SERVER_PORT=9000 \
             JUSSI_CACHE_REDIS_URL=redis://your-redis-cluster:6379 \
-            JUSSI_LOGGING_LEVEL=info \
-            JUSSI_LOGGING_FORMAT=json
+            LOG_LEVEL=info \
+            LOG_FORMAT=json \
+            JUSSI_TELEMETRY_OTLP_ENDPOINT=http://watchtower-private-ip:4318 \
+            JUSSI_PROMETHEUS_LOCALHOST_ONLY=false
    ```
 
 4. **Deploy:**
@@ -151,13 +162,15 @@ For AWS Application Load Balancer:
 
 ## Monitoring and Observability
 
-### Jaeger Tracing
+### Jaeger / OpenTelemetry (Watchtower)
 
-Access Jaeger UI at `http://localhost:16686` to view distributed traces.
+Traces are exported via **OTLP HTTP** to Jaeger (e.g. the Watchtower EC2 stack). Use `JUSSI_TELEMETRY_OTLP_ENDPOINT=http://<watchtower-private-ip>:4318`. Access Jaeger UI on the Watchtower host at port **16686** (VPC / VPN only unless exposed).
 
 ### Prometheus Metrics
 
-Key metrics available at `/metrics`:
+Metrics are on the **same port** as the API (`JUSSI_SERVER_PORT`), path `JUSSI_PROMETHEUS_PATH` (default `/metrics`). When a central Prometheus (e.g. on Watchtower) scrapes Jussi, set `JUSSI_PROMETHEUS_LOCALHOST_ONLY=false` or configure `allowed_ips` in JSON / env.
+
+Key metrics include:
 
 - `jussi_requests_total`: Total requests processed
 - `jussi_request_duration_seconds`: Request processing time
