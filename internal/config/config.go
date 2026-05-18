@@ -215,49 +215,49 @@ func loadUpstreamConfig(filename string) (*UpstreamRawConfig, error) {
 
 func setDefaults() {
 	// Server defaults
-	viper.SetDefault("SERVER_HOST", "0.0.0.0")
-	viper.SetDefault("SERVER_PORT", 9000)
-	viper.SetDefault("SERVER_WORKERS", 0) // 0 means use CPU count
-	viper.SetDefault("SERVER_TCP_BACKLOG", 100)
-	viper.SetDefault("JSONRPC_BATCH_SIZE_LIMIT", 50)
+	viper.SetDefault("server.host", "0.0.0.0")
+	viper.SetDefault("server.port", 9000)
+	viper.SetDefault("server.workers", 0) // 0 means use CPU count
+	viper.SetDefault("server.tcp_backlog", 100)
+	viper.SetDefault("server.batch_size_limit", 50)
 
 	// WebSocket pool defaults
-	viper.SetDefault("WEBSOCKET_POOL_MINSIZE", 8)
-	viper.SetDefault("WEBSOCKET_POOL_MAXSIZE", 8)
-	viper.SetDefault("WEBSOCKET_QUEUE_SIZE", 1)
-	viper.SetDefault("WEBSOCKET_READ_LIMIT", 65536)
-	viper.SetDefault("WEBSOCKET_WRITE_LIMIT", 65536)
+	viper.SetDefault("upstream.websocket_pool.min_size", 8)
+	viper.SetDefault("upstream.websocket_pool.max_size", 8)
+	viper.SetDefault("upstream.websocket_pool.queue_size", 1)
+	viper.SetDefault("upstream.websocket_pool.read_limit", 65536)
+	viper.SetDefault("upstream.websocket_pool.write_limit", 65536)
 
 	// Cache defaults
-	viper.SetDefault("CACHE_ENABLED", true)
-	viper.SetDefault("CACHE_READ_TIMEOUT", 1.0)
-	viper.SetDefault("CACHE_TEST_BEFORE_ADD", false)
+	viper.SetDefault("cache.enabled", true)
+	viper.SetDefault("cache.read_timeout", 1.0)
+	viper.SetDefault("cache.test_before_add", false)
 
 	// Logging defaults
-	viper.SetDefault("LOG_LEVEL", "INFO")
-	viper.SetDefault("LOG_FORMAT", "json")
-	viper.SetDefault("LOG_OUTPUT", "stdout")
-	viper.SetDefault("LOG_INCLUDE_CALLER", false)
-	viper.SetDefault("LOG_TIMESTAMP_FORMAT", "rfc3339")
+	viper.SetDefault("logging.level", "INFO")
+	viper.SetDefault("logging.format", "json")
+	viper.SetDefault("logging.output", "stdout")
+	viper.SetDefault("logging.include_caller", false)
+	viper.SetDefault("logging.timestamp_format", "rfc3339")
 
 	// Telemetry defaults
-	viper.SetDefault("TELEMETRY_ENABLED", true)
-	viper.SetDefault("OTEL_SERVICE_NAME", "jussi")
-	viper.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+	viper.SetDefault("telemetry.enabled", true)
+	viper.SetDefault("telemetry.service_name", "jussi")
+	viper.SetDefault("telemetry.otlp_endpoint", "http://localhost:4317")
 
 	// Prometheus defaults
-	viper.SetDefault("PROMETHEUS_ENABLED", true)
-	viper.SetDefault("PROMETHEUS_PATH", "/metrics")
-	viper.SetDefault("PROMETHEUS_LOCALHOST_ONLY", true)
+	viper.SetDefault("prometheus.enabled", true)
+	viper.SetDefault("prometheus.path", "/metrics")
+	viper.SetDefault("prometheus.localhost_only", true)
 
 	// Limits defaults
 	// account_history_limit: temporary protection for ahnode backend.
 	// Ported from legacy Python jussi (commit 94e3ef2, PR #235).
 	// get_account_history with large limit values severely degrades ahnode
 	// performance, so we cap it at 100 at the gateway level.
-	viper.SetDefault("LIMITS_ACCOUNT_HISTORY_LIMIT", 100)
+	viper.SetDefault("limits.account_history_limit", 100)
 
 	// Upstream defaults
-	viper.SetDefault("TEST_UPSTREAM_URLS", true)
-	viper.SetDefault("WEBSOCKET_ENABLED", false)
+	viper.SetDefault("upstream.test_urls", true)
+	viper.SetDefault("upstream.websocket_enabled", false)
 }
