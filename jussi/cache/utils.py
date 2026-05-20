@@ -10,6 +10,7 @@ from ..typedefs import CachedBatchResponse
 from ..typedefs import CachedSingleResponse
 from ..typedefs import SingleJrpcRequest
 from ..typedefs import SingleJrpcResponse
+from ..empty import Empty
 from .ttl import TTL
 
 logger = structlog.get_logger(__name__)
@@ -72,10 +73,20 @@ def merge_cached_response(request: SingleJrpcRequest,
                           ) -> Optional[SingleJrpcResponse]:
     if not cached_response:
         return None
-    return {'id': request.id, 'jsonrpc': '2.0', 'result': cached_response['result']}
+    # Guard against Empty sentinel in cached response result
+    if isinstance(cached_response, Empty):
+        return None
+    result = cached_response.get('result')
+    if isinstance(result, Empty):
+        return None
+    return {'id': request.id, 'jsonrpc': '2.0', 'result': result}
 
 
 def merge_cached_responses(request: BatchJrpcRequest,
                            cached_responses: CachedBatchResponse) -> CachedBatchResponse:
-    return [merge_cached_response(req, resp) for req, resp in zip(
-        request, cached_responses)]
+    merged = []
+    for req, resp in zip(request, cached_responses):
+        m = merge_cached_response(req, resp)
+        # merge_cached_response returns None for cache miss or Empty sentinel
+        merged.append(m)
+    return merged

@@ -12,6 +12,8 @@ from typing import TypeVar
 from ujson import dumps
 from ujson import loads
 
+from ..empty import Empty
+
 CacheTTLValue = TypeVar('CacheTTL', int, float, type(None))
 CacheKey = str
 CacheKeys = List[CacheKey]
@@ -36,29 +38,45 @@ class Cache:
     def _unpack(self, value: bytes) -> CacheResult:
         if not value:
             return None
-        return loads(decompress(value))
+        result = loads(decompress(value))
+        # Guard against Empty sentinel in cached data
+        if isinstance(result, Empty):
+            return None
+        return result
 
     # pylint: enable=no-self-use
 
     async def get(self, key: CacheKey) -> CacheResult:
         res = await self.client.get(key)
         if res:
-            return self._unpack(res)
+            result = self._unpack(res)
+            # redis-py edge cases can return Empty sentinel; treat as cache miss
+            if isinstance(result, Empty):
+                return None
+            return result
         return None
 
     async def set(self, key: str, value, expire_time: CacheTTLValue=None) -> NoReturn:
+        # Never store Empty in the cache
+        if isinstance(value, Empty):
+            return
         value = self._pack(value)
         await self.client.set(key, value, ex=expire_time)
 
     async def set_many(self, data: CachePairs, expire_time: CacheTTLValue=None) -> NoReturn:
         async with self.client.pipeline(transaction=False) as pipeline:
             for key, value in data.items():
+                # Never store Empty in the cache
+                if isinstance(value, Empty):
+                    continue
                 value = self._pack(value)
                 await pipeline.set(key, value, ex=expire_time)
             return await pipeline.execute()
 
     async def mget(self, keys: CacheKeys) -> CacheResults:
-        return [self._unpack(r) for r in await self.client.mget(keys)]
+        results = [self._unpack(r) for r in await self.client.mget(keys)]
+        # Filter out any Empty sentinels from redis-py edge cases
+        return [None if isinstance(r, Empty) else r for r in results]
 
     async def clear(self):
         return await self.client.flushdb()

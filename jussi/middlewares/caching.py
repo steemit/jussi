@@ -10,11 +10,28 @@ from sanic import response
 from ujson import loads
 
 from ..cache.cache_group import UncacheableResponse
+from ..empty import Empty
 from ..typedefs import HTTPRequest
 from ..typedefs import HTTPResponse
 from ..utils import async_nowait_middleware
 
 logger = structlog.get_logger(__name__)
+
+
+def _contains_empty(value) -> bool:
+    """Check if value is or recursively contains the Empty sentinel.
+
+    Empty is jussi's sentinel for "not provided" in URN parsing.
+    It must never reach ujson.dumps() — it's not JSON serializable.
+    See: https://github.com/steemit/jussi-legacy/issues/XXX
+    """
+    if isinstance(value, Empty):
+        return True
+    if isinstance(value, dict):
+        return any(_contains_empty(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_empty(v) for v in value)
+    return False
 
 
 async def get_response(request: HTTPRequest) -> None:
@@ -44,10 +61,16 @@ async def get_response(request: HTTPRequest) -> None:
 
         if cached_response and \
                 cache_group.is_complete_response(request.jsonrpc, cached_response):
-            jussi_cache_key = cache_group.x_jussi_cache_key(request.jsonrpc)
-            request.timings.append((perf(), 'get_cached_response.exit'))
-            return response.json(cached_response,
-                                 headers={'x-jussi-cache-hit': jussi_cache_key})
+            # Guard against Empty sentinel leaking into cached responses.
+            # Empty is jussi's URN parsing sentinel and is not JSON serializable.
+            if _contains_empty(cached_response):
+                logger.warning('Empty sentinel found in cached response, skipping cache hit',
+                               request_id=request.jussi_request_id)
+            else:
+                jussi_cache_key = cache_group.x_jussi_cache_key(request.jsonrpc)
+                request.timings.append((perf(), 'get_cached_response.exit'))
+                return response.json(cached_response,
+                                     headers={'x-jussi-cache-hit': jussi_cache_key})
 
     except ConnectionRefusedError as e:
         logger.error('error connecting to redis cache', e=e)

@@ -9,6 +9,8 @@ from typing import TypeVar
 
 import structlog
 
+from ..empty import Empty
+
 logger = structlog.get_logger(__name__)
 
 MEMORY_CACHE_MAX_TTL = 180
@@ -42,6 +44,10 @@ class SimplerMaxTTLMemoryCache:
         if key in self._cache:
             timestamp, result = self._cache[key]
             if timestamp - perf_counter() > 0:
+                # Filter out Empty sentinel from pre-fix cached data
+                if isinstance(result, Empty):
+                    del self._cache[key]
+                    return None
                 return result
             else:
                 del self._cache[key]
@@ -51,15 +57,21 @@ class SimplerMaxTTLMemoryCache:
         return self.gets(key)
 
     def mgets(self, keys: CacheKeys) -> CacheResults:
-        return [self.gets(k) for k in keys]
+        results = [self.gets(k) for k in keys]
+        # Double-check: filter any remaining Empty sentinels
+        return [None if isinstance(r, Empty) else r for r in results]
 
     async def mget(self, keys: CacheKeys) -> CacheResults:
-        return [self.gets(k) for k in keys]
+        results = [self.gets(k) for k in keys]
+        return [None if isinstance(r, Empty) else r for r in results]
 
     def sets(self, key: CacheKey, value: CacheValue, expire_time: CacheTTLValue) -> NoReturn:
         if expire_time is None or expire_time > self._max_ttl:
             expire_time = self._max_ttl
         self.prune()
+        # Never store Empty sentinel in the memory cache
+        if isinstance(value, Empty):
+            return
         self._cache[key] = (perf_counter() + expire_time), value
         return
 
@@ -67,7 +79,8 @@ class SimplerMaxTTLMemoryCache:
         return self.sets(key, value, expire_time)
 
     def set_manys(self, data: CachePairs, expire_time: CacheTTLValue) -> NoReturn:
-        _ = [self.sets(k, v, expire_time) for k, v, in data.items()]
+        _ = [self.sets(k, v, expire_time) for k, v, in data.items()
+             if not isinstance(v, Empty)]  # Never store Empty sentinel
         return
 
     async def set_many(self, data: CachePairs, expire_time: CacheTTLValue) -> NoReturn:
