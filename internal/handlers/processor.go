@@ -51,6 +51,50 @@ func NewRequestProcessor(
 	}
 }
 
+// legacyAPIs maps old-style API namespaces that must be translated to
+// condenser_api for steemd 0.23.x+ appbase compatibility.
+// These methods (e.g. database_api.get_state) are legacy and will be
+// removed in future steemd versions; condenser_api provides backward
+// compatibility in the meantime.
+var legacyAPIs = map[string]bool{
+	"database_api": true,
+}
+
+// translateLegacyAPI translates old-style API methods (e.g. database_api.get_state)
+// to their condenser_api equivalents. This must run before routing so the URN
+// matches the correct upstream entry in config (e.g. appbase.condenser_api.get_state → hivemind).
+//
+// Two request formats are handled:
+//  1. call-style: method="call", params=["database_api","get_state",args]
+//     → translate params[0] to "condenser_api" so the upstream receives the appbase method
+//  2. direct method: method="database_api.get_state", params=args
+//     → translate the method string to "condenser_api.get_state"
+func translateLegacyAPI(jsonrpcReq *request.JSONRPCRequest) {
+	if !legacyAPIs[jsonrpcReq.URN.API] {
+		return
+	}
+
+	oldAPI := jsonrpcReq.URN.API
+	jsonrpcReq.URN.API = "condenser_api"
+	// Switch namespace to "appbase" so routing matches config entries
+	// like "appbase.condenser_api.get_state" instead of falling through
+	// the "steemd" namespace to the generic steemd upstream.
+	jsonrpcReq.URN.Namespace = "appbase"
+
+	if jsonrpcReq.Method == "call" {
+		// call-style: params=[api_name, method_name, args]
+		// Translate params[0] from "database_api" to "condenser_api"
+		if paramsSlice, ok := jsonrpcReq.Params.([]interface{}); ok && len(paramsSlice) >= 1 {
+			if apiName, ok := paramsSlice[0].(string); ok && apiName == oldAPI {
+				paramsSlice[0] = "condenser_api"
+			}
+		}
+	} else {
+		// Direct method: "database_api.get_state" → "condenser_api.get_state"
+		jsonrpcReq.Method = strings.Replace(jsonrpcReq.Method, oldAPI+".", "condenser_api.", 1)
+	}
+}
+
 // ProcessSingleRequest processes a single JSON-RPC request
 func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq *request.JSONRPCRequest) (map[string]interface{}, error) {
 	// Create span for request processing
@@ -58,6 +102,10 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 		trace.WithSpanKind(trace.SpanKindInternal),
 	)
 	defer span.End()
+
+	// Translate legacy API methods (e.g. database_api.get_state → condenser_api.get_state)
+	// before routing so the URN matches the correct upstream config entry.
+	translateLegacyAPI(jsonrpcReq)
 
 	// Add span attributes
 	telemetry.AddSpanAttributes(span, map[string]string{
