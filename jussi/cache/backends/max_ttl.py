@@ -8,7 +8,7 @@ from typing import Union
 
 import structlog
 
-from ..empty import Empty
+from ...empty import Empty
 
 logger = structlog.get_logger(__name__)
 

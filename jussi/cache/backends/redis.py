@@ -11,7 +11,7 @@ from typing import Union
 from ujson import dumps
 from ujson import loads
 
-from ..empty import Empty
+from ...empty import Empty
 
 CacheTTLValue = Union[int, float, None]
 CacheKey = str
