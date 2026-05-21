@@ -2,12 +2,13 @@
 from time import perf_counter
 from typing import Dict
 from typing import List
-from typing import NoReturn
 from typing import Optional
 from typing import Tuple
-from typing import TypeVar
+from typing import Union
 
 import structlog
+
+from ...empty import Empty
 
 logger = structlog.get_logger(__name__)
 
@@ -15,13 +16,13 @@ MEMORY_CACHE_MAX_TTL = 180
 MEMORY_CACHE_MAX_SIZE = 2000
 
 
-CacheTTLValue = TypeVar('CacheTTL', int, float, type(None))
+CacheTTLValue = Union[int, float, None]
 CacheKey = str
 CacheKeys = List[CacheKey]
-CacheValue = TypeVar('CacheValue', int, float, str, dict)
+CacheValue = Union[int, float, str, dict]
 CachePair = Tuple[CacheKey, CacheValue]
 CachePairs = Dict[CacheKey, CacheValue]
-CacheResultValue = TypeVar('CacheValue', int, float, str, dict)
+CacheResultValue = Union[int, float, str, dict]
 CacheResult = Optional[CacheResultValue]
 CacheResults = List[CacheResult]
 
@@ -56,44 +57,43 @@ class SimplerMaxTTLMemoryCache:
     async def mget(self, keys: CacheKeys) -> CacheResults:
         return [self.gets(k) for k in keys]
 
-    def sets(self, key: CacheKey, value: CacheValue, expire_time: CacheTTLValue) -> NoReturn:
+    def sets(self, key: CacheKey, value: CacheValue, expire_time: CacheTTLValue) -> None:
         if expire_time is None or expire_time > self._max_ttl:
             expire_time = self._max_ttl
         self.prune()
+        if isinstance(value, Empty):
+            return
         self._cache[key] = (perf_counter() + expire_time), value
-        return
 
-    async def set(self, key: CacheKey, value: CacheValue, expire_time: CacheTTLValue) -> NoReturn:
+    async def set(self, key: CacheKey, value: CacheValue, expire_time: CacheTTLValue) -> None:
         return self.sets(key, value, expire_time)
 
-    def set_manys(self, data: CachePairs, expire_time: CacheTTLValue) -> NoReturn:
-        _ = [self.sets(k, v, expire_time) for k, v, in data.items()]
+    def set_manys(self, data: CachePairs, expire_time: CacheTTLValue) -> None:
+        _ = [self.sets(k, v, expire_time) for k, v in data.items()]
         return
 
-    async def set_many(self, data: CachePairs, expire_time: CacheTTLValue) -> NoReturn:
-        _ = [self.sets(k, v, expire_time) for k, v, in data.items()]
+    async def set_many(self, data: CachePairs, expire_time: CacheTTLValue) -> None:
+        _ = [self.sets(k, v, expire_time) for k, v in data.items()]
         return
 
-    def deletes(self, key: CacheKey) -> NoReturn:
+    def deletes(self, key: CacheKey) -> None:
         if key in self._cache:
             del self._cache[key]
 
-    async def delete(self, key: CacheKey) -> NoReturn:
+    async def delete(self, key: CacheKey) -> None:
         if key in self._cache:
             del self._cache[key]
 
-    def prune(self) -> NoReturn:
+    def prune(self) -> None:
         now = perf_counter()
         pruned = [k for k, v in self._items if (v[0] - now) < 0]
         for k in pruned:
             del self._cache[k]
         if len(self._items) >= self._max_size:
             del self._cache[next(iter(self._cache))]
-        return
 
-    def clears(self) -> NoReturn:
+    def clears(self) -> None:
         self._cache = {}
-        return
 
-    async def clear(self) -> NoReturn:
+    async def clear(self) -> None:
         return self.clears()

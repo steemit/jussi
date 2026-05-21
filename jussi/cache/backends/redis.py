@@ -3,22 +3,23 @@ from zlib import compress
 from zlib import decompress
 from typing import Dict
 from typing import List
-from typing import NoReturn
 from typing import Optional
 from typing import Tuple
-from typing import TypeVar
+from typing import Union
 
 
 from ujson import dumps
 from ujson import loads
 
-CacheTTLValue = TypeVar('CacheTTL', int, float, type(None))
+from ...empty import Empty
+
+CacheTTLValue = Union[int, float, None]
 CacheKey = str
 CacheKeys = List[CacheKey]
-CacheValue = TypeVar('CacheValue', int, float, str, dict)
+CacheValue = Union[int, float, str, dict]
 CachePair = Tuple[CacheKey, CacheValue]
 CachePairs = Dict[CacheKey, CacheValue]
-CacheResultValue = TypeVar('CacheValue', int, float, str, dict)
+CacheResultValue = Union[int, float, str, dict]
 CacheResult = Optional[CacheResultValue]
 CacheResults = List[CacheResult]
 
@@ -46,13 +47,17 @@ class Cache:
             return self._unpack(res)
         return None
 
-    async def set(self, key: str, value, expire_time: CacheTTLValue=None) -> NoReturn:
+    async def set(self, key: str, value, expire_time: CacheTTLValue=None) -> None:
+        if isinstance(value, Empty):
+            return
         value = self._pack(value)
         await self.client.set(key, value, ex=expire_time)
 
-    async def set_many(self, data: CachePairs, expire_time: CacheTTLValue=None) -> NoReturn:
+    async def set_many(self, data: CachePairs, expire_time: CacheTTLValue=None) -> None:
         async with self.client.pipeline(transaction=False) as pipeline:
             for key, value in data.items():
+                if isinstance(value, Empty):
+                    continue
                 value = self._pack(value)
                 await pipeline.set(key, value, ex=expire_time)
             return await pipeline.execute()
@@ -85,7 +90,7 @@ class MockClient:
     async def execute(self):
         pass
 
-    async def set(self, key, value, ex: CacheTTLValue=None) -> NoReturn:
+    async def set(self, key, value, ex: CacheTTLValue=None) -> None:
         self.cache.sets(key, value, ex)
 
     async def get(self, key) -> CacheResult:

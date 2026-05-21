@@ -13,6 +13,7 @@ from sanic import response
 from ujson import loads
 from websockets.exceptions import ConnectionClosed
 
+from .empty import _empty
 from .errors import InvalidUpstreamURL
 from .errors import RequestTimeoutError
 from .errors import UpstreamResponseError
@@ -157,7 +158,9 @@ async def fetch_ws(http_request: HTTPRequest,
         upstream_response = loads(upstream_response_json)
         await pool.release(conn)
         assert int(upstream_response.get('id')) == jrpc_request.upstream_id
-        upstream_response['id'] = jrpc_request.id
+        # JSON-RPC requests without "id" (notifications) store _empty as the id,
+        # which ujson cannot serialize. Convert to None (-> null in JSON).
+        upstream_response['id'] = jrpc_request.id if jrpc_request.id is not _empty else None
         jrpc_request.timings.append((perf(), 'fetch_ws.exit'))
         return upstream_response
 
@@ -202,7 +205,8 @@ async def fetch_http(http_request: HTTPRequest,
             logger.warning('upstream returned non-200 status',
                            status=resp.status,
                            request_id=jrpc_request.jussi_request_id)
-    upstream_response['id'] = jrpc_request.id
+    # Same as fetch_ws: convert _empty to None for JSON serialization
+    upstream_response['id'] = jrpc_request.id if jrpc_request.id is not _empty else None
     jrpc_request.timings.append((perf(), 'fetch_http.exit'))
     return upstream_response
 # pylint: enable=no-value-for-parameter
