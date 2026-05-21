@@ -39,7 +39,13 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 		ctx := context.Background()
 		cachedValue, err := cacheGroup.Get(ctx, cacheKey)
 		if err == nil && cachedValue != nil {
-			// Cache hit - return cached response
+			// Cache hit - inject current request's id into cached response
+			// to avoid returning a stale id from a previous request
+			if cachedResp, ok := cachedValue.(map[string]interface{}); ok {
+				if reqMap, ok := body.(map[string]interface{}); ok {
+					cachedResp["id"] = reqMap["id"]
+				}
+			}
 			c.JSON(200, cachedValue)
 			c.Header("x-jussi-cache-hit", cacheKey)
 			c.Abort()
