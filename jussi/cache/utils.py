@@ -5,6 +5,7 @@ from typing import Optional
 import cytoolz
 import structlog
 
+from ..empty import _empty
 from ..typedefs import BatchJrpcRequest
 from ..typedefs import CachedBatchResponse
 from ..typedefs import CachedSingleResponse
@@ -72,7 +73,8 @@ def merge_cached_response(request: SingleJrpcRequest,
                           ) -> Optional[SingleJrpcResponse]:
     if not cached_response:
         return None
-    return {'id': request.id, 'jsonrpc': '2.0', 'result': cached_response['result']}
+    # _empty id (notification request) -> None to avoid ujson serialization error
+    return {'id': request.id if request.id is not _empty else None, 'jsonrpc': '2.0', 'result': cached_response['result']}
 
 
 def merge_cached_responses(request: BatchJrpcRequest,
