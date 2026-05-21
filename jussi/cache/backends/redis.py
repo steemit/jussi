@@ -3,10 +3,9 @@ from zlib import compress
 from zlib import decompress
 from typing import Dict
 from typing import List
-from typing import NoReturn
 from typing import Optional
 from typing import Tuple
-from typing import TypeVar
+from typing import Union
 
 
 from ujson import dumps
@@ -14,13 +13,13 @@ from ujson import loads
 
 from ..empty import Empty
 
-CacheTTLValue = TypeVar('CacheTTL', int, float, type(None))
+CacheTTLValue = Union[int, float, None]
 CacheKey = str
 CacheKeys = List[CacheKey]
-CacheValue = TypeVar('CacheValue', int, float, str, dict)
+CacheValue = Union[int, float, str, dict]
 CachePair = Tuple[CacheKey, CacheValue]
 CachePairs = Dict[CacheKey, CacheValue]
-CacheResultValue = TypeVar('CacheValue', int, float, str, dict)
+CacheResultValue = Union[int, float, str, dict]
 CacheResult = Optional[CacheResultValue]
 CacheResults = List[CacheResult]
 
@@ -38,35 +37,25 @@ class Cache:
     def _unpack(self, value: bytes) -> CacheResult:
         if not value:
             return None
-        result = loads(decompress(value))
-        # Guard against Empty sentinel in cached data
-        if isinstance(result, Empty):
-            return None
-        return result
+        return loads(decompress(value))
 
     # pylint: enable=no-self-use
 
     async def get(self, key: CacheKey) -> CacheResult:
         res = await self.client.get(key)
         if res:
-            result = self._unpack(res)
-            # redis-py edge cases can return Empty sentinel; treat as cache miss
-            if isinstance(result, Empty):
-                return None
-            return result
+            return self._unpack(res)
         return None
 
-    async def set(self, key: str, value, expire_time: CacheTTLValue=None) -> NoReturn:
-        # Never store Empty in the cache
+    async def set(self, key: str, value, expire_time: CacheTTLValue=None) -> None:
         if isinstance(value, Empty):
             return
         value = self._pack(value)
         await self.client.set(key, value, ex=expire_time)
 
-    async def set_many(self, data: CachePairs, expire_time: CacheTTLValue=None) -> NoReturn:
+    async def set_many(self, data: CachePairs, expire_time: CacheTTLValue=None) -> None:
         async with self.client.pipeline(transaction=False) as pipeline:
             for key, value in data.items():
-                # Never store Empty in the cache
                 if isinstance(value, Empty):
                     continue
                 value = self._pack(value)
@@ -74,9 +63,7 @@ class Cache:
             return await pipeline.execute()
 
     async def mget(self, keys: CacheKeys) -> CacheResults:
-        results = [self._unpack(r) for r in await self.client.mget(keys)]
-        # Filter out any Empty sentinels from redis-py edge cases
-        return [None if isinstance(r, Empty) else r for r in results]
+        return [self._unpack(r) for r in await self.client.mget(keys)]
 
     async def clear(self):
         return await self.client.flushdb()
@@ -103,7 +90,7 @@ class MockClient:
     async def execute(self):
         pass
 
-    async def set(self, key, value, ex: CacheTTLValue=None) -> NoReturn:
+    async def set(self, key, value, ex: CacheTTLValue=None) -> None:
         self.cache.sets(key, value, ex)
 
     async def get(self, key) -> CacheResult:
