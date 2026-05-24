@@ -151,7 +151,10 @@ func TestURLsConfig(t *testing.T) {
 		t.Fatalf("failed to create router: %v", err)
 	}
 
-	urls := router.GetAllURLs()
+	urls, err := router.GetAllURLs()
+	if err != nil {
+		t.Fatalf("GetAllURLs failed: %v", err)
+	}
 	expectedURLs := map[string]bool{
 		"http://test.com":  true,
 		"http://test2.com": true,
@@ -363,8 +366,14 @@ func TestHash(t *testing.T) {
 	}
 
 	// Compare URLs (convert to sets for comparison since order may differ)
-	urls1 := router1.GetAllURLs()
-	urls2 := router2.GetAllURLs()
+	urls1, err := router1.GetAllURLs()
+	if err != nil {
+		t.Fatalf("router1.GetAllURLs failed: %v", err)
+	}
+	urls2, err := router2.GetAllURLs()
+	if err != nil {
+		t.Fatalf("router2.GetAllURLs failed: %v", err)
+	}
 	urls1Set := make(map[string]bool)
 	urls2Set := make(map[string]bool)
 	for _, url := range urls1 {
@@ -468,8 +477,14 @@ func TestHashIneq(t *testing.T) {
 	}
 
 	// Compare URLs
-	urls1 := router1.GetAllURLs()
-	urls2 := router2.GetAllURLs()
+	urls1, err := router1.GetAllURLs()
+	if err != nil {
+		t.Fatalf("router1.GetAllURLs failed: %v", err)
+	}
+	urls2, err := router2.GetAllURLs()
+	if err != nil {
+		t.Fatalf("router2.GetAllURLs failed: %v", err)
+	}
 	if reflect.DeepEqual(urls1, urls2) {
 		t.Error("routers with different config should have different URLs")
 	}
@@ -508,7 +523,10 @@ func TestRouterWithTestConfig(t *testing.T) {
 	}
 
 	// Test that we can get steemd URLs
-	steemdURLs := router.GetSteemdURLs()
+	steemdURLs, err := router.GetSteemdURLs()
+	if err != nil {
+		t.Fatalf("GetSteemdURLs failed: %v", err)
+	}
 	if len(steemdURLs) == 0 {
 		t.Error("expected at least one steemd URL")
 	}

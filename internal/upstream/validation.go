@@ -28,7 +28,10 @@ func ValidateUpstreamURLs(cfg *config.Config) error {
 	}
 
 	// Get all unique URLs from router
-	urls := router.GetAllURLs()
+	urls, err := router.GetAllURLs()
+	if err != nil {
+		return fmt.Errorf("failed to get upstream URLs: %w", err)
+	}
 
 	// Test each URL
 	for _, urlStr := range urls {

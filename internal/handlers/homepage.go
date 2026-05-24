@@ -21,14 +21,19 @@ type HomepageHandler struct {
 	GlobalParams *cache.GlobalParams
 }
 
-// NewHomepageHandler creates a new homepage handler
-func NewHomepageHandler(sourceCommit, dockerTag, serviceName string, router *upstream.Router) *HomepageHandler {
+// NewHomepageHandler creates a new homepage handler.
+// Returns an error if required upstream configuration is missing.
+func NewHomepageHandler(sourceCommit, dockerTag, serviceName string, router *upstream.Router) (*HomepageHandler, error) {
+	gp, err := cache.NewGlobalParams(router)
+	if err != nil {
+		return nil, err
+	}
 	return &HomepageHandler{
 		SourceCommit: sourceCommit,
 		DockerTag:    dockerTag,
 		ServiceName:  serviceName,
-		GlobalParams: cache.NewGlobalParams(router),
-	}
+		GlobalParams: gp,
+	}, nil
 }
 
 // HandleHomepage handles GET / requests
