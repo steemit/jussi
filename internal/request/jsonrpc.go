@@ -71,10 +71,10 @@ func FromHTTPRequest(httpReq *HTTPRequest, batchIndex int, rawRequest map[string
 		Timeout: 5,
 	}
 
-	id, _ := rawRequest["id"]
+	id := rawRequest["id"]
 	jsonrpc, _ := rawRequest["jsonrpc"].(string)
 	method, _ := rawRequest["method"].(string)
-	params, _ := rawRequest["params"]
+	params := rawRequest["params"]
 
 	return &JSONRPCRequest{
 		ID:             id,

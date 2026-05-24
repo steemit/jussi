@@ -193,7 +193,7 @@ func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, e
 // }
 
 // SetupRouter configures the Gin router
-func (a *App) SetupRouter() *gin.Engine {
+func (a *App) SetupRouter() (*gin.Engine, error) {
 	if a.config.Logging.Level == "DEBUG" {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -261,9 +261,11 @@ func (a *App) SetupRouter() *gin.Engine {
 	}
 
 	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName)
-	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName, a.router)
+	homepageHandler, err := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName, a.router)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create homepage handler: %w", err)
+	}
 	metricsHandler := &handlers.MetricsHandler{}
-
 	// Register routes
 	router.GET("/", homepageHandler.HandleHomepage)   // Homepage GET support
 	router.POST("/", jsonrpcHandler.HandleJSONRPC)    // JSON-RPC POST support
@@ -283,12 +285,15 @@ func (a *App) SetupRouter() *gin.Engine {
 		metricsGroup.GET("", metricsHandler.HandleMetrics)
 	}
 
-	return router
+	return router, nil
 }
 
 // Run starts the application
 func (a *App) Run() error {
-	router := a.SetupRouter()
+	router, err := a.SetupRouter()
+	if err != nil {
+		return fmt.Errorf("failed to setup router: %w", err)
+	}
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", a.config.Server.Host, a.config.Server.Port),

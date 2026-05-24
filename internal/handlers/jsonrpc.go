@@ -172,7 +172,19 @@ func (h *JSONRPCHandler) handleBatchRequest(c *gin.Context, reqs []interface{}) 
 		ctx := c.Request.Context()
 		responses, err := h.processor.ProcessBatchRequest(ctx, validReqs)
 		if err != nil {
-			errors.HandleError(c, errors.NewInternalError(err.Error()), nil)
+			// JSON-RPC 2.0 requires batch responses to be an array.
+			// Fill all valid request slots with internal errors.
+			for batchIdx, origIdx := range validIndices {
+				results[origIdx] = map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      validReqs[batchIdx].ID,
+					"error": map[string]interface{}{
+						"code":    -32603,
+						"message": err.Error(),
+					},
+				}
+			}
+			c.JSON(http.StatusOK, results)
 			return
 		}
 

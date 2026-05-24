@@ -3,10 +3,12 @@ package cache
 import (
 	"fmt"
 	"strconv"
+	"sync"
 )
 
 // BlockNumberTracker tracks the last irreversible block number
 type BlockNumberTracker struct {
+	mu                       sync.RWMutex
 	lastIrreversibleBlockNum int
 }
 
@@ -19,6 +21,8 @@ func NewBlockNumberTracker() *BlockNumberTracker {
 
 // UpdateLastIrreversibleBlockNum updates the last irreversible block number
 func (b *BlockNumberTracker) UpdateLastIrreversibleBlockNum(blockNum int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if blockNum > b.lastIrreversibleBlockNum {
 		b.lastIrreversibleBlockNum = blockNum
 	}
@@ -26,6 +30,8 @@ func (b *BlockNumberTracker) UpdateLastIrreversibleBlockNum(blockNum int) {
 
 // GetLastIrreversibleBlockNum returns the last irreversible block number
 func (b *BlockNumberTracker) GetLastIrreversibleBlockNum() int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 	return b.lastIrreversibleBlockNum
 }
 
@@ -129,4 +135,3 @@ func IrreversibleTTL(response map[string]interface{}, lastIrreversibleBlockNum i
 	// Block is not irreversible, don't cache
 	return TTLNoCache
 }
-

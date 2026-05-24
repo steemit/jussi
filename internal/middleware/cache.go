@@ -18,15 +18,22 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 			return
 		}
 
-	// Parse request body without consuming it
-	var body interface{}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.Next()
-		return
-	}
-	
-	// Store parsed body in context for later use
-	c.Set("parsed_body", body)
+		// Parse request body without consuming it
+		var body interface{}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.Next()
+			return
+		}
+
+		// Store parsed body in context for later use
+		c.Set("parsed_body", body)
+
+		// Skip cache lookup for batch requests; they are cached
+		// at the individual request level by the processor.
+		if _, isBatch := body.([]interface{}); isBatch {
+			c.Next()
+			return
+		}
 
 		// Generate cache key from request
 		cacheKey, err := generateCacheKey(body)
@@ -40,10 +47,20 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 		cachedValue, err := cacheGroup.Get(ctx, cacheKey)
 		if err == nil && cachedValue != nil {
 			// Cache hit - inject current request's id into cached response
-			// to avoid returning a stale id from a previous request
+			// to avoid returning a stale id from a previous request.
 			if cachedResp, ok := cachedValue.(map[string]interface{}); ok {
 				if reqMap, ok := body.(map[string]interface{}); ok {
-					cachedResp["id"] = reqMap["id"]
+					// Deep copy the cached map to avoid mutating the shared
+					// cache reference (memory cache returns the original pointer).
+					respCopy := make(map[string]interface{}, len(cachedResp))
+					for k, v := range cachedResp {
+						respCopy[k] = v
+					}
+					respCopy["id"] = reqMap["id"]
+					c.JSON(200, respCopy)
+					c.Header("x-jussi-cache-hit", cacheKey)
+					c.Abort()
+					return
 				}
 			}
 			c.JSON(200, cachedValue)
@@ -92,6 +109,18 @@ func CacheStoreMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 			return
 		}
 
+		// Only cache single responses at the middleware level.
+		// Batch responses are cached per-request by the processor.
+		respMap, isSingle := response.(map[string]interface{})
+		if !isSingle {
+			return
+		}
+
+		// Remove request-specific "id" before caching so that future
+		// cache hits don't carry a stale id. The id is per-request and
+		// must be injected at read time (see CacheLookupMiddleware).
+		delete(respMap, "id")
+
 		// Get TTL from context (set by processor)
 		ttl, _ := c.Get("cache_ttl")
 		ttlDuration := 3 * time.Second // Default
@@ -111,7 +140,7 @@ func generateCacheKey(request interface{}) (string, error) {
 	if reqMap, ok := request.(map[string]interface{}); ok {
 		return cache.GenerateCacheKeyFromRequest(reqMap)
 	}
-	
+
 	// Handle batch request - use JSON string as key
 	if batch, ok := request.([]interface{}); ok {
 		data, err := json.Marshal(batch)
@@ -121,7 +150,6 @@ func generateCacheKey(request interface{}) (string, error) {
 		// For batch requests, use JSON string as cache key
 		return string(data), nil
 	}
-	
+
 	return "", nil
 }
-
