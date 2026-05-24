@@ -50,11 +50,7 @@ func ValidateJSONRPCRequest(request interface{}) error {
 			return fmt.Errorf("batch request cannot be empty")
 		}
 		for i, r := range req {
-			reqMap, ok := r.(map[string]interface{})
-			if !ok {
-				return fmt.Errorf("batch request[%d]: request must be an object", i)
-			}
-			if err := validateSingleRequest(reqMap); err != nil {
+			if err := validateSingleRequest(r.(map[string]interface{})); err != nil {
 				return fmt.Errorf("batch request[%d]: %w", i, err)
 			}
 		}

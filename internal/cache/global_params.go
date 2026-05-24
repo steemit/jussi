@@ -26,25 +26,22 @@ type GlobalParams struct {
 }
 
 // NewGlobalParams creates a new global params cache with 3 second TTL
-// Requires router to get steemd URLs from configuration.
-// Returns an error if steemd is not configured.
-func NewGlobalParams(router *upstream.Router) (*GlobalParams, error) {
-	steemdURLs, err := router.GetSteemdURLs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get steemd URLs: %w", err)
-	}
-
+// Requires router to get steemd URLs from configuration
+func NewGlobalParams(router *upstream.Router) *GlobalParams {
+	// Get steemd URLs from configuration (will panic if not configured)
+	steemdURLs := router.GetSteemdURLs()
+	
 	return &GlobalParams{
 		ttl:        3 * time.Second,
 		router:     router,
 		steemdURLs: steemdURLs,
-	}, nil
+	}
 }
 
 // GetHeadBlockNumber returns the latest block number, fetching if cache is stale
 func (gp *GlobalParams) GetHeadBlockNumber(ctx context.Context) (int64, error) {
 	gp.mutex.RLock()
-
+	
 	// Check if cache is still valid
 	if gp.params != nil && time.Since(gp.params.LastUpdate) < gp.ttl {
 		blockNum := gp.params.HeadBlockNumber
@@ -114,3 +111,4 @@ func (gp *GlobalParams) trySteemdURL(ctx context.Context, url string) (int64, er
 	// Convert UInt32 to int64
 	return int64(dgp.HeadBlockNumber), nil
 }
+

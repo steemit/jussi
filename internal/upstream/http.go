@@ -22,9 +22,7 @@ type HTTPClient struct {
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
 		client: &http.Client{
-			// Do not set a global timeout here; each request uses
-			// context.WithTimeout in callHTTPUpstream to avoid nested
-			// timeout conflicts between transport and context.
+			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 10,

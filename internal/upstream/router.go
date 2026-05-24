@@ -1,8 +1,6 @@
 package upstream
 
 import (
-	"fmt"
-
 	"github.com/steemit/jussi/internal/config"
 )
 
@@ -67,19 +65,19 @@ func (r *Router) ShouldTranslateToAppbase(namespace string) bool {
 	return r.translateToAppbase[namespace]
 }
 
-// GetSteemdURLs returns all configured steemd URLs.
-// Returns an error if steemd is not configured.
-func (r *Router) GetSteemdURLs() ([]string, error) {
+// GetSteemdURLs returns all configured steemd URLs
+// Panics if steemd is not configured (required for global params)
+func (r *Router) GetSteemdURLs() []string {
 	var urls []string
 	urlSet := make(map[string]bool)
 
 	if r.upstreamConfig == nil {
-		return nil, fmt.Errorf("upstream configuration is required but not found")
+		panic("upstream configuration is required but not found")
 	}
 
 	// Collect from upstreams array
 	if len(r.upstreamConfig.Upstreams) == 0 {
-		return nil, fmt.Errorf("upstreams configuration is required but not found")
+		panic("upstreams configuration is required but not found")
 	}
 
 	for _, upstream := range r.upstreamConfig.Upstreams {
@@ -98,20 +96,19 @@ func (r *Router) GetSteemdURLs() ([]string, error) {
 	}
 
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("steemd upstream is required but not found in configuration")
+		panic("steemd upstream is required but not found in configuration")
 	}
 
-	return urls, nil
+	return urls
 }
 
-// GetAllURLs returns all configured URLs.
-// Returns an error if no URLs are configured.
-func (r *Router) GetAllURLs() ([]string, error) {
+// GetAllURLs returns all configured URLs
+func (r *Router) GetAllURLs() []string {
 	urls := r.getAllURLsFromConfig()
 	if len(urls) == 0 {
-		return nil, fmt.Errorf("upstreams configuration is required but contains no URLs")
+		panic("upstreams configuration is required but contains no URLs")
 	}
-	return urls, nil
+	return urls
 }
 
 // GetNamespaces returns all configured namespaces
@@ -315,7 +312,7 @@ func (r *Router) getTimeoutFromConfig(urn string) int {
 }
 
 // getAllURLsFromConfig collects all URLs from configuration
-// Returns empty slice if no configuration (caller should handle)
+// Returns empty slice if no configuration (caller should panic)
 func (r *Router) getAllURLsFromConfig() []string {
 	var urls []string
 	urlSet := make(map[string]bool)
