@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/helpers"
 	"github.com/steemit/jussi/internal/middleware"
 	"github.com/steemit/jussi/internal/request"
 	"github.com/steemit/jussi/internal/telemetry"
@@ -150,9 +151,13 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 			CacheOperations.WithLabelValues("get", "hit").Inc()
 
 			if cachedResp, ok := cachedValue.(map[string]interface{}); ok {
-				cachedResp["id"] = jsonrpcReq.ID
+				// Deep copy the cached response to avoid data races when
+				// concurrent batch requests modify the "id" field on the
+				// same cached map reference (Go maps are not concurrency-safe).
+				resp := helpers.DeepCopyMap(cachedResp)
+				resp["id"] = jsonrpcReq.ID
 				telemetry.SetSpanSuccess(span)
-				return cachedResp, nil
+				return resp, nil
 			}
 		}
 		span.SetAttributes(attribute.Bool("jussi.cache.hit", false))
@@ -206,7 +211,12 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 		}
 
 		if cacheTTL > 0 || ttl == cache.TTLNoExpire {
-			_ = p.cacheGroup.Set(ctx, cacheKey, response, cacheTTL)
+			// Store a copy without the request-specific "id" so that
+			// future cache hits don't carry a stale id.  The "id" is
+			// per-request and must be injected at read time (above).
+			cacheEntry := helpers.DeepCopyMap(response)
+			delete(cacheEntry, "id")
+			_ = p.cacheGroup.Set(ctx, cacheKey, cacheEntry, cacheTTL)
 			cacheSpan.End()
 			CacheOperations.WithLabelValues("set", "success").Inc()
 		} else {
