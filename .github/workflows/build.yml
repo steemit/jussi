@@ -1,0 +1,83 @@
+name: build-and-push-docker-image
+
+on:
+  push:
+    branches:
+      - 'next'
+  pull_request:
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Run tests with race detector
+        run: go test ./... -race -count=1
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get commit SHA short
+        id: commit
+        run: echo "sha7=$(git rev-parse --short=7 HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set Docker tags
+        id: tags
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "tags=steemit/jussi:pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          else
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "tags<<$EOF" >> $GITHUB_OUTPUT
+            echo "steemit/jussi:next" >> $GITHUB_OUTPUT
+            echo "steemit/jussi:next-${{ steps.commit.outputs.sha7 }}" >> $GITHUB_OUTPUT
+            echo "$EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+          tags: ${{ steps.tags.outputs.tags }}
+
+      - name: Image info
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: |
+          echo "=== Docker Image Information ==="
+          echo "Image: steemit/jussi"
+          echo "Tags:"
+          echo "${{ steps.tags.outputs.tags }}" | while IFS= read -r tag; do
+            echo "  - $tag"
+          done
+          echo "Digest: ${{ steps.docker_build.outputs.digest }}"
+          echo "================================"
