@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/helpers"
 )
 
 // CacheLookupMiddleware checks cache before processing request
@@ -49,14 +50,11 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 			// Cache hit - inject current request's id into cached response
 			// to avoid returning a stale id from a previous request.
 			if cachedResp, ok := cachedValue.(map[string]interface{}); ok {
-				if reqMap, ok := body.(map[string]interface{}); ok {
-					// Deep copy the cached map to avoid mutating the shared
-					// cache reference (memory cache returns the original pointer).
-					respCopy := make(map[string]interface{}, len(cachedResp))
-					for k, v := range cachedResp {
-						respCopy[k] = v
-					}
-					respCopy["id"] = reqMap["id"]
+			if reqMap, ok := body.(map[string]interface{}); ok {
+				// Deep copy the cached map to avoid mutating the shared
+				// cache reference (memory cache returns the original pointer).
+				respCopy := helpers.DeepCopyMap(cachedResp)
+				respCopy["id"] = reqMap["id"]
 					c.JSON(200, respCopy)
 					c.Header("x-jussi-cache-hit", cacheKey)
 					c.Abort()

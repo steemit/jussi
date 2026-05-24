@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/helpers"
 	"github.com/steemit/jussi/internal/middleware"
 	"github.com/steemit/jussi/internal/request"
 	"github.com/steemit/jussi/internal/telemetry"
@@ -153,7 +154,7 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 				// Deep copy the cached response to avoid data races when
 				// concurrent batch requests modify the "id" field on the
 				// same cached map reference (Go maps are not concurrency-safe).
-				resp := deepCopyMap(cachedResp)
+				resp := helpers.DeepCopyMap(cachedResp)
 				resp["id"] = jsonrpcReq.ID
 				telemetry.SetSpanSuccess(span)
 				return resp, nil
@@ -213,7 +214,7 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 			// Store a copy without the request-specific "id" so that
 			// future cache hits don't carry a stale id.  The "id" is
 			// per-request and must be injected at read time (above).
-			cacheEntry := deepCopyMap(response)
+			cacheEntry := helpers.DeepCopyMap(response)
 			delete(cacheEntry, "id")
 			_ = p.cacheGroup.Set(ctx, cacheKey, cacheEntry, cacheTTL)
 			cacheSpan.End()
@@ -387,46 +388,4 @@ func (p *RequestProcessor) ProcessBatchRequest(ctx context.Context, requests []*
 	}
 
 	return results, nil
-}
-
-// deepCopyMap creates a deep copy of a map[string]interface{}.
-// Nested maps and slices are recursively copied so that the returned
-// map shares no references with the original.  This is essential for
-// the cache layer: without a deep copy, concurrent batch goroutines
-// would mutate the same cached map (e.g. overwriting the "id" field),
-// causing response-id corruption and data races.
-func deepCopyMap(src map[string]interface{}) map[string]interface{} {
-	if src == nil {
-		return nil
-	}
-	dst := make(map[string]interface{}, len(src))
-	for k, v := range src {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			dst[k] = deepCopyMap(val)
-		case []interface{}:
-			dst[k] = deepCopySlice(val)
-		default:
-			dst[k] = v
-		}
-	}
-	return dst
-}
-
-func deepCopySlice(src []interface{}) []interface{} {
-	if src == nil {
-		return nil
-	}
-	dst := make([]interface{}, len(src))
-	for i, v := range src {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			dst[i] = deepCopyMap(val)
-		case []interface{}:
-			dst[i] = deepCopySlice(val)
-		default:
-			dst[i] = v
-		}
-	}
-	return dst
 }
