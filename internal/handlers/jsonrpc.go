@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -101,41 +102,84 @@ func (h *JSONRPCHandler) handleBatchRequest(c *gin.Context, reqs []interface{}) 
 	// Get request ID from context
 	jussiRequestID, _ := c.Get("jussi_request_id")
 
-	// Parse all requests
-	jsonrpcReqs := make([]*request.JSONRPCRequest, 0, len(reqs))
+	// Parse all requests, preserving original positions so that
+	// response[i] always corresponds to reqs[i].
 	httpReq := &request.HTTPRequest{
 		JussiRequestID: getString(jussiRequestID),
 	}
 
+	type parsedItem struct {
+		req *request.JSONRPCRequest
+		err error
+	}
+	parsed := make([]parsedItem, len(reqs))
+
 	for i, req := range reqs {
 		reqMap, ok := req.(map[string]interface{})
 		if !ok {
+			parsed[i] = parsedItem{err: fmt.Errorf("invalid request format")}
 			continue
 		}
 		jsonrpcReq, err := request.FromHTTPRequest(httpReq, i, reqMap)
 		if err != nil {
+			parsed[i] = parsedItem{err: err}
 			continue
 		}
-		jsonrpcReqs = append(jsonrpcReqs, jsonrpcReq)
+		parsed[i] = parsedItem{req: jsonrpcReq}
 	}
 
-	// Initialize processor if not already done
-	if h.processor == nil {
-		h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools)
+	// Collect valid requests for batch processing
+	validReqs := make([]*request.JSONRPCRequest, 0, len(reqs))
+	validIndices := make([]int, 0, len(reqs))
+	for i, p := range parsed {
+		if p.req != nil {
+			validReqs = append(validReqs, p.req)
+			validIndices = append(validIndices, i)
+		}
 	}
 
-	// Process batch
-	ctx := c.Request.Context()
-	responses, err := h.processor.ProcessBatchRequest(ctx, jsonrpcReqs)
-	if err != nil {
-		errors.HandleError(c, errors.NewInternalError(err.Error()), nil)
-		return
+	// Build final results array (same length as input reqs)
+	results := make([]interface{}, len(reqs))
+
+	// Fill error responses for invalid requests
+	for i, p := range parsed {
+		if p.err != nil {
+			// Try to extract id from the raw request for the error response
+			var reqID interface{} = nil
+			if reqMap, ok := reqs[i].(map[string]interface{}); ok {
+				if id, exists := reqMap["id"]; exists {
+					reqID = id
+				}
+			}
+			results[i] = map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      reqID,
+				"error": map[string]interface{}{
+					"code":    -32600,
+					"message": p.err.Error(),
+				},
+			}
+		}
 	}
 
-	// Convert to interface slice
-	results := make([]interface{}, len(responses))
-	for i, resp := range responses {
-		results[i] = resp
+	// Process valid batch requests
+	if len(validReqs) > 0 {
+		// Initialize processor if not already done
+		if h.processor == nil {
+			h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools)
+		}
+
+		ctx := c.Request.Context()
+		responses, err := h.processor.ProcessBatchRequest(ctx, validReqs)
+		if err != nil {
+			errors.HandleError(c, errors.NewInternalError(err.Error()), nil)
+			return
+		}
+
+		// Place responses at their original positions
+		for batchIdx, origIdx := range validIndices {
+			results[origIdx] = responses[batchIdx]
+		}
 	}
 
 	c.JSON(http.StatusOK, results)

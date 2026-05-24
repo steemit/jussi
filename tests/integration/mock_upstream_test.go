@@ -36,7 +36,13 @@ func mockUpstreamServer(responses map[string]interface{}) *httptest.Server {
 
 		// Look up response by method
 		if response, ok := responses[method]; ok {
-			responseMap := response.(map[string]interface{})
+			// Deep copy to avoid data race when concurrent batch requests
+			// mutate the shared response template's "id" field.
+			origMap := response.(map[string]interface{})
+			responseMap := make(map[string]interface{}, len(origMap))
+			for k, v := range origMap {
+				responseMap[k] = v
+			}
 			responseMap["id"] = id
 			responseMap["jsonrpc"] = "2.0"
 			c.JSON(http.StatusOK, responseMap)
