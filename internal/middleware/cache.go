@@ -50,11 +50,11 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 			// Cache hit - inject current request's id into cached response
 			// to avoid returning a stale id from a previous request.
 			if cachedResp, ok := cachedValue.(map[string]interface{}); ok {
-			if reqMap, ok := body.(map[string]interface{}); ok {
-				// Deep copy the cached map to avoid mutating the shared
-				// cache reference (memory cache returns the original pointer).
-				respCopy := helpers.DeepCopyMap(cachedResp)
-				respCopy["id"] = reqMap["id"]
+				if reqMap, ok := body.(map[string]interface{}); ok {
+					// Deep copy the cached map to avoid mutating the shared
+					// cache reference (memory cache returns the original pointer).
+					respCopy := helpers.DeepCopyMap(cachedResp)
+					respCopy["id"] = reqMap["id"]
 					c.JSON(200, respCopy)
 					c.Header("x-jussi-cache-hit", cacheKey)
 					c.Abort()
@@ -128,7 +128,7 @@ func CacheStoreMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 
 		// Store in cache
 		ctx := c.Request.Context()
-		_ = cacheGroup.Set(ctx, cacheKey.(string), response, ttlDuration)
+		_ = cacheGroup.Set(ctx, cacheKey.(string), respMap, ttlDuration)
 	}
 }
 
