@@ -493,7 +493,7 @@ func TestHashIneq(t *testing.T) {
 // TestRouterWithTestConfig loads the actual test config file
 func TestRouterWithTestConfig(t *testing.T) {
 	// Load test config file
-	testConfigPath := "legacy/tests/data/configs/TEST_UPSTREAM_CONFIG.json"
+	testConfigPath := "tests/data/configs/TEST_UPSTREAM_CONFIG.json"
 	data, err := os.ReadFile(testConfigPath)
 	if err != nil {
 		t.Skipf("test config file not found: %s", testConfigPath)
