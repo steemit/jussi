@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"regexp"
 	"sync"
 	"time"
@@ -14,15 +16,13 @@ import (
 )
 
 // ============================================================================
-// TEMPORARY WORKAROUND: get_state sub-path emulation
+// TEMPORARY WORKAROUND: get_state sub-path emulation (with Redis cache)
 // ============================================================================
 //
 // Background:
 //   steemd's condenser_api.get_state only supports a limited set of sub-paths:
-//     - /@user/transfers
-//     - /@user/recent-replies
-//     - /@user/posts, /@user/comments
-//     - /@user/blog, /@user/feed
+//     - /@user/transfers, /@user/recent-replies
+//     - /@user/posts, /@user/comments, /@user/blog, /@user/feed
 //
 //   The following sub-paths were NEVER implemented in steemd's get_state:
 //     - /@user/author-rewards
@@ -30,14 +30,11 @@ import (
 //     - /@user/delegations
 //
 //   Calling get_state with these paths causes steemd to return
-//   -32602 "Invalid parameters". The old wallet (condenser-based) and
-//   some third-party clients still request these paths, causing the
-//   frontend SSR to hang until timeout (~344 seconds) and return 504.
+//   -32602 "Invalid parameters". Some third-party clients or direct API
+//   calls still request these paths, causing 504 timeouts.
 //
 //   The new wallet (Next.js) has completely migrated away from get_state
-//   and uses direct API calls:
-//     - /api/query/history             -> get_account_history
-//     - /api/query/vesting-delegations -> get_vesting_delegations
+//   and uses direct API calls (get_account_history, get_vesting_delegations).
 //
 // Solution:
 //   Intercept get_state requests with unsupported sub-paths at the jussi
@@ -46,6 +43,21 @@ import (
 //     2. Calling get_account_history for author/curation rewards
 //     3. Calling get_vesting_delegations for delegation data
 //     4. Assembling a response in the same format get_state returns
+//
+//   All sub-requests are cached in Redis with fine-grained keys to maximize
+//   reuse across different sub-paths for the same user.
+//
+// Cache key design (for maximum reuse):
+//
+//   {prefix}gs:base:{username}         — get_state("/@user") base account data
+//   {prefix}gs:hist:{username}         — get_account_history full result
+//   {prefix}gs:deleg_out:{username}    — get_vesting_delegations (outgoing)
+//   {prefix}gs:deleg_in:{username}     — list_vesting_delegations (incoming)
+//
+//   Where {prefix} is read from JUSSI_CACHE_KEY_PREFIX env var (default: "jussi.")
+//
+//   author-rewards and curation-rewards both reuse gs:hist:{username},
+//   only differing in the client-side filter applied to the cached data.
 //
 // Removal:
 //   DELETE THIS FILE once all clients have migrated to the new wallet or
@@ -58,12 +70,44 @@ import (
 // Related: beta-wallet 504 investigation, steemd get_state limitations
 // ============================================================================
 
-// subRequestTimeout is the per-request timeout for workaround internal calls.
-const subRequestTimeout = 15 * time.Second
+// Configuration constants
+const (
+	subRequestTimeout = 15 * time.Second
+	maxHistoryEntries = 200
+	workaroundCacheTTL = 10 * time.Second
+)
 
-// maxHistoryEntries caps the number of filtered entries we inject into
-// transfer_history to keep response size reasonable.
-const maxHistoryEntries = 200
+// cacheKeyPrefix is the global prefix for workaround cache keys.
+// Configurable via JUSSI_CACHE_KEY_PREFIX environment variable.
+var cacheKeyPrefix string
+
+func init() {
+	cacheKeyPrefix = os.Getenv("JUSSI_CACHE_KEY_PREFIX")
+	if cacheKeyPrefix == "" {
+		cacheKeyPrefix = "jussi."
+	}
+}
+
+// Fine-grained cache key generators.
+// Each targets a specific sub-request to maximize cross-subpath reuse:
+//   - gs:base is reused by all three sub-paths
+//   - gs:hist is reused by both author-rewards and curation-rewards
+//   - gs:deleg_out and gs:deleg_in are only used by delegations
+func cacheKeyBase(username string) string {
+	return cacheKeyPrefix + "gs:base:" + username
+}
+
+func cacheKeyHistory(username string) string {
+	return cacheKeyPrefix + "gs:hist:" + username
+}
+
+func cacheKeyDelegOut(username string) string {
+	return cacheKeyPrefix + "gs:deleg_out:" + username
+}
+
+func cacheKeyDelegIn(username string) string {
+	return cacheKeyPrefix + "gs:deleg_in:" + username
+}
 
 // getStateSubPathRegex matches unsupported get_state sub-paths.
 // NOTE: "transfers" is intentionally excluded — steemd supports it natively.
@@ -93,11 +137,12 @@ func isGetStateUnsupportedSubPath(jsonrpcReq *request.JSONRPCRequest) (string, s
 		return "", "", false
 	}
 
-	return matches[1], matches[2], true // username, subPath
+	return matches[1], matches[2], true
 }
 
 // emulateGetStateSubPath constructs a synthetic get_state response for
-// unsupported sub-paths by calling the steemd upstream directly.
+// unsupported sub-paths by calling the steemd upstream directly,
+// with Redis caching at the sub-request level.
 func (p *RequestProcessor) emulateGetStateSubPath(
 	ctx context.Context,
 	jsonrpcReq *request.JSONRPCRequest,
@@ -110,9 +155,12 @@ func (p *RequestProcessor) emulateGetStateSubPath(
 		return nil, fmt.Errorf("get_state workaround: %w", err)
 	}
 
-	// Step 1: Fetch base account state via get_state("/@username")
-	baseResp, err := p.callSteemd(ctx, upstreamURL, "condenser_api.get_state",
-		[]interface{}{fmt.Sprintf("/@%s", username)}, jsonrpcReq)
+	// Step 1: Fetch base account state — cached by username
+	baseResp, err := p.fetchCachedOrCall(ctx, upstreamURL, cacheKeyBase(username),
+		"condenser_api.get_state",
+		[]interface{}{fmt.Sprintf("/@%s", username)},
+		jsonrpcReq,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("get_state workaround: base get_state failed: %w", err)
 	}
@@ -128,7 +176,7 @@ func (p *RequestProcessor) emulateGetStateSubPath(
 		return nil, fmt.Errorf("get_state workaround: unexpected base response format")
 	}
 
-	// Step 2: Fetch sub-path-specific data
+	// Step 2: Fetch sub-path-specific data (with caching)
 	switch subPath {
 	case "author-rewards":
 		p.fillRewardHistory(ctx, upstreamURL, jsonrpcReq, result, username, isAuthorRewardOp)
@@ -145,8 +193,56 @@ func (p *RequestProcessor) emulateGetStateSubPath(
 	return baseResp, nil
 }
 
+// fetchCachedOrCall checks Redis cache first, falls back to upstream call,
+// then caches the result. This is the core caching primitive for the workaround.
+// Returns the full JSON-RPC response (including "result" key) from either
+// cache or fresh upstream call.
+func (p *RequestProcessor) fetchCachedOrCall(
+	ctx context.Context,
+	upstreamURL string,
+	cacheKey string,
+	method string,
+	params []interface{},
+	jsonrpcReq *request.JSONRPCRequest,
+) (map[string]interface{}, error) {
+	// Try cache first
+	if p.cacheGroup != nil {
+		cached, err := p.cacheGroup.Get(ctx, cacheKey)
+		if err == nil && cached != nil {
+			if cachedMap, ok := cached.(map[string]interface{}); ok {
+				slog.Debug("get_state workaround: cache hit",
+					"key", cacheKey, "method", method)
+				return cachedMap, nil
+			}
+		}
+	}
+
+	// Cache miss — call upstream
+	resp, err := p.callSteemd(ctx, upstreamURL, method, params, jsonrpcReq)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store in cache (only cache successful responses)
+	if p.cacheGroup != nil && resp["error"] == nil {
+		// Deep copy before caching to avoid shared reference issues
+		cached := deepCopyMap(resp)
+		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := p.cacheGroup.Set(bgCtx, cacheKey, cached, workaroundCacheTTL); err != nil {
+				slog.Warn("get_state workaround: cache set failed",
+					"key", cacheKey, "error", err)
+			}
+		}()
+	}
+
+	return resp, nil
+}
+
 // fillRewardHistory fetches get_account_history and filters by op type,
 // injecting matching operations into the account's transfer_history field.
+// The full history is cached (shared between author-rewards and curation-rewards).
 func (p *RequestProcessor) fillRewardHistory(
 	ctx context.Context,
 	upstreamURL string,
@@ -155,9 +251,12 @@ func (p *RequestProcessor) fillRewardHistory(
 	username string,
 	opFilter func(string) bool,
 ) {
-	// Fetch last 1000 history entries (steemd max limit)
-	historyResp, err := p.callSteemd(ctx, upstreamURL, "condenser_api.get_account_history",
-		[]interface{}{username, -1, 1000}, jsonrpcReq)
+	// Fetch full history — cached by username (reused across reward types)
+	historyResp, err := p.fetchCachedOrCall(ctx, upstreamURL, cacheKeyHistory(username),
+		"condenser_api.get_account_history",
+		[]interface{}{username, -1, 1000},
+		jsonrpcReq,
+	)
 	if err != nil {
 		slog.Warn("get_state workaround: get_account_history failed",
 			"username", username, "error", err)
@@ -219,6 +318,7 @@ func (p *RequestProcessor) fillRewardHistory(
 
 // fillDelegations fetches outgoing and incoming vesting delegations
 // and injects them into the account's transfer_history field.
+// Both sub-requests are cached independently.
 func (p *RequestProcessor) fillDelegations(
 	ctx context.Context,
 	upstreamURL string,
@@ -246,18 +346,20 @@ func (p *RequestProcessor) fillDelegations(
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		// Outgoing delegations via condenser_api
-		outDelegsResp, outErr = p.callSteemd(ctx, upstreamURL,
+		// Outgoing delegations — cached independently
+		outDelegsResp, outErr = p.fetchCachedOrCall(ctx, upstreamURL,
+			cacheKeyDelegOut(username),
 			"condenser_api.get_vesting_delegations",
 			[]interface{}{username, "", 100}, jsonrpcReq)
 	}()
 	go func() {
 		defer wg.Done()
-		// Incoming delegations via database_api.list_vesting_delegations
+		// Incoming delegations — cached independently
 		// Use start object to position at the target delegatee for efficient
 		// filtering. The API returns delegations ordered by delegatee, so we
 		// seek to {delegatee: username, delegator: ""} and collect up to 100.
-		inDelegsResp, inErr = p.callSteemd(ctx, upstreamURL,
+		inDelegsResp, inErr = p.fetchCachedOrCall(ctx, upstreamURL,
+			cacheKeyDelegIn(username),
 			"database_api.list_vesting_delegations",
 			[]interface{}{map[string]interface{}{
 				"start": map[string]interface{}{
@@ -360,8 +462,7 @@ func (p *RequestProcessor) callSteemd(
 	params []interface{},
 	originalReq *request.JSONRPCRequest,
 ) (map[string]interface{}, error) {
-	// Create a per-request timeout context to prevent one slow call
-	// from consuming the entire parent context budget.
+	// Create a per-request timeout context
 	subCtx, cancel := context.WithTimeout(ctx, subRequestTimeout)
 	defer cancel()
 
@@ -381,4 +482,19 @@ func (p *RequestProcessor) callSteemd(
 	}
 
 	return p.httpClient.RequestWithRetry(subCtx, upstreamURL, payload, headers, retryCfg)
+}
+
+// deepCopyMap creates a deep copy of a map[string]interface{} by
+// round-tripping through JSON. Used before caching to prevent shared
+// reference issues between concurrent requests.
+func deepCopyMap(m map[string]interface{}) map[string]interface{} {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return m // fallback: return original (should not happen with JSON-RPC responses)
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return m
+	}
+	return result
 }
