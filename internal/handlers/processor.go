@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -112,7 +113,15 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	// (transfers, author-rewards, curation-rewards, delegations) that steemd
 	// does not handle. See get_state_workaround.go for full documentation.
 	// TODO: Remove this block once all clients migrate to new wallet.
+	slog.Info("DEBUG: checking workaround",
+		"api", jsonrpcReq.URN.API,
+		"method", jsonrpcReq.URN.Method,
+		"namespace", jsonrpcReq.URN.Namespace,
+		"params_type", fmt.Sprintf("%T", jsonrpcReq.Params),
+		"params", fmt.Sprintf("%v", jsonrpcReq.Params),
+	)
 	if username, subPath, ok := isGetStateUnsupportedSubPath(jsonrpcReq); ok {
+		slog.Info("DEBUG: workaround triggered", "username", username, "subPath", subPath)
 		span.SetAttributes(attribute.String("jussi.workaround", "get_state_subpath"))
 		span.SetAttributes(attribute.String("jussi.workaround.subpath", subPath))
 		span.SetAttributes(attribute.String("jussi.workaround.username", username))

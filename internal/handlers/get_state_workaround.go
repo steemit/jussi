@@ -126,11 +126,26 @@ func isGetStateUnsupportedSubPath(jsonrpcReq *request.JSONRPCRequest) (string, s
 	}
 
 	params, ok := jsonrpcReq.Params.([]interface{})
-	if !ok || len(params) != 1 {
+	if !ok {
 		return "", "", false
 	}
-	path, ok := params[0].(string)
-	if !ok {
+
+	// Extract the path string from params.
+	// Two formats after translateLegacyAPI:
+	//   - direct method: params = ["/@user/transfers"]           (len=1)
+	//   - call-style:    params = ["condenser_api","get_state",["/@user/transfers"]]  (len=3)
+	var path string
+	switch len(params) {
+	case 1:
+		path, ok = params[0].(string)
+	case 3:
+		// call-style: params[2] is the actual argument
+		var args []interface{}
+		if args, ok = params[2].([]interface{}); ok && len(args) >= 1 {
+			path, ok = args[0].(string)
+		}
+	}
+	if !ok || path == "" {
 		return "", "", false
 	}
 
