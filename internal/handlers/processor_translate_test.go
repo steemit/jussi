@@ -4,11 +4,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/steemit/jussi/internal/config"
 	"github.com/steemit/jussi/internal/request"
 	"github.com/steemit/jussi/internal/urn"
+	"github.com/steemit/jussi/internal/upstream"
 )
 
-func TestTranslateLegacyAPI_directMethod(t *testing.T) {
+func newTestRouter(translateNamespaces ...string) *upstream.Router {
+	cfg := &config.UpstreamRawConfig{}
+	for _, ns := range translateNamespaces {
+		cfg.Upstreams = append(cfg.Upstreams, config.UpstreamDefinition{
+			Name:               ns,
+			TranslateToAppbase: true,
+		})
+	}
+	r, _ := upstream.NewRouter(cfg)
+	return r
+}
+
+func TestTranslateToAppbase_directMethod(t *testing.T) {
+	router := newTestRouter("steemd")
+
 	tests := []struct {
 		name           string
 		inputAPI       string
@@ -57,7 +73,7 @@ func TestTranslateLegacyAPI_directMethod(t *testing.T) {
 				},
 			}
 
-			translateLegacyAPI(req)
+			translateToAppbase(req, router)
 
 			if req.URN.API != tt.expectedAPI {
 				t.Errorf("URN.API = %q, want %q", req.URN.API, tt.expectedAPI)
@@ -72,7 +88,9 @@ func TestTranslateLegacyAPI_directMethod(t *testing.T) {
 	}
 }
 
-func TestTranslateLegacyAPI_callStyle(t *testing.T) {
+func TestTranslateToAppbase_callStyle(t *testing.T) {
+	router := newTestRouter("steemd")
+
 	tests := []struct {
 		name           string
 		params         []interface{}
@@ -98,6 +116,11 @@ func TestTranslateLegacyAPI_callStyle(t *testing.T) {
 			params:         []interface{}{"database_api", "get_account_history", []interface{}{"user", -1, 20}},
 			expectedParam0: "condenser_api",
 		},
+		{
+			name:           "call broadcast_transaction_synchronous via network_broadcast_api",
+			params:         []interface{}{"network_broadcast_api", "broadcast_transaction_synchronous", []interface{}{map[string]interface{}{"ref_block_num": float64(62429)}}},
+			expectedParam0: "condenser_api",
+		},
 	}
 
 	for _, tt := range tests {
@@ -107,12 +130,12 @@ func TestTranslateLegacyAPI_callStyle(t *testing.T) {
 				Params: tt.params,
 				URN: &urn.URN{
 					Namespace: "steemd",
-					API:       "database_api",
+					API:       tt.params[0].(string),
 					Method:    tt.params[1].(string),
 				},
 			}
 
-			translateLegacyAPI(req)
+			translateToAppbase(req, router)
 
 			// Method should remain "call"
 			if req.Method != "call" {
@@ -137,8 +160,9 @@ func TestTranslateLegacyAPI_callStyle(t *testing.T) {
 	}
 }
 
-func TestTranslateLegacyAPI_callStyle_preservesMethodAndArgs(t *testing.T) {
-	// Verify that params[1] (method name) and params[2] (args) are unchanged
+func TestTranslateToAppbase_callStyle_preservesMethodAndArgs(t *testing.T) {
+	router := newTestRouter("steemd")
+
 	req := &request.JSONRPCRequest{
 		Method: "call",
 		Params: []interface{}{"database_api", "get_state", []interface{}{"/@test/transfers"}},
@@ -149,7 +173,7 @@ func TestTranslateLegacyAPI_callStyle_preservesMethodAndArgs(t *testing.T) {
 		},
 	}
 
-	translateLegacyAPI(req)
+	translateToAppbase(req, router)
 
 	paramsSlice := req.Params.([]interface{})
 	if paramsSlice[1] != "get_state" {
@@ -164,7 +188,9 @@ func TestTranslateLegacyAPI_callStyle_preservesMethodAndArgs(t *testing.T) {
 	}
 }
 
-func TestTranslateLegacyAPI_nonLegacyAPI(t *testing.T) {
+func TestTranslateToAppbase_condenserAPIUnchanged(t *testing.T) {
+	router := newTestRouter("steemd")
+
 	req := &request.JSONRPCRequest{
 		Method: "condenser_api.get_state",
 		URN: &urn.URN{
@@ -174,7 +200,7 @@ func TestTranslateLegacyAPI_nonLegacyAPI(t *testing.T) {
 		},
 	}
 
-	translateLegacyAPI(req)
+	translateToAppbase(req, router)
 
 	if req.URN.API != "condenser_api" {
 		t.Errorf("URN.API should remain %q, got %q", "condenser_api", req.URN.API)
@@ -184,7 +210,9 @@ func TestTranslateLegacyAPI_nonLegacyAPI(t *testing.T) {
 	}
 }
 
-func TestTranslateLegacyAPI_followAPI(t *testing.T) {
+func TestTranslateToAppbase_followAPI_appbaseNamespace(t *testing.T) {
+	router := newTestRouter("steemd")
+
 	req := &request.JSONRPCRequest{
 		Method: "follow_api.get_blog",
 		URN: &urn.URN{
@@ -194,41 +222,82 @@ func TestTranslateLegacyAPI_followAPI(t *testing.T) {
 		},
 	}
 
-	translateLegacyAPI(req)
+	translateToAppbase(req, router)
 
 	if req.URN.API != "follow_api" {
 		t.Errorf("URN.API should remain %q, got %q", "follow_api", req.URN.API)
 	}
 }
 
-func TestTranslateLegacyAPI_urnString(t *testing.T) {
+func TestTranslateToAppbase_followAPI_steemdNamespace(t *testing.T) {
+	router := newTestRouter("steemd")
+
 	req := &request.JSONRPCRequest{
-		Method: "database_api.get_state",
+		Method: "call",
+		Params: []interface{}{"follow_api", "get_blog", []interface{}{"user", 10, 20}},
 		URN: &urn.URN{
-			Namespace: "appbase",
-			API:       "database_api",
-			Method:    "get_state",
-			Params:    []interface{}{"/trending"},
+			Namespace: "steemd",
+			API:       "follow_api",
+			Method:    "get_blog",
 		},
 	}
 
-	translateLegacyAPI(req)
+	translateToAppbase(req, router)
 
-	expectedURN := "appbase.condenser_api.get_state"
 	if req.URN.API != "condenser_api" {
 		t.Errorf("URN.API = %q, want %q", req.URN.API, "condenser_api")
 	}
-	if req.URN.Namespace != "appbase" {
-		t.Errorf("URN.Namespace = %q, want %q", req.URN.Namespace, "appbase")
-	}
-	urnStr := req.URN.String()
-	if !strings.HasPrefix(urnStr, expectedURN) {
-		t.Errorf("URN.String() = %q, want prefix %q", urnStr, expectedURN)
+	paramsSlice := req.Params.([]interface{})
+	if paramsSlice[0] != "condenser_api" {
+		t.Errorf("Params[0] = %q, want %q", paramsSlice[0], "condenser_api")
 	}
 }
 
-func TestTranslateLegacyAPI_callStyle_namespaceSwitch(t *testing.T) {
-	// Verify that steemd namespace is switched to appbase for correct routing
+func TestTranslateToAppbase_noTranslationWhenNotConfigured(t *testing.T) {
+	router := newTestRouter() // empty - no translate_to_appbase
+
+	req := &request.JSONRPCRequest{
+		Method: "call",
+		Params: []interface{}{"network_broadcast_api", "broadcast_transaction_synchronous", []interface{}{}},
+		URN: &urn.URN{
+			Namespace: "steemd",
+			API:       "network_broadcast_api",
+			Method:    "broadcast_transaction_synchronous",
+		},
+	}
+
+	translateToAppbase(req, router)
+
+	if req.URN.API != "network_broadcast_api" {
+		t.Errorf("URN.API should remain %q when translate not configured, got %q", "network_broadcast_api", req.URN.API)
+	}
+}
+
+func TestTranslateToAppbase_urnString(t *testing.T) {
+	router := newTestRouter("steemd")
+
+	req := &request.JSONRPCRequest{
+		Method: "call",
+		Params: []interface{}{"network_broadcast_api", "broadcast_transaction_synchronous", []interface{}{}},
+		URN: &urn.URN{
+			Namespace: "steemd",
+			API:       "network_broadcast_api",
+			Method:    "broadcast_transaction_synchronous",
+		},
+	}
+
+	translateToAppbase(req, router)
+
+	expectedPrefix := "appbase.condenser_api.broadcast_transaction_synchronous"
+	urnStr := req.URN.String()
+	if !strings.HasPrefix(urnStr, expectedPrefix) {
+		t.Errorf("URN.String() = %q, want prefix %q", urnStr, expectedPrefix)
+	}
+}
+
+func TestTranslateToAppbase_callStyle_namespaceSwitch(t *testing.T) {
+	router := newTestRouter("steemd")
+
 	req := &request.JSONRPCRequest{
 		Method: "call",
 		Params: []interface{}{"database_api", "get_state", []interface{}{"/@user/transfers"}},
@@ -239,7 +308,7 @@ func TestTranslateLegacyAPI_callStyle_namespaceSwitch(t *testing.T) {
 		},
 	}
 
-	translateLegacyAPI(req)
+	translateToAppbase(req, router)
 
 	if req.URN.Namespace != "appbase" {
 		t.Errorf("URN.Namespace = %q, want %q (appbase for routing to hivemind)", req.URN.Namespace, "appbase")
