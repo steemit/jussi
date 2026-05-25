@@ -23,7 +23,7 @@ func setupRoutesTestServer() *httptest.Server {
 	r.Use(middleware.RequestIDMiddleware())
 
 	// Create health handler
-	healthHandler := handlers.NewHealthHandler("test-commit", "test-tag", "test-service")
+	healthHandler := handlers.NewHealthHandler("test-commit", "test-tag")
 
 	// Setup routes
 	r.GET("/health", healthHandler.HandleHealth)
