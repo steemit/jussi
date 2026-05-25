@@ -224,6 +224,10 @@ func bindEnvOverrides() {
 
 		// Limits
 		{"JUSSI_LIMITS_ACCOUNT_HISTORY_LIMIT", "limits.account_history_limit"},
+
+		// Cache key prefix for workaround sub-request caching
+		// Read at init() time in get_state_workaround.go, not via viper.
+		// Documented here for reference.
 	}
 
 	for _, m := range envMappings {
