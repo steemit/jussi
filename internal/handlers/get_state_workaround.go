@@ -20,18 +20,20 @@ import (
 // ============================================================================
 //
 // Background:
-//   steemd's condenser_api.get_state only supports a limited set of sub-paths:
-//     - /@user/transfers, /@user/recent-replies
-//     - /@user/posts, /@user/comments, /@user/blog, /@user/feed
+//   steemd's condenser_api.get_state supports a limited set of sub-paths:
+//     - /@user/recent-replies, /@user/posts, /@user/comments
+//     - /@user/blog, /@user/feed
 //
-//   The following sub-paths were NEVER implemented in steemd's get_state:
+//   The following sub-paths are NOT handled by steemd's get_state:
+//     - /@user/transfers
 //     - /@user/author-rewards
 //     - /@user/curation-rewards
 //     - /@user/delegations
 //
 //   Calling get_state with these paths causes steemd to return
-//   -32602 "Invalid parameters". Some third-party clients or direct API
-//   calls still request these paths, causing 504 timeouts.
+//   -32602 "Invalid parameters". Some third-party clients (old wallet),
+//   direct API calls, and SSR requests still use these paths, causing
+//   504 timeouts when the client retries/waits for ~350 seconds.
 //
 //   The new wallet (Next.js) has completely migrated away from get_state
 //   and uses direct API calls (get_account_history, get_vesting_delegations).
@@ -40,7 +42,7 @@ import (
 //   Intercept get_state requests with unsupported sub-paths at the jussi
 //   layer and emulate the expected get_state response by:
 //     1. Calling get_state("/@username") for base account data
-//     2. Calling get_account_history for author/curation rewards
+//     2. Calling get_account_history for transfers/author/curation rewards
 //     3. Calling get_vesting_delegations for delegation data
 //     4. Assembling a response in the same format get_state returns
 //
@@ -109,10 +111,10 @@ func cacheKeyDelegIn(username string) string {
 	return cacheKeyPrefix + "gs:deleg_in:" + username
 }
 
-// getStateSubPathRegex matches unsupported get_state sub-paths.
-// NOTE: "transfers" is intentionally excluded — steemd supports it natively.
+// getStateSubPathRegex matches get_state sub-paths that steemd does NOT handle.
+// All four sub-paths cause "Invalid parameters" and need emulation.
 var getStateSubPathRegex = regexp.MustCompile(
-	`^/?@([^/\s]+)/(author-rewards|curation-rewards|delegations)$`,
+	`^/?@([^/\s]+)/(transfers|author-rewards|curation-rewards|delegations)$`,
 )
 
 // isGetStateUnsupportedSubPath checks if a request is condenser_api.get_state
@@ -178,6 +180,9 @@ func (p *RequestProcessor) emulateGetStateSubPath(
 
 	// Step 2: Fetch sub-path-specific data (with caching)
 	switch subPath {
+	case "transfers":
+		p.fillRewardHistory(ctx, upstreamURL, jsonrpcReq, result, username, isTransferOp)
+
 	case "author-rewards":
 		p.fillRewardHistory(ctx, upstreamURL, jsonrpcReq, result, username, isAuthorRewardOp)
 
@@ -432,6 +437,17 @@ func isAuthorRewardOp(opType string) bool {
 
 func isCurationRewardOp(opType string) bool {
 	return opType == "curation_reward"
+}
+
+// isTransferOp matches all operation types that appear in the "transfers" tab.
+// This mirrors steemd's native behavior for get_state("/@user/transfers").
+func isTransferOp(opType string) bool {
+	switch opType {
+	case "transfer", "transfer_to_vesting", "transfer_from_savings",
+		"transfer_to_savings", "cancel_transfer_from_savings":
+		return true
+	}
+	return false
 }
 
 // getSteemdUpstreamURL resolves the upstream URL for condenser_api requests.

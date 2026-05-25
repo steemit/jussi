@@ -109,8 +109,8 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	translateLegacyAPI(jsonrpcReq)
 
 	// TEMPORARY WORKAROUND: Intercept get_state with unsupported sub-paths
-	// (author-rewards, curation-rewards, delegations) that steemd does not
-	// handle. See get_state_workaround.go for full documentation.
+	// (transfers, author-rewards, curation-rewards, delegations) that steemd
+	// does not handle. See get_state_workaround.go for full documentation.
 	// TODO: Remove this block once all clients migrate to new wallet.
 	if username, subPath, ok := isGetStateUnsupportedSubPath(jsonrpcReq); ok {
 		span.SetAttributes(attribute.String("jussi.workaround", "get_state_subpath"))
