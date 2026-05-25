@@ -108,6 +108,25 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	// before routing so the URN matches the correct upstream config entry.
 	translateLegacyAPI(jsonrpcReq)
 
+	// TEMPORARY WORKAROUND: Intercept get_state with unsupported sub-paths
+	// (author-rewards, curation-rewards, delegations) that steemd does not
+	// handle. See get_state_workaround.go for full documentation.
+	// TODO: Remove this block once all clients migrate to new wallet.
+	if username, subPath, ok := isGetStateUnsupportedSubPath(jsonrpcReq); ok {
+		span.SetAttributes(attribute.String("jussi.workaround", "get_state_subpath"))
+		span.SetAttributes(attribute.String("jussi.workaround.subpath", subPath))
+		span.SetAttributes(attribute.String("jussi.workaround.username", username))
+
+		resp, err := p.emulateGetStateSubPath(ctx, jsonrpcReq, username, subPath)
+		if err != nil {
+			telemetry.RecordSpanError(span, err)
+			RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "workaround_error").Inc()
+			return nil, fmt.Errorf("get_state workaround failed: %w", err)
+		}
+		RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "workaround_success").Inc()
+		return resp, nil
+	}
+
 	// Add span attributes
 	telemetry.AddSpanAttributes(span, map[string]string{
 		"jussi.namespace":  jsonrpcReq.URN.Namespace,
