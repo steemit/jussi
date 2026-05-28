@@ -16,35 +16,46 @@ import (
 )
 
 // ============================================================================
-// TEMPORARY WORKAROUND: get_state sub-path emulation (with Redis cache)
+// TEMPORARY WORKAROUND: get_state path emulation (with Redis cache)
 // ============================================================================
 //
 // Background:
 //   steemd's condenser_api.get_state supports a limited set of sub-paths:
 //     - /@user/recent-replies, /@user/posts, /@user/comments
 //     - /@user/blog, /@user/feed
+//     - /trending, /hot, /promoted, /created, etc.
 //
-//   The following sub-paths are NOT handled by steemd's get_state:
+//   The following paths are NOT handled by steemd's get_state:
+//
+//   Category 1 — User sub-paths (returns -32602 "Invalid parameters"):
 //     - /@user/transfers
 //     - /@user/author-rewards
 //     - /@user/curation-rewards
 //     - /@user/delegations
 //
-//   Calling get_state with these paths causes steemd to return
-//   -32602 "Invalid parameters". Some third-party clients (old wallet),
-//   direct API calls, and SSR requests still use these paths, causing
-//   504 timeouts when the client retries/waits for ~350 seconds.
+//   Category 2 — Special pages (returns -32000 "Server error"):
+//     - /~witnesses
+//     - /proposals
 //
-//   The new wallet (Next.js) has completely migrated away from get_state
-//   and uses direct API calls (get_account_history, get_vesting_delegations).
+//   Some third-party clients (old wallet), direct API calls, and SSR requests
+//   still use these paths, causing 504 timeouts when the client retries/waits
+//   for ~350 seconds.
+//
+//   The new wallet (Next.js) and condenser rewrite will completely migrate
+//   away from get_state and use direct API calls.
 //
 // Solution:
-//   Intercept get_state requests with unsupported sub-paths at the jussi
-//   layer and emulate the expected get_state response by:
+//   Category 1: Intercept get_state with unsupported user sub-paths at the
+//   jussi layer and emulate the expected response by:
 //     1. Calling get_state("/@username") for base account data
 //     2. Calling get_account_history for transfers/author/curation rewards
 //     3. Calling get_vesting_delegations for delegation data
 //     4. Assembling a response in the same format get_state returns
+//
+//   Category 2: For /~witnesses and /proposals, fetch the base state via
+//   get_state("/") to obtain feed_price, props, etc., and return a minimal
+//   response. The actual witness/proposal data is loaded client-side via
+//   separate API calls (get_witnesses_by_vote, list_proposals).
 //
 //   All sub-requests are cached in Redis with fine-grained keys to maximize
 //   reuse across different sub-paths for the same user.
@@ -52,6 +63,7 @@ import (
 // Cache key design (for maximum reuse):
 //
 //   {prefix}gs:base:{username}         — get_state("/@user") base account data
+//   {prefix}gs:base:__root__           — get_state("/") root state (feed_price, props)
 //   {prefix}gs:hist:{username}         — get_account_history full result
 //   {prefix}gs:deleg_out:{username}    — get_vesting_delegations (outgoing)
 //   {prefix}gs:deleg_in:{username}     — list_vesting_delegations (incoming)
@@ -62,14 +74,15 @@ import (
 //   only differing in the client-side filter applied to the cached data.
 //
 // Removal:
-//   DELETE THIS FILE once all clients have migrated to the new wallet or
-//   to direct API calls. Track usage via the "workaround_success" metric
-//   in Prometheus and remove when request count drops to zero.
+//   DELETE THIS FILE once all clients have migrated to the condenser rewrite
+//   and wallet rewrite (both of which do not use get_state at all).
+//   Track usage via the "workaround_success" metric in Prometheus and remove
+//   when request count drops to zero.
 //   Also remove the corresponding intercept block in processor.go
 //   (search for "TEMPORARY WORKAROUND" comment).
 //
-// Added: 2026-05-25
-// Related: beta-wallet 504 investigation, steemd get_state limitations
+// Added: 2026-05-25 (Category 1), 2026-05-28 (Category 2)
+// Related: wallet 504 investigation, steemd get_state limitations
 // ============================================================================
 
 // Configuration constants
@@ -117,6 +130,14 @@ var getStateSubPathRegex = regexp.MustCompile(
 	`^/?@([^/\s]+)/(transfers|author-rewards|curation-rewards|delegations)$`,
 )
 
+// getStateSpecialPathRegex matches get_state paths that steemd's get_state
+// does NOT handle at all (returns -32000 Server error).
+// These are special pages like witnesses list and proposals.
+// Matches: "/~witnesses", "~witnesses", "/proposals", "proposals"
+var getStateSpecialPathRegex = regexp.MustCompile(
+	`^/?(?:~witnesses|proposals)$`,
+)
+
 // isGetStateUnsupportedSubPath checks if a request is condenser_api.get_state
 // with a sub-path that steemd does NOT handle natively.
 // Returns (username, subPath, true) when interception is needed.
@@ -155,6 +176,108 @@ func isGetStateUnsupportedSubPath(jsonrpcReq *request.JSONRPCRequest) (string, s
 	}
 
 	return matches[1], matches[2], true
+}
+
+// isGetStateSpecialPath checks if a request is condenser_api.get_state
+// with a path that steemd's get_state returns -32000 for (not implemented).
+// Returns (pathType, true) when interception is needed.
+// pathType is "witnesses" or "proposals".
+func isGetStateSpecialPath(jsonrpcReq *request.JSONRPCRequest) (string, bool) {
+	if jsonrpcReq.URN.API != "condenser_api" || jsonrpcReq.URN.Method != "get_state" {
+		return "", false
+	}
+
+	params, ok := jsonrpcReq.Params.([]interface{})
+	if !ok {
+		return "", false
+	}
+
+	var path string
+	switch len(params) {
+	case 1:
+		path, ok = params[0].(string)
+	case 3:
+		var args []interface{}
+		if args, ok = params[2].([]interface{}); ok && len(args) >= 1 {
+			path, ok = args[0].(string)
+		}
+	}
+	if !ok || path == "" {
+		return "", false
+	}
+
+	if getStateSpecialPathRegex.MatchString(path) {
+		if path == "/~witnesses" || path == "~witnesses" {
+			return "witnesses", true
+		}
+		return "proposals", true
+	}
+	return "", false
+}
+
+// emulateGetStateSpecialPath constructs a synthetic get_state response for
+// paths that steemd's get_state does not implement (~witnesses, proposals).
+//
+// It fetches the base state via get_state("/") to obtain feed_price, props,
+// etc., then adds a minimal structure for the requested page.
+//
+// The wallet SSR mainly needs feed_price and props to render the page shell.
+// The actual witness/proposal data is fetched client-side via direct API calls
+// (get_witnesses_by_vote, list_proposals), so we don't need to include it here.
+func (p *RequestProcessor) emulateGetStateSpecialPath(
+	ctx context.Context,
+	jsonrpcReq *request.JSONRPCRequest,
+	pathType string,
+) (map[string]interface{}, error) {
+	upstreamURL, err := p.getSteemdUpstreamURL()
+	if err != nil {
+		return nil, fmt.Errorf("get_state special path workaround: %w", err)
+	}
+
+	// Fetch base state using get_state("/") for feed_price, props, etc.
+	baseResp, err := p.fetchCachedOrCall(ctx, upstreamURL,
+		cacheKeyPrefix+"gs:base:__root__",
+		"condenser_api.get_state",
+		[]interface{}{"/"},
+		jsonrpcReq,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get_state special path workaround: base state failed: %w", err)
+	}
+
+	if _, hasErr := baseResp["error"]; hasErr {
+		baseResp["id"] = jsonrpcReq.ID
+		return baseResp, nil
+	}
+
+	result, ok := baseResp["result"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("get_state special path workaround: unexpected base response format")
+	}
+
+	// Build minimal response structure for the special page.
+	// Wallet SSR only needs the basic get_state envelope to render the page shell.
+	// The actual data (witnesses list, proposals list) is loaded via separate
+	// client-side API calls after the page loads.
+	result["current_route"] = "/" + pathType
+	if result["accounts"] == nil {
+		result["accounts"] = map[string]interface{}{}
+	}
+	if result["content"] == nil {
+		result["content"] = map[string]interface{}{}
+	}
+	if result["discussion_idx"] == nil {
+		result["discussion_idx"] = map[string]interface{}{}
+	}
+	if result["tag_idx"] == nil {
+		result["tag_idx"] = map[string]interface{}{}
+	}
+	if result["tags"] == nil {
+		result["tags"] = map[string]interface{}{}
+	}
+
+	baseResp["id"] = jsonrpcReq.ID
+	return baseResp, nil
 }
 
 // emulateGetStateSubPath constructs a synthetic get_state response for
