@@ -328,12 +328,16 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	headers := jsonrpcReq.UpstreamHeaders()
 
 	// Create timeout context
+	// A timeout of 0 in the upstream config means "use default".
+	// Previously 0 meant "no timeout" which could cause requests to
+	// hang indefinitely (e.g. broadcast_transaction_synchronous).
 	timeout := time.Duration(jsonrpcReq.Upstream.Timeout) * time.Second
-	if timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
+	if timeout == 0 {
+		timeout = 3 * time.Second // safe default for all requests
 	}
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, timeout)
+	defer cancel()
 
 	return p.httpClient.Request(ctx, url, payload, headers)
 }

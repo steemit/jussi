@@ -34,9 +34,13 @@ func NewHTTPClient() *HTTPClient {
 	}
 }
 
-// Request sends an HTTP POST request to upstream
+// Request sends an HTTP POST request to upstream (fail-fast, no retry).
+// As a proxy/routing layer, jussi should return errors immediately and
+// let the caller decide whether to retry. Retrying at the proxy level
+// is dangerous for non-idempotent requests (e.g. broadcast_transaction)
+// and adds latency for all requests.
 func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string]interface{}, headers map[string]string) (map[string]interface{}, error) {
-	return c.RequestWithRetry(ctx, url, payload, headers, nil)
+	return c.doRequest(ctx, url, payload, headers)
 }
 
 // RequestWithRetry sends an HTTP POST request to upstream with retry logic

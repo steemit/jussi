@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/steemit/jussi/internal/request"
-	"github.com/steemit/jussi/internal/upstream"
 	"github.com/steemit/jussi/internal/urn"
 )
 
@@ -628,14 +627,7 @@ func (p *RequestProcessor) callSteemd(
 	}
 	headers := originalReq.UpstreamHeaders()
 
-	retryCfg := &upstream.RetryConfig{
-		MaxRetries:        1,
-		InitialBackoff:    100 * time.Millisecond,
-		MaxBackoff:        1 * time.Second,
-		BackoffMultiplier: 2.0,
-	}
-
-	return p.httpClient.RequestWithRetry(subCtx, upstreamURL, payload, headers, retryCfg)
+	return p.httpClient.Request(subCtx, upstreamURL, payload, headers)
 }
 
 // deepCopyMap creates a deep copy of a map[string]interface{} by
