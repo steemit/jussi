@@ -40,22 +40,6 @@ func NewHTTPClient() *HTTPClient {
 // is dangerous for non-idempotent requests (e.g. broadcast_transaction)
 // and adds latency for all requests.
 func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string]interface{}, headers map[string]string) (map[string]interface{}, error) {
-	return c.doRequest(ctx, url, payload, headers)
-}
-
-// RequestWithRetry sends an HTTP POST request to upstream with retry logic
-func (c *HTTPClient) RequestWithRetry(ctx context.Context, url string, payload map[string]interface{}, headers map[string]string, retryConfig *RetryConfig) (map[string]interface{}, error) {
-	if retryConfig == nil {
-		retryConfig = DefaultRetryConfig()
-	}
-
-	return RetryWithResult(ctx, retryConfig, func() (map[string]interface{}, error) {
-		return c.doRequest(ctx, url, payload, headers)
-	})
-}
-
-// doRequest performs a single HTTP request
-func (c *HTTPClient) doRequest(ctx context.Context, url string, payload map[string]interface{}, headers map[string]string) (map[string]interface{}, error) {
 	// Marshal payload
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -84,13 +68,13 @@ func (c *HTTPClient) doRequest(ctx context.Context, url string, payload map[stri
 	// Send request
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, &RetryableError{Err: fmt.Errorf("request failed: %w", err)}
+		return nil, fmt.Errorf("upstream request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Check for retryable status codes
+	// Check for server errors
 	if resp.StatusCode >= 500 {
-		return nil, &RetryableError{Err: fmt.Errorf("server error: %d", resp.StatusCode)}
+		return nil, fmt.Errorf("upstream server error: %d", resp.StatusCode)
 	}
 
 	// Read response
