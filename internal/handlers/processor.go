@@ -111,19 +111,18 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 	// Translate API calls to condenser_api when the upstream requires appbase format.
 	translateToAppbase(jsonrpcReq, p.router)
 
-	// TEMPORARY WORKAROUND: Intercept get_state with unsupported sub-paths
-	// (transfers, author-rewards, curation-rewards, delegations) that steemd
-	// does not handle. See get_state_workaround.go for full documentation.
-	// TODO: Remove this block once all clients migrate to new wallet.
-	slog.Info("DEBUG: checking workaround",
-		"api", jsonrpcReq.URN.API,
-		"method", jsonrpcReq.URN.Method,
-		"namespace", jsonrpcReq.URN.Namespace,
-		"params_type", fmt.Sprintf("%T", jsonrpcReq.Params),
-		"params", fmt.Sprintf("%v", jsonrpcReq.Params),
-	)
+	// TEMPORARY WORKAROUND: Intercept get_state with unsupported paths.
+	// There are two categories:
+	//   1. Sub-paths like /@user/transfers that steemd returns "Invalid parameters" for
+	//   2. Special paths like /~witnesses and /proposals that steemd returns -32000 for
+	//
+	// ALL of these workarounds will be removed once the condenser rewrite and
+	// wallet rewrite are deployed. The new versions do not use get_state at all.
+	// See get_state_workaround.go for full documentation.
+	// TODO: Remove this entire block after condenser rewrite + wallet rewrite launch.
 	if username, subPath, ok := isGetStateUnsupportedSubPath(jsonrpcReq); ok {
-		slog.Info("DEBUG: workaround triggered", "username", username, "subPath", subPath)
+		slog.Debug("get_state workaround: sub-path intercepted",
+			"username", username, "subPath", subPath)
 		span.SetAttributes(attribute.String("jussi.workaround", "get_state_subpath"))
 		span.SetAttributes(attribute.String("jussi.workaround.subpath", subPath))
 		span.SetAttributes(attribute.String("jussi.workaround.username", username))
@@ -133,6 +132,22 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 			telemetry.RecordSpanError(span, err)
 			RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "workaround_error").Inc()
 			return nil, fmt.Errorf("get_state workaround failed: %w", err)
+		}
+		RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "workaround_success").Inc()
+		return resp, nil
+	}
+
+	if pathType, ok := isGetStateSpecialPath(jsonrpcReq); ok {
+		slog.Debug("get_state workaround: special path intercepted",
+			"pathType", pathType)
+		span.SetAttributes(attribute.String("jussi.workaround", "get_state_special_path"))
+		span.SetAttributes(attribute.String("jussi.workaround.path_type", pathType))
+
+		resp, err := p.emulateGetStateSpecialPath(ctx, jsonrpcReq, pathType)
+		if err != nil {
+			telemetry.RecordSpanError(span, err)
+			RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "workaround_error").Inc()
+			return nil, fmt.Errorf("get_state special path workaround failed: %w", err)
 		}
 		RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "workaround_success").Inc()
 		return resp, nil
