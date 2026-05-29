@@ -3,6 +3,7 @@ package upstream
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,9 +27,22 @@ func NewHTTPClient() *HTTPClient {
 			// context.WithTimeout in callHTTPUpstream to avoid nested
 			// timeout conflicts between transport and context.
 			Transport: &http.Transport{
+				// Force HTTP/1.1 to avoid HTTP/2 multiplexing which causes
+				// all requests to share a single TCP connection to the ALB.
+				// With HTTP/1.1, the connection pool distributes requests
+				// across multiple connections for better load balancing.
+				ForceAttemptHTTP2: false,
+				TLSClientConfig: &tls.Config{
+					NextProtos: []string{"http/1.1"},
+				},
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 10,
-				IdleConnTimeout:     90 * time.Second,
+				// Limit total connections per host to force connection
+				// rotation and prevent sticky connections to a single
+				// backend instance behind the ALB.
+				MaxConnsPerHost:    20,
+				IdleConnTimeout:    90 * time.Second,
+				DisableKeepAlives:  false,
 			},
 		},
 	}
