@@ -106,6 +106,45 @@ func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string
 	return result, nil
 }
 
+// RequestWithRetry sends a request with bounded-attempt retry, but only
+// retries when IsRetriableUpstreamError returns true for the most recent
+// error. The total wall-clock budget is still bounded by ctx — once ctx
+// is Done we stop immediately, even if attempts remain.
+//
+// This is for IDEMPOTENT requests only. Broadcast methods must call
+// Request directly so a transient transport error never causes a duplicate
+// submission.
+func (c *HTTPClient) RequestWithRetry(
+	ctx context.Context,
+	url string,
+	payload map[string]interface{},
+	headers map[string]string,
+	cfg RetryConfig,
+) (map[string]interface{}, error) {
+	if cfg.MaxAttempts < 1 {
+		cfg.MaxAttempts = 1
+	}
+	var lastErr error
+	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
+		if attempt > 1 {
+			select {
+			case <-time.After(cfg.BackoffFor(attempt - 1)):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		result, err := c.Request(ctx, url, payload, headers)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+		if !IsRetriableUpstreamError(err) {
+			return nil, err
+		}
+	}
+	return nil, lastErr
+}
+
 // Close closes the HTTP client
 func (c *HTTPClient) Close() error {
 	// HTTP client doesn't need explicit closing

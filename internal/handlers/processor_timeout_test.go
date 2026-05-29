@@ -54,11 +54,16 @@ func TestSelectUpstreamTimeout(t *testing.T) {
 		},
 		{
 			name: "broadcast with above-minimum configured value preserved",
-			req:  mkReq("broadcast_transaction_synchronous", 30),
-			want: 30 * time.Second,
+			req:  mkReq("broadcast_transaction_synchronous", 60),
+			want: 60 * time.Second,
 		},
 		{
 			name: "broadcast with configured value equal to minimum preserved",
+			req:  mkReq("broadcast_transaction_synchronous", 30),
+			want: broadcastMinimumTimeout,
+		},
+		{
+			name: "broadcast with previous-15s config raised to new 30s minimum",
 			req:  mkReq("broadcast_transaction_synchronous", 15),
 			want: broadcastMinimumTimeout,
 		},
