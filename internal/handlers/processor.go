@@ -13,6 +13,7 @@ import (
 	"github.com/steemit/jussi/internal/request"
 	"github.com/steemit/jussi/internal/telemetry"
 	"github.com/steemit/jussi/internal/upstream"
+	"github.com/steemit/jussi/internal/validators"
 	"github.com/steemit/jussi/internal/ws"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -27,6 +28,44 @@ var (
 	RequestsTotal           = telemetry.RequestsTotal
 	BatchSize               = telemetry.BatchSize
 )
+
+// Upstream timeout policy.
+//
+// defaultUpstreamTimeout is the fallback when the upstream config sets
+// timeout=0 (no per-URN entry matched). It is aligned with the production
+// upstream config's broadcast timeout so a missing or zeroed config cannot
+// accidentally clip a synchronous broadcast — which would surface to the
+// wallet as transaction_expiration_exception once the caller retries with
+// a fresh expiration.
+//
+// broadcastMinimumTimeout is the lower bound for broadcast_transaction*
+// methods regardless of config: even if a per-URN entry asks for less,
+// synchronous broadcast must wait for a block (~3s on Steem) plus network
+// and confirmation overhead, so anything below this is unsafe.
+const (
+	defaultUpstreamTimeout  = 15 * time.Second
+	broadcastMinimumTimeout = 15 * time.Second
+)
+
+// selectUpstreamTimeout resolves the effective upstream timeout for a request.
+// It honours the configured per-URN timeout, falls back to defaultUpstreamTimeout
+// when unset, and raises broadcast_transaction* requests to at least
+// broadcastMinimumTimeout regardless of config (since clipping a synchronous
+// broadcast can leave the transaction in flight on the upstream while the
+// caller retries with a fresh expiration).
+func selectUpstreamTimeout(req *request.JSONRPCRequest) time.Duration {
+	var timeout time.Duration
+	if req != nil && req.Upstream != nil {
+		timeout = time.Duration(req.Upstream.Timeout) * time.Second
+	}
+	if timeout <= 0 {
+		timeout = defaultUpstreamTimeout
+	}
+	if validators.IsBroadcastTransactionRequest(req) && timeout < broadcastMinimumTimeout {
+		timeout = broadcastMinimumTimeout
+	}
+	return timeout
+}
 
 // RequestProcessor processes JSON-RPC requests
 type RequestProcessor struct {
@@ -327,14 +366,10 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	payload := jsonrpcReq.ToUpstreamRequest()
 	headers := jsonrpcReq.UpstreamHeaders()
 
-	// Create timeout context
-	// A timeout of 0 in the upstream config means "use default".
-	// Previously 0 meant "no timeout" which could cause requests to
-	// hang indefinitely (e.g. broadcast_transaction_synchronous).
-	timeout := time.Duration(jsonrpcReq.Upstream.Timeout) * time.Second
-	if timeout == 0 {
-		timeout = 3 * time.Second // safe default for all requests
-	}
+	// Resolve the effective upstream timeout via selectUpstreamTimeout, which
+	// applies the default for timeout=0 and enforces broadcastMinimumTimeout
+	// for broadcast_transaction* methods (see commit 9cf36ea).
+	timeout := selectUpstreamTimeout(jsonrpcReq)
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
