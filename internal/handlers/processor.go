@@ -71,7 +71,10 @@ func selectUpstreamTimeout(req *request.JSONRPCRequest) time.Duration {
 		timeout = defaultUpstreamTimeout
 	}
 	if validators.IsBroadcastTransactionRequest(req) && timeout < broadcastMinimumTimeout {
-		method := req.URN.Method
+		method := "unknown"
+		if req != nil && req.URN != nil {
+			method = req.URN.Method
+		}
 		if shouldLogBroadcastFloor(method) {
 			slog.Info("broadcast upstream timeout floored",
 				"method", method,
@@ -93,13 +96,21 @@ var broadcastFloorLastLog sync.Map // map[string]time.Time keyed by method
 
 func shouldLogBroadcastFloor(method string) bool {
 	now := time.Now()
-	if last, ok := broadcastFloorLastLog.Load(method); ok {
-		if lastT, ok := last.(time.Time); ok && now.Sub(lastT) < broadcastFloorLogInterval {
-			return false
+	for {
+		actual, loaded := broadcastFloorLastLog.Load(method)
+		if loaded {
+			if lastT, ok := actual.(time.Time); ok && now.Sub(lastT) < broadcastFloorLogInterval {
+				return false
+			}
+			if broadcastFloorLastLog.CompareAndSwap(method, actual, now) {
+				return true
+			}
+		} else {
+			if _, loaded := broadcastFloorLastLog.LoadOrStore(method, now); !loaded {
+				return true
+			}
 		}
 	}
-	broadcastFloorLastLog.Store(method, now)
-	return true
 }
 
 // RequestProcessor processes JSON-RPC requests

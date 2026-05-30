@@ -64,6 +64,11 @@ func IsRetriableUpstreamError(err error) bool {
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
+	// Match UpstreamStatusError via types — avoids fragile string matching.
+	var statusErr *UpstreamStatusError
+	if errors.As(err, &statusErr) {
+		return statusErr.StatusCode >= 500 && statusErr.StatusCode < 600
+	}
 	msg := err.Error()
 	for _, s := range []string{
 		"connection reset",
@@ -72,10 +77,6 @@ func IsRetriableUpstreamError(err error) bool {
 		"no such host",
 		"i/o timeout",
 		"network is unreachable",
-		"server error: 500",
-		"server error: 502",
-		"server error: 503",
-		"server error: 504",
 	} {
 		if strings.Contains(msg, s) {
 			return true

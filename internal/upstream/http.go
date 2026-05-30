@@ -19,6 +19,17 @@ type HTTPClient struct {
 	client *http.Client
 }
 
+// UpstreamStatusError is a typed error carrying the HTTP status code from
+// an upstream response (>= 500). Callers can use errors.As to reliably
+// extract the code without string matching.
+type UpstreamStatusError struct {
+	StatusCode int
+}
+
+func (e *UpstreamStatusError) Error() string {
+	return fmt.Sprintf("upstream server error: %d", e.StatusCode)
+}
+
 // NewHTTPClient creates a new HTTP client
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
@@ -40,9 +51,9 @@ func NewHTTPClient() *HTTPClient {
 				// Limit total connections per host to force connection
 				// rotation and prevent sticky connections to a single
 				// backend instance behind the ALB.
-				MaxConnsPerHost:    20,
-				IdleConnTimeout:    90 * time.Second,
-				DisableKeepAlives:  false,
+				MaxConnsPerHost:   20,
+				IdleConnTimeout:   90 * time.Second,
+				DisableKeepAlives: false,
 			},
 		},
 	}
@@ -88,7 +99,7 @@ func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string
 
 	// Check for server errors
 	if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("upstream server error: %d", resp.StatusCode)
+		return nil, &UpstreamStatusError{StatusCode: resp.StatusCode}
 	}
 
 	// Read response

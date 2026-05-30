@@ -57,9 +57,13 @@ func TestRequestWithRetryStopsOnNonRetriable4xx(t *testing.T) {
 	cfg := RetryConfig{MaxAttempts: 3, InitialBackoff: time.Millisecond, MaxBackoff: time.Millisecond}
 	resp, err := c.RequestWithRetry(context.Background(), srv.URL, map[string]interface{}{"x": 1}, nil, cfg)
 	// 4xx is returned as a parsed response (not an error) by HTTPClient.Request
-	// because Request only treats >=500 as errors. Either way, no retry.
-	_ = err
-	_ = resp
+	// because Request only treats >=500 as errors. No retry should happen.
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected non-nil response")
+	}
 	if got := atomic.LoadInt32(&attempts); got != 1 {
 		t.Errorf("attempts=%d, want 1 (no retry on 4xx)", got)
 	}
