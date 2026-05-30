@@ -299,3 +299,98 @@ func TestCacheGroupGetPriority(t *testing.T) {
 	}
 }
 
+func TestCacheGroupGet_TTLExpiration(t *testing.T) {
+	ctx := context.Background()
+	mem := NewMemoryCache()
+	cg := NewCacheGroup(mem, nil)
+
+	err := cg.Set(ctx, "short-lived", "data", 1*time.Second)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	value, err := cg.Get(ctx, "short-lived")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value != "data" {
+		t.Errorf("expected 'data', got %v", value)
+	}
+
+	time.Sleep(1100 * time.Millisecond)
+
+	value, err = cg.Get(ctx, "short-lived")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value != nil {
+		t.Errorf("expected nil after TTL expiration, got %v", value)
+	}
+}
+
+func TestCacheGroupGet_RedisBackfillTTL(t *testing.T) {
+	ctx := context.Background()
+	mem := NewMemoryCache()
+	redis := NewMemoryCache() // simulate Redis with memory cache
+
+	cg := NewCacheGroup(mem, redis)
+
+	// Set in "redis" with short TTL
+	err := redis.Set(ctx, "dgp", "block-100", 1*time.Second)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Get triggers Redis→memory promotion
+	value, err := cg.Get(ctx, "dgp")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value != "block-100" {
+		t.Errorf("expected 'block-100', got %v", value)
+	}
+
+	// Wait for promotion TTL to expire
+	time.Sleep(6 * time.Second)
+
+	// Memory cache entry should have expired
+	value, err = mem.Get(ctx, "dgp")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value != nil {
+		t.Errorf("expected memory entry to expire after promotion TTL, got %v", value)
+	}
+}
+
+func TestCacheGroupGet_NilMemoryWithRedis(t *testing.T) {
+	ctx := context.Background()
+	redis := NewMemoryCache() // simulate Redis
+
+	// Production config: memory=nil, redis=Redis
+	cg := NewCacheGroup(nil, redis)
+
+	err := cg.Set(ctx, "key", "value", 1*time.Second)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	value, err := cg.Get(ctx, "key")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value != "value" {
+		t.Errorf("expected 'value', got %v", value)
+	}
+
+	time.Sleep(1100 * time.Millisecond)
+
+	value, err = cg.Get(ctx, "key")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if value != nil {
+		t.Errorf("expected nil after TTL expiration, got %v", value)
+	}
+}
+

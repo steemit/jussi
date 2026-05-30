@@ -114,21 +114,27 @@ func NewApp(cfg *config.Config) (*App, error) {
 	return app, nil
 }
 
-// initCache initializes the cache system
+// initCache initializes the cache system.
+// When Redis is configured and reachable, memory cache is disabled entirely
+// to avoid TTL mismatches on Redis→memory promotion (group.go Get/MGet).
+// Memory cache is only used as a fallback when Redis is unavailable.
 func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, error) {
-	var memoryCache cache.Cache = cache.NewMemoryCache()
+	var memoryCache cache.Cache
 	var redisCache cache.Cache
 
-	// Get Redis URL from config (supports both direct URL and constructed from config)
 	redisURL := cfg.Cache.GetRedisURL()
 	if redisURL != "" {
 		redis, err := cache.NewRedisCache(redisURL)
 		if err != nil {
-			logger.Warn().Err(err).Msg("Failed to connect to Redis, using memory cache only")
+			logger.Warn().Err(err).Msg("Failed to connect to Redis, falling back to memory cache")
+			memoryCache = cache.NewMemoryCache()
 		} else {
 			redisCache = redis
-			logger.Info().Msg("Redis cache initialized")
+			logger.Info().Msg("Redis cache initialized (memory cache disabled)")
 		}
+	} else {
+		memoryCache = cache.NewMemoryCache()
+		logger.Info().Msg("No Redis configured, using memory cache")
 	}
 
 	return cache.NewCacheGroup(memoryCache, redisCache), nil
