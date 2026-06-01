@@ -13,8 +13,6 @@ func TestCacheGroupGet(t *testing.T) {
 	mem3 := NewMemoryCache()
 
 	cacheGroup := NewCacheGroup(mem1, mem2)
-	// Note: Go implementation uses memory + redis, not multiple memory caches
-	// So we test with memory as primary and nil as secondary for now
 
 	// Set value in first cache
 	err := mem1.Set(ctx, "key", "value1", 180*time.Second)
@@ -394,3 +392,46 @@ func TestCacheGroupGet_NilMemoryWithRedis(t *testing.T) {
 	}
 }
 
+func TestCacheGroupMGet_RedisBackfillTTL(t *testing.T) {
+	ctx := context.Background()
+	mem := NewMemoryCache()
+	redis := NewMemoryCache() // simulate Redis
+
+	cg := NewCacheGroup(mem, redis)
+
+	// Set in "redis" only
+	err := redis.Set(ctx, "k1", "v1", 1*time.Second)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = redis.Set(ctx, "k2", "v2", 1*time.Second)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// MGet promotes Redis entries to memory
+	results, err := cg.MGet(ctx, []string{"k1", "k2"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if results[0] != "v1" || results[1] != "v2" {
+		t.Fatalf("expected [v1, v2], got %v", results)
+	}
+
+	// Verify promoted entries exist in memory
+	v1, _ := mem.Get(ctx, "k1")
+	v2, _ := mem.Get(ctx, "k2")
+	if v1 != "v1" || v2 != "v2" {
+		t.Fatalf("expected promoted entries in memory, got k1=%v k2=%v", v1, v2)
+	}
+
+	// Wait for promotion TTL (5s) to expire
+	time.Sleep(5500 * time.Millisecond)
+
+	// Promoted entries should be gone from memory
+	v1, _ = mem.Get(ctx, "k1")
+	v2, _ = mem.Get(ctx, "k2")
+	if v1 != nil || v2 != nil {
+		t.Errorf("expected memory entries to expire after promotion TTL, got k1=%v k2=%v", v1, v2)
+	}
+}
