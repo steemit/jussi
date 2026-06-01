@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/steemit/jussi/internal/cache"
@@ -13,6 +14,7 @@ import (
 	"github.com/steemit/jussi/internal/request"
 	"github.com/steemit/jussi/internal/telemetry"
 	"github.com/steemit/jussi/internal/upstream"
+	"github.com/steemit/jussi/internal/validators"
 	"github.com/steemit/jussi/internal/ws"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -27,6 +29,89 @@ var (
 	RequestsTotal           = telemetry.RequestsTotal
 	BatchSize               = telemetry.BatchSize
 )
+
+// Upstream timeout policy.
+//
+// defaultUpstreamTimeout is the fallback when the upstream config sets
+// timeout=0 (no per-URN entry matched). 15s covers ~5 Steem blocks and
+// keeps idempotent reads from hanging forever if a per-URN timeout was
+// forgotten.
+//
+// broadcastMinimumTimeout is the lower bound for broadcast_transaction*
+// methods regardless of config. Synchronous broadcast must wait for a
+// block (~3s on Steem); when an upstream node is slow or hung, ALB will
+// keep the connection open and jussi must wait until it succeeds or until
+// the timeout fires. Legacy jussi had timeout=0 (no limit) here and used
+// retry to mask hung backends — we keep a finite limit but raise it to
+// 30s so the request can survive ~10 blocks of upstream slowness without
+// being clipped, which is what surfaces as "broadcast timeout" to wallets.
+const (
+	defaultUpstreamTimeout  = 15 * time.Second
+	broadcastMinimumTimeout = 30 * time.Second
+)
+
+// selectUpstreamTimeout resolves the effective upstream timeout for a request.
+// It honours the configured per-URN timeout, falls back to defaultUpstreamTimeout
+// when unset, and raises broadcast_transaction* requests to at least
+// broadcastMinimumTimeout regardless of config (since clipping a synchronous
+// broadcast can leave the transaction in flight on the upstream while the
+// caller retries with a fresh expiration).
+//
+// When the broadcast floor actually overrides a smaller configured value
+// it logs once per method per broadcastFloorLogInterval — operators want
+// to know a config typo (or a too-aggressive timeout) is being silently
+// rescued by the safety net, but only once, not on every request.
+func selectUpstreamTimeout(req *request.JSONRPCRequest) time.Duration {
+	var configured time.Duration
+	if req != nil && req.Upstream != nil {
+		configured = time.Duration(req.Upstream.Timeout) * time.Second
+	}
+	timeout := configured
+	if timeout <= 0 {
+		timeout = defaultUpstreamTimeout
+	}
+	if validators.IsBroadcastTransactionRequest(req) && timeout < broadcastMinimumTimeout {
+		method := "unknown"
+		if req != nil && req.URN != nil {
+			method = req.URN.Method
+		}
+		if shouldLogBroadcastFloor(method) {
+			slog.Info("broadcast upstream timeout floored",
+				"method", method,
+				"configured_s", configured.Seconds(),
+				"applied_s", broadcastMinimumTimeout.Seconds(),
+			)
+		}
+		timeout = broadcastMinimumTimeout
+	}
+	return timeout
+}
+
+// broadcastFloorLogInterval throttles "timeout floored" logs to one
+// emission per method per interval. The point is observability, not a
+// per-request audit trail.
+const broadcastFloorLogInterval = time.Minute
+
+var broadcastFloorLastLog sync.Map // map[string]time.Time keyed by method
+
+func shouldLogBroadcastFloor(method string) bool {
+	now := time.Now()
+	for {
+		actual, loaded := broadcastFloorLastLog.Load(method)
+		if loaded {
+			if lastT, ok := actual.(time.Time); ok && now.Sub(lastT) < broadcastFloorLogInterval {
+				return false
+			}
+			if broadcastFloorLastLog.CompareAndSwap(method, actual, now) {
+				return true
+			}
+		} else {
+			if _, loaded := broadcastFloorLastLog.LoadOrStore(method, now); !loaded {
+				return true
+			}
+		}
+	}
+}
 
 // RequestProcessor processes JSON-RPC requests
 type RequestProcessor struct {
@@ -306,6 +391,21 @@ func (p *RequestProcessor) ProcessSingleRequest(ctx context.Context, jsonrpcReq 
 		// Mark span as error
 		telemetry.RecordSpanError(span, fmt.Errorf("upstream returned error: %v", errField["message"]))
 		RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "error").Inc()
+
+		// For broadcast methods, emit a structured warn log alongside the
+		// span. Broadcast traffic is low-volume and these errors are the
+		// signal operators actually need to correlate "wallets are seeing
+		// failed transactions" with an upstream incident — without paging
+		// through jaeger trace by trace.
+		if validators.IsBroadcastTransactionRequest(jsonrpcReq) {
+			slog.Warn("broadcast upstream returned error",
+				"method", jsonrpcReq.URN.Method,
+				"namespace", jsonrpcReq.URN.Namespace,
+				"upstream_url", upstreamURL,
+				"jussi_request_id", jsonrpcReq.JussiRequestID,
+				"upstream_message", fmt.Sprintf("%v", errField["message"]),
+			)
+		}
 	} else {
 		telemetry.SetSpanSuccess(span)
 		RequestsTotal.WithLabelValues(jsonrpcReq.URN.Namespace, jsonrpcReq.URN.Method, "success").Inc()
@@ -322,24 +422,29 @@ func getProtocol(url string) string {
 	return "http"
 }
 
-// callHTTPUpstream calls HTTP upstream
+// callHTTPUpstream calls HTTP upstream with policy tuned to the request type:
+//   - broadcast_transaction* methods are non-idempotent and MUST NOT be
+//     retried (a transient transport error could otherwise cause the same
+//     transaction to be submitted twice). They get a single attempt with
+//     the broadcast-minimum timeout enforced by selectUpstreamTimeout.
+//   - All other methods are treated as idempotent and use RequestWithRetry
+//     with DefaultRetryConfig (≤2 attempts, ~100-500ms backoff). This
+//     mirrors what legacy jussi did to mask transient ALB/steemd blips,
+//     but with a tight enough budget to avoid the expiration-on-retry
+//     pattern that motivated commit 9cf36ea.
 func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
 	payload := jsonrpcReq.ToUpstreamRequest()
 	headers := jsonrpcReq.UpstreamHeaders()
 
-	// Create timeout context
-	// A timeout of 0 in the upstream config means "use default".
-	// Previously 0 meant "no timeout" which could cause requests to
-	// hang indefinitely (e.g. broadcast_transaction_synchronous).
-	timeout := time.Duration(jsonrpcReq.Upstream.Timeout) * time.Second
-	if timeout == 0 {
-		timeout = 3 * time.Second // safe default for all requests
-	}
+	timeout := selectUpstreamTimeout(jsonrpcReq)
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	return p.httpClient.Request(ctx, url, payload, headers)
+	if validators.IsBroadcastTransactionRequest(jsonrpcReq) {
+		return p.httpClient.Request(ctx, url, payload, headers)
+	}
+	return p.httpClient.RequestWithRetry(ctx, url, payload, headers, upstream.DefaultRetryConfig())
 }
 
 // TODO: WebSocket support - temporarily disabled

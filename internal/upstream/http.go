@@ -3,6 +3,7 @@ package upstream
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,17 @@ type HTTPClient struct {
 	client *http.Client
 }
 
+// UpstreamStatusError is a typed error carrying the HTTP status code from
+// an upstream response (>= 500). Callers can use errors.As to reliably
+// extract the code without string matching.
+type UpstreamStatusError struct {
+	StatusCode int
+}
+
+func (e *UpstreamStatusError) Error() string {
+	return fmt.Sprintf("upstream server error: %d", e.StatusCode)
+}
+
 // NewHTTPClient creates a new HTTP client
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
@@ -26,9 +38,22 @@ func NewHTTPClient() *HTTPClient {
 			// context.WithTimeout in callHTTPUpstream to avoid nested
 			// timeout conflicts between transport and context.
 			Transport: &http.Transport{
+				// Force HTTP/1.1 to avoid HTTP/2 multiplexing which causes
+				// all requests to share a single TCP connection to the ALB.
+				// With HTTP/1.1, the connection pool distributes requests
+				// across multiple connections for better load balancing.
+				ForceAttemptHTTP2: false,
+				TLSClientConfig: &tls.Config{
+					NextProtos: []string{"http/1.1"},
+				},
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 10,
-				IdleConnTimeout:     90 * time.Second,
+				// Limit total connections per host to force connection
+				// rotation and prevent sticky connections to a single
+				// backend instance behind the ALB.
+				MaxConnsPerHost:   20,
+				IdleConnTimeout:   90 * time.Second,
+				DisableKeepAlives: false,
 			},
 		},
 	}
@@ -74,7 +99,7 @@ func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string
 
 	// Check for server errors
 	if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("upstream server error: %d", resp.StatusCode)
+		return nil, &UpstreamStatusError{StatusCode: resp.StatusCode}
 	}
 
 	// Read response
@@ -90,6 +115,45 @@ func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string
 	}
 
 	return result, nil
+}
+
+// RequestWithRetry sends a request with bounded-attempt retry, but only
+// retries when IsRetriableUpstreamError returns true for the most recent
+// error. The total wall-clock budget is still bounded by ctx — once ctx
+// is Done we stop immediately, even if attempts remain.
+//
+// This is for IDEMPOTENT requests only. Broadcast methods must call
+// Request directly so a transient transport error never causes a duplicate
+// submission.
+func (c *HTTPClient) RequestWithRetry(
+	ctx context.Context,
+	url string,
+	payload map[string]interface{},
+	headers map[string]string,
+	cfg RetryConfig,
+) (map[string]interface{}, error) {
+	if cfg.MaxAttempts < 1 {
+		cfg.MaxAttempts = 1
+	}
+	var lastErr error
+	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
+		if attempt > 1 {
+			select {
+			case <-time.After(cfg.BackoffFor(attempt - 1)):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		result, err := c.Request(ctx, url, payload, headers)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+		if !IsRetriableUpstreamError(err) {
+			return nil, err
+		}
+	}
+	return nil, lastErr
 }
 
 // Close closes the HTTP client

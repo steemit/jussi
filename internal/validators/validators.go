@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/steemit/jussi/internal/errors"
 	"github.com/steemit/jussi/internal/request"
@@ -170,10 +171,16 @@ func isValidParamsType(v interface{}) bool {
 	return false
 }
 
-// Broadcast transaction method names
-var BroadcastTransactionMethods = map[string]bool{
-	"broadcast_transaction":             true,
-	"broadcast_transaction_synchronous": true,
+// IsBroadcastTransactionRequest checks if the request is a broadcast method
+// (e.g. broadcast_transaction, broadcast_transaction_synchronous, broadcast_block).
+// Uses prefix matching so that any future broadcast_* method is automatically
+// covered without source changes — all such methods are non-idempotent and
+// must never be retried.
+func IsBroadcastTransactionRequest(req *request.JSONRPCRequest) bool {
+	if req == nil || req.URN == nil {
+		return false
+	}
+	return strings.HasPrefix(req.URN.Method, "broadcast_")
 }
 
 // IsGetBlockRequest checks if the request is a get_block request
@@ -192,14 +199,6 @@ func IsGetBlockHeaderRequest(req *request.JSONRPCRequest) bool {
 	}
 	return (req.URN.Namespace == "steemd" || req.URN.Namespace == "appbase") &&
 		req.URN.Method == "get_block_header"
-}
-
-// IsBroadcastTransactionRequest checks if the request is a broadcast transaction request
-func IsBroadcastTransactionRequest(req *request.JSONRPCRequest) bool {
-	if req == nil || req.URN == nil {
-		return false
-	}
-	return BroadcastTransactionMethods[req.URN.Method]
 }
 
 // BlockNumFromID extracts block number from block ID (first 8 hex digits)
@@ -494,4 +493,3 @@ func LimitBroadcastTransactionRequest(req *request.JSONRPCRequest, limits map[st
 
 	return LimitCustomJSONAccount(customJSONOps, blacklistAccounts)
 }
-

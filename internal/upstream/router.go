@@ -2,6 +2,7 @@ package upstream
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/steemit/jussi/internal/config"
 )
@@ -37,9 +38,32 @@ func NewRouter(upstreamConfig *config.UpstreamRawConfig) (*Router, error) {
 	// Parse upstream configuration if available
 	if upstreamConfig != nil {
 		router.parseUpstreamConfig()
+		router.logConfigSummary()
 	}
 
 	return router, nil
+}
+
+// logConfigSummary emits one slog.Info per upstream describing the parsed
+// URL count and the broadcast/default timeouts that will actually take
+// effect at runtime. Reading this at startup is the quickest way for an
+// operator to confirm "is the config I shipped really the config that's
+// running?", and it's cheap (runs once per process).
+func (r *Router) logConfigSummary() {
+	if r.upstreamConfig == nil {
+		return
+	}
+	for _, u := range r.upstreamConfig.Upstreams {
+		bcTimeout := r.getTimeoutFromConfig(u.Name + ".network_broadcast_api")
+		nsTimeout := r.getTimeoutFromConfig(u.Name)
+		slog.Info("upstream registered",
+			"name", u.Name,
+			"url_count", len(u.URLs),
+			"translate_to_appbase", u.TranslateToAppbase,
+			"timeout_default_s", nsTimeout,
+			"timeout_broadcast_s", bcTimeout,
+		)
+	}
 }
 
 // GetUpstream returns upstream information for a given URN
