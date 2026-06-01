@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/steemit/jussi/internal/cache"
 	"github.com/steemit/jussi/internal/handlers"
 	"github.com/steemit/jussi/internal/middleware"
 )
@@ -23,7 +24,8 @@ func setupRoutesTestServer() *httptest.Server {
 	r.Use(middleware.RequestIDMiddleware())
 
 	// Create health handler
-	healthHandler := handlers.NewHealthHandler("test-commit", "test-tag")
+	tracker := cache.NewBlockNumberTracker()
+	healthHandler := handlers.NewHealthHandler("test-commit", "test-tag", tracker)
 
 	// Setup routes
 	r.GET("/health", healthHandler.HandleHealth)
