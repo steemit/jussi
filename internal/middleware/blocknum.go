@@ -30,17 +30,13 @@ func UpdateBlockNumberMiddleware() gin.HandlerFunc {
 		// Process request
 		c.Next()
 
-		// Check if this is a get_dynamic_global_properties response
-		// Get response body
-		responseBody, exists := c.Get("response_body")
-		if !exists {
+		// Get response body from the response writer wrapper
+		writer, ok := c.Writer.(*responseWriter)
+		if !ok || writer.Body() == nil || len(writer.Body()) == 0 {
 			return
 		}
 
-		bodyBytes, ok := responseBody.([]byte)
-		if !ok || len(bodyBytes) == 0 {
-			return
-		}
+		bodyBytes := writer.Body()
 
 		// Parse response
 		var response map[string]interface{}
