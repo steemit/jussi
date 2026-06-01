@@ -5,7 +5,10 @@ import (
 	"time"
 )
 
-// CacheGroup manages multiple cache tiers (memory + Redis)
+// CacheGroup manages multiple cache tiers (memory + Redis).
+// At most one of memoryCache or redisCache is non-nil in normal
+// operation (see app.initCache), but the code supports both being
+// set for the fallback case where Redis goes down at startup.
 type CacheGroup struct {
 	memoryCache Cache
 	redisCache  Cache
@@ -33,9 +36,12 @@ func (cg *CacheGroup) Get(ctx context.Context, key string) (interface{}, error) 
 	if cg.redisCache != nil {
 		value, err := cg.redisCache.Get(ctx, key)
 		if err == nil && value != nil {
-			// Store in memory cache for next time
+			// TTL=0 means "cache indefinitely" in MemoryCache, which causes
+			// stale reads on short-TTL entries (e.g. get_dynamic_global_properties
+			// with TTL=1s). Promote with a bounded TTL (5s) so the memory layer
+			// doesn't serve stale data for longer than one Redis TTL cycle.
 			if cg.memoryCache != nil {
-				_ = cg.memoryCache.Set(ctx, key, value, 0) // No expiration for memory
+				_ = cg.memoryCache.Set(ctx, key, value, 5*time.Second)
 			}
 			return value, nil
 		}
@@ -80,9 +86,9 @@ func (cg *CacheGroup) MGet(ctx context.Context, keys []string) ([]interface{}, e
 				if results[i] == nil && missingIndex < len(redisResults) {
 					value := redisResults[missingIndex]
 					results[i] = value
-					// Store in memory if found
+					// Store in memory with bounded TTL to prevent staleness
 					if value != nil && cg.memoryCache != nil {
-						_ = cg.memoryCache.Set(ctx, key, value, 0)
+						_ = cg.memoryCache.Set(ctx, key, value, 5*time.Second)
 					}
 					missingIndex++
 				}
