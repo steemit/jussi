@@ -266,11 +266,9 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 		dockerTag = "unknown"
 	}
 
-	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag)
-	homepageHandler, err := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName, a.router)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create homepage handler: %w", err)
-	}
+	tracker := middleware.GetBlockNumberTracker()
+	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag, tracker)
+	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName, tracker)
 	metricsHandler := &handlers.MetricsHandler{}
 	// Register routes
 	router.GET("/", homepageHandler.HandleHomepage)   // Homepage GET support

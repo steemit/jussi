@@ -9,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
-	"github.com/steemit/jussi/internal/upstream"
 )
 
 // HomepageHandler handles homepage GET requests
@@ -18,22 +17,17 @@ type HomepageHandler struct {
 	SourceCommit string
 	DockerTag    string
 	ServiceName  string
-	GlobalParams *cache.GlobalParams
+	Tracker      *cache.BlockNumberTracker
 }
 
 // NewHomepageHandler creates a new homepage handler.
-// Returns an error if required upstream configuration is missing.
-func NewHomepageHandler(sourceCommit, dockerTag, serviceName string, router *upstream.Router) (*HomepageHandler, error) {
-	gp, err := cache.NewGlobalParams(router)
-	if err != nil {
-		return nil, err
-	}
+func NewHomepageHandler(sourceCommit, dockerTag, serviceName string, tracker *cache.BlockNumberTracker) *HomepageHandler {
 	return &HomepageHandler{
 		SourceCommit: sourceCommit,
 		DockerTag:    dockerTag,
 		ServiceName:  serviceName,
-		GlobalParams: gp,
-	}, nil
+		Tracker:      tracker,
+	}
 }
 
 // HandleHomepage handles GET / requests
@@ -45,19 +39,12 @@ func (h *HomepageHandler) HandleHomepage(c *gin.Context) {
 	// Get docker tag from environment
 	dockerTag := h.getDockerTag()
 
-	// Get latest block number with caching
-	jussiNum, err := h.GlobalParams.GetHeadBlockNumber(c.Request.Context())
-	if err != nil {
-		// If we can't get block number, use 0 as fallback
-		jussiNum = 0
-	}
-
 	response := gin.H{
 		"status":        "OK",
 		"datetime":      time.Now().UTC().Format("2006-01-02T15:04:05.000000"),
 		"source_commit": sourceCommit,
 		"docker_tag":    dockerTag,
-		"jussi_num":     jussiNum,
+		"jussi_num":     h.Tracker.GetLastIrreversibleBlockNum(),
 	}
 
 	// Add CORS headers similar to legacy project
