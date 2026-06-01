@@ -10,6 +10,7 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/steemit/jussi/internal/helpers"
 )
 
 // Client represents a WebSocket client connection
@@ -39,7 +40,9 @@ func NewClient(url string) (*Client, error) {
 
 // Send sends a message
 func (c *Client) Send(ctx context.Context, payload map[string]interface{}) error {
-	data, err := json.Marshal(payload)
+	// Marshal with HTML escaping disabled to keep literal < > & chars.
+	// steemd's FC JSON parser does not understand \uXXXX escapes.
+	data, err := helpers.MarshalJSONWithoutHTMLEscape(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal: %w", err)
 	}

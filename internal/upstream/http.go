@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/steemit/jussi/internal/helpers"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
@@ -65,8 +66,13 @@ func NewHTTPClient() *HTTPClient {
 // is dangerous for non-idempotent requests (e.g. broadcast_transaction)
 // and adds latency for all requests.
 func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string]interface{}, headers map[string]string) (map[string]interface{}, error) {
-	// Marshal payload
-	body, err := json.Marshal(payload)
+	// Marshal payload with HTML escaping disabled.
+	// Go's json.Marshal escapes HTML special chars (<, >, &) to \uXXXX by
+	// default.  steemd's FC JSON parser does not understand \u escapes, so
+	// a body containing '>' would be received as 'u003e', breaking transaction
+	// signatures.  Using json.Encoder with SetEscapeHTML(false) preserves the
+	// literal characters.
+	body, err := helpers.MarshalJSONWithoutHTMLEscape(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
