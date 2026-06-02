@@ -268,7 +268,7 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 
 	tracker := middleware.GetBlockNumberTracker()
 	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag, tracker)
-	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, a.config.Telemetry.ServiceName, tracker)
+	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, tracker)
 	metricsHandler := &handlers.MetricsHandler{}
 	// Register routes
 	router.GET("/", homepageHandler.HandleHomepage)   // Homepage GET support
