@@ -15,27 +15,30 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+
+	"github.com/steemit/jussi/internal/config"
 )
 
 // Setup initializes OpenTelemetry SDK
-func Setup(serviceName, tracesEndpoint string) (func(), error) {
+func Setup(cfg config.TelemetryConfig) (func(), error) {
 	ctx := context.Background()
 
 	// Create resource
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
-			semconv.ServiceNameKey.String(serviceName),
+			semconv.ServiceNameKey.String(cfg.ServiceName),
 		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// Parse endpoint URL to extract host:port
+	// Parse endpoint URL to extract host:port and optional path
 	// WithEndpoint expects host:port format, not full URL
-	endpoint := tracesEndpoint
-	if strings.HasPrefix(tracesEndpoint, "http://") || strings.HasPrefix(tracesEndpoint, "https://") {
-		parsedURL, err := url.Parse(tracesEndpoint)
+	endpoint := cfg.OTLPEndpoint
+	urlPath := cfg.OTLPPath // explicit override from config
+	if strings.HasPrefix(cfg.OTLPEndpoint, "http://") || strings.HasPrefix(cfg.OTLPEndpoint, "https://") {
+		parsedURL, err := url.Parse(cfg.OTLPEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse endpoint URL: %w", err)
 		}
@@ -48,14 +51,29 @@ func Setup(serviceName, tracesEndpoint string) (func(), error) {
 				endpoint += ":4318"
 			}
 		}
+		// If URL has a path and no explicit override, use it
+		if urlPath == "" && parsedURL.Path != "" && parsedURL.Path != "/" {
+			urlPath = parsedURL.Path
+		}
+	}
+
+	// Build OTLP HTTP client options
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint(endpoint),
+		otlptracehttp.WithInsecure(), // Use TLS in production
+	}
+	// Custom URL path (e.g. /api/default/v1/traces for OpenObserve)
+	if urlPath != "" {
+		opts = append(opts, otlptracehttp.WithURLPath(urlPath))
+	}
+	// Custom headers (e.g. Authorization for OpenObserve Basic Auth)
+	if len(cfg.OTLPHeaders) > 0 {
+		opts = append(opts, otlptracehttp.WithHeaders(cfg.OTLPHeaders))
 	}
 
 	// Setup trace exporter
 	traceExporter, err := otlptrace.New(ctx,
-		otlptracehttp.NewClient(
-			otlptracehttp.WithEndpoint(endpoint),
-			otlptracehttp.WithInsecure(), // Use TLS in production
-		),
+		otlptracehttp.NewClient(opts...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)

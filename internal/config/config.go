@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -109,11 +110,13 @@ type LoggingConfig struct {
 
 // TelemetryConfig holds OpenTelemetry configuration
 type TelemetryConfig struct {
-	Enabled            bool   `mapstructure:"enabled"`
-	ServiceName        string `mapstructure:"service_name"`
-	OTLPEndpoint       string `mapstructure:"otlp_endpoint"`
-	TracesEndpoint     string `mapstructure:"traces_endpoint"`
-	ResourceAttributes string `mapstructure:"resource_attributes"`
+	Enabled            bool              `mapstructure:"enabled"`
+	ServiceName        string            `mapstructure:"service_name"`
+	OTLPEndpoint       string            `mapstructure:"otlp_endpoint"`
+	OTLPPath           string            `mapstructure:"otlp_path"`
+	OTLPHeaders        map[string]string `mapstructure:"otlp_headers"`
+	TracesEndpoint     string            `mapstructure:"traces_endpoint"`
+	ResourceAttributes string            `mapstructure:"resource_attributes"`
 }
 
 // PrometheusConfig holds Prometheus configuration
@@ -158,6 +161,21 @@ func LoadConfig() (*Config, error) {
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	// Parse OTLP headers from env var (format: "Key=Value,Key2=Value2")
+	// Viper doesn't auto-convert comma-separated env vars to maps
+	if headersStr := os.Getenv("JUSSI_TELEMETRY_OTLP_HEADERS"); headersStr != "" {
+		headers := make(map[string]string)
+		for _, pair := range strings.Split(headersStr, ",") {
+			parts := strings.SplitN(strings.TrimSpace(pair), "=", 2)
+			if len(parts) == 2 {
+				headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+			}
+		}
+		if len(headers) > 0 {
+			config.Telemetry.OTLPHeaders = headers
+		}
 	}
 
 	// Load upstream config from JSON file
@@ -214,6 +232,8 @@ func bindEnvOverrides() {
 		{"JUSSI_TELEMETRY_ENABLED", "telemetry.enabled"},
 		{"JUSSI_TELEMETRY_SERVICE_NAME", "telemetry.service_name"},
 		{"JUSSI_TELEMETRY_OTLP_ENDPOINT", "telemetry.otlp_endpoint"},
+		{"JUSSI_TELEMETRY_OTLP_PATH", "telemetry.otlp_path"},
+		{"JUSSI_TELEMETRY_OTLP_HEADERS", "telemetry.otlp_headers"},
 		{"JUSSI_TELEMETRY_TRACES_ENDPOINT", "telemetry.traces_endpoint"},
 		{"JUSSI_TELEMETRY_RESOURCE_ATTRIBUTES", "telemetry.resource_attributes"},
 

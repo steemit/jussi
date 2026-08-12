@@ -86,10 +86,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// Initialize OpenTelemetry if enabled
 	var shutdownTelemetry func()
 	if cfg.Telemetry.Enabled {
-		shutdown, err := telemetry.Setup(
-			cfg.Telemetry.ServiceName,
-			cfg.Telemetry.OTLPEndpoint,
-		)
+		shutdown, err := telemetry.Setup(cfg.Telemetry)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to initialize OpenTelemetry")
 		} else {
