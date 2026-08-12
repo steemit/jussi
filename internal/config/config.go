@@ -233,7 +233,8 @@ func bindEnvOverrides() {
 		{"JUSSI_TELEMETRY_SERVICE_NAME", "telemetry.service_name"},
 		{"JUSSI_TELEMETRY_OTLP_ENDPOINT", "telemetry.otlp_endpoint"},
 		{"JUSSI_TELEMETRY_OTLP_PATH", "telemetry.otlp_path"},
-		{"JUSSI_TELEMETRY_OTLP_HEADERS", "telemetry.otlp_headers"},
+		// Note: JUSSI_TELEMETRY_OTLP_HEADERS is parsed manually after Unmarshal
+		// (Viper can't auto-convert comma-separated env var to map[string]string)
 		{"JUSSI_TELEMETRY_TRACES_ENDPOINT", "telemetry.traces_endpoint"},
 		{"JUSSI_TELEMETRY_RESOURCE_ATTRIBUTES", "telemetry.resource_attributes"},
 
