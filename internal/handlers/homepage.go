@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,13 +25,23 @@ func NewHomepageHandler(sourceCommit, dockerTag string, tracker *cache.BlockNumb
 	}
 }
 
+// versionInfo mirrors HealthHandler.versionInfo — redacted unless
+// JUSSI_EXPOSE_VERSION=true.
+func (h *HomepageHandler) versionInfo() (string, string) {
+	if os.Getenv("JUSSI_EXPOSE_VERSION") == "true" {
+		return h.SourceCommit, h.DockerTag
+	}
+	return "unknown", "unknown"
+}
+
 // HandleHomepage handles GET / requests
 func (h *HomepageHandler) HandleHomepage(c *gin.Context) {
+	sourceCommit, dockerTag := h.versionInfo()
 	response := gin.H{
 		"status":        "OK",
 		"datetime":      time.Now().UTC().Format(time.RFC3339),
-		"source_commit": h.SourceCommit,
-		"docker_tag":    h.DockerTag,
+		"source_commit": sourceCommit,
+		"docker_tag":    dockerTag,
 		"jussi_num":     h.Tracker.GetLastIrreversibleBlockNum(),
 	}
 

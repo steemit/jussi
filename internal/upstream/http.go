@@ -15,6 +15,12 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
+// maxUpstreamResponseBody caps how much we read from an upstream response.
+// get_state and account-history payloads can be large, but anything beyond
+// 64 MiB indicates a malfunctioning or hostile upstream, and buffering it
+// would risk OOM on the gateway.
+const maxUpstreamResponseBody = 64 << 20
+
 // HTTPClient handles HTTP upstream requests
 type HTTPClient struct {
 	client *http.Client
@@ -108,10 +114,13 @@ func (c *HTTPClient) Request(ctx context.Context, url string, payload map[string
 		return nil, &UpstreamStatusError{StatusCode: resp.StatusCode}
 	}
 
-	// Read response
-	respBody, err := io.ReadAll(resp.Body)
+	// Read response (bounded; oversized upstream replies are rejected)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamResponseBody+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if len(respBody) > maxUpstreamResponseBody {
+		return nil, fmt.Errorf("upstream response exceeds %d bytes", maxUpstreamResponseBody)
 	}
 
 	// Parse JSON response

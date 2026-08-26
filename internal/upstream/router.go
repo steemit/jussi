@@ -66,9 +66,27 @@ func (r *Router) logConfigSummary() {
 	}
 }
 
+// maxLookupURN bounds the URN string fed into trie lookups. URNs carry the
+// client-supplied params JSON in their string form; without a cap, a huge
+// body would make splitKey allocate one string per dot across megabytes,
+// three times (url/ttl/timeout), per request. Config patterns that include
+// params (e.g. get_state.params=['/trending']) are all far shorter than
+// this, so clamping only affects absurd client input, whose lookups would
+// terminate at the method segment anyway.
+const maxLookupURN = 4096
+
+// clampURN truncates urn to maxLookupURN bytes.
+func clampURN(urn string) string {
+	if len(urn) > maxLookupURN {
+		return urn[:maxLookupURN]
+	}
+	return urn
+}
+
 // GetUpstream returns upstream information for a given URN
 // Returns false if no upstream configuration is found
 func (r *Router) GetUpstream(urn string) (*UpstreamInfo, bool) {
+	urn = clampURN(urn)
 	// Try to get from configuration first
 	url := r.getURLFromConfig(urn)
 	if url == "" {
@@ -218,6 +236,7 @@ func (r *Router) parseLegacyFormat() {
 // getURLFromConfig tries to get URL from configuration
 // Falls back to appbase or steemd if namespace is not configured
 func (r *Router) getURLFromConfig(urn string) string {
+	urn = clampURN(urn)
 	// Try exact match first
 	if _, value, found := r.urlTrie.LongestPrefix(urn); found {
 		if urlStr, ok := value.(string); ok {
@@ -259,6 +278,7 @@ func (r *Router) getURLFromConfig(urn string) string {
 // getTTLFromConfig gets TTL for a given URN using longest prefix matching
 // Falls back to appbase or steemd if namespace is not configured
 func (r *Router) getTTLFromConfig(urn string) int {
+	urn = clampURN(urn)
 	// Try longest prefix match
 	if _, value, found := r.ttlTrie.LongestPrefix(urn); found {
 		if ttl, ok := value.(int); ok {
@@ -300,6 +320,7 @@ func (r *Router) getTTLFromConfig(urn string) int {
 // getTimeoutFromConfig gets Timeout for a given URN using longest prefix matching
 // Falls back to appbase or steemd if namespace is not configured
 func (r *Router) getTimeoutFromConfig(urn string) int {
+	urn = clampURN(urn)
 	// Try longest prefix match
 	if _, value, found := r.timeoutTrie.LongestPrefix(urn); found {
 		if timeout, ok := value.(int); ok {

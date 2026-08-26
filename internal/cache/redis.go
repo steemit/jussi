@@ -13,18 +13,50 @@ type RedisCache struct {
 	client *redis.Client
 }
 
-// NewRedisCache creates a new Redis cache
+// NewRedisCache creates a new Redis cache from a URL.
+// Prefer NewRedisCacheFromConfig in application code: ParseURL errors can
+// echo the URL back, and a password-bearing URL should not end up in logs.
 func NewRedisCache(redisURL string) (*RedisCache, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
 	}
 
+	return newRedisCacheFromOptions(opt)
+}
+
+// RedisCacheConfig carries the explicit Redis connection settings used to
+// build go-redis options without round-tripping through a URL.
+type RedisCacheConfig struct {
+	Address      string
+	Password     string
+	DB           int
+	PoolSize     int
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	DialTimeout  time.Duration
+}
+
+// NewRedisCacheFromConfig creates a new Redis cache from discrete settings.
+func NewRedisCacheFromConfig(cfg RedisCacheConfig) (*RedisCache, error) {
+	return newRedisCacheFromOptions(&redis.Options{
+		Addr:         cfg.Address,
+		Password:     cfg.Password,
+		DB:           cfg.DB,
+		PoolSize:     cfg.PoolSize,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		DialTimeout:  cfg.DialTimeout,
+	})
+}
+
+func newRedisCacheFromOptions(opt *redis.Options) (*RedisCache, error) {
 	client := redis.NewClient(opt)
-	
+
 	// Test connection
 	ctx := context.Background()
 	if err := client.Ping(ctx).Err(); err != nil {
+		_ = client.Close()
 		return nil, err
 	}
 

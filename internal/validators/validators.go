@@ -171,16 +171,24 @@ func isValidParamsType(v interface{}) bool {
 	return false
 }
 
-// IsBroadcastTransactionRequest checks if the request is a broadcast method
-// (e.g. broadcast_transaction, broadcast_transaction_synchronous, broadcast_block).
-// Uses prefix matching so that any future broadcast_* method is automatically
-// covered without source changes — all such methods are non-idempotent and
-// must never be retried.
+// IsBroadcastTransactionRequest checks if the request is a non-idempotent
+// write method that must never be retried or cached:
+//   - broadcast_* (broadcast_transaction, broadcast_transaction_synchronous,
+//     broadcast_block, and any future broadcast_* method via prefix match)
+//   - chain_api.push_transaction / push_block (same semantics, different
+//     naming — they submit a signed transaction or block to the chain)
 func IsBroadcastTransactionRequest(req *request.JSONRPCRequest) bool {
 	if req == nil || req.URN == nil {
 		return false
 	}
-	return strings.HasPrefix(req.URN.Method, "broadcast_")
+	if strings.HasPrefix(req.URN.Method, "broadcast_") {
+		return true
+	}
+	if req.URN.API == "chain_api" &&
+		(req.URN.Method == "push_transaction" || req.URN.Method == "push_block") {
+		return true
+	}
+	return false
 }
 
 // IsGetBlockRequest checks if the request is a get_block request
