@@ -90,7 +90,7 @@ func (h *JSONRPCHandler) handleSingleRequest(c *gin.Context, req map[string]inte
 			namespace := jsonrpcReq.URN.Namespace
 			errors.HandleError(c, errors.NewInvalidNamespaceError(namespace), requestID)
 		} else {
-			errors.HandleError(c, errors.NewInternalError(err.Error()), requestID)
+			errors.HandleError(c, err, requestID)
 		}
 		return
 	}

@@ -50,11 +50,29 @@ func (c *Client) Send(ctx context.Context, payload map[string]interface{}) error
 	return wsutil.WriteClientMessage(c.conn, ws.OpText, data)
 }
 
+// maxWSMessageSize caps a single upstream WebSocket message. Without it a
+// hostile upstream could send an unbounded frame and exhaust gateway memory.
+const maxWSMessageSize = 64 << 20
+
+// wsReadTimeout bounds a single Receive call when the context carries no
+// deadline, so a silent upstream cannot pin the reader forever.
+const wsReadTimeout = 30 * time.Second
+
 // Receive receives a message
 func (c *Client) Receive(ctx context.Context) (map[string]interface{}, error) {
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = c.conn.SetReadDeadline(deadline)
+	} else {
+		_ = c.conn.SetReadDeadline(time.Now().Add(wsReadTimeout))
+	}
+	defer func() { _ = c.conn.SetReadDeadline(time.Time{}) }()
+
 	msg, _, err := wsutil.ReadServerData(c.conn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read: %w", err)
+	}
+	if len(msg) > maxWSMessageSize {
+		return nil, fmt.Errorf("websocket message exceeds %d bytes", maxWSMessageSize)
 	}
 
 	var result map[string]interface{}

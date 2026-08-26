@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Build arguments for proxy support
 ARG HTTPS_PROXY
@@ -32,20 +32,23 @@ RUN git rev-parse HEAD > /tmp/commit_hash 2>/dev/null || echo "unknown" > /tmp/c
 # Tidy dependencies and build the application (without go mod tidy)
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
 
-# Final stage
-FROM golang:1.23-alpine
+# Final stage — minimal runtime base, non-root user
+FROM alpine:3.20
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata
+
+# Run as an unprivileged user
+RUN addgroup -S jussi && adduser -S -G jussi jussi
 
 # Set working directory
 WORKDIR /app
 
 # Copy binary from builder stage
-COPY --from=builder /app/jussi .
+COPY --from=builder --chown=jussi:jussi /app/jussi .
 
 # Copy default upstream JSON (no top-level config/ dir in this repo)
-COPY --from=builder /app/DEV_config.json .
+COPY --from=builder --chown=jussi:jussi /app/DEV_config.json .
 
 # Copy the commit hash to /etc/version
 COPY --from=builder /tmp/commit_hash /etc/version
@@ -60,6 +63,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Set environment variable for configuration file
 ENV JUSSI_UPSTREAM_CONFIG_FILE=DEV_config.json
 ENV DOCKER_TAG=latest
+
+USER jussi
 
 # Run the application
 CMD ["./jussi"]

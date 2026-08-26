@@ -121,16 +121,33 @@ func initCache(cfg *config.Config, logger *logging.Logger) (*cache.CacheGroup, e
 
 	redisURL := cfg.Cache.GetRedisURL()
 	if redisURL != "" {
-		redis, err := cache.NewRedisCache(redisURL)
+		var redis cache.Cache
+		var err error
+		if cfg.Cache.RedisURL != "" {
+			// Explicit redis:// URL (env) — parse it directly.
+			redis, err = cache.NewRedisCache(cfg.Cache.RedisURL)
+		} else {
+			// Discrete redis.address/password/... settings — build options
+			// without round-tripping the password through a URL string.
+			redis, err = cache.NewRedisCacheFromConfig(cache.RedisCacheConfig{
+				Address:      cfg.Cache.Redis.Address,
+				Password:     cfg.Cache.Redis.Password,
+				DB:           cfg.Cache.Redis.DB,
+				PoolSize:     cfg.Cache.Redis.PoolSize,
+				ReadTimeout:  time.Duration(cfg.Cache.Redis.ReadTimeout) * time.Second,
+				WriteTimeout: time.Duration(cfg.Cache.Redis.WriteTimeout) * time.Second,
+				DialTimeout:  time.Duration(cfg.Cache.Redis.DialTimeout) * time.Second,
+			})
+		}
 		if err != nil {
 			logger.Warn().Err(err).Msg("Failed to connect to Redis, falling back to memory cache")
-			memoryCache = cache.NewMemoryCache()
+			memoryCache = cache.NewMemoryCache(cfg.Cache.Memory.MaxSize)
 		} else {
 			redisCache = redis
 			logger.Info().Msg("Redis cache initialized (memory cache disabled)")
 		}
 	} else {
-		memoryCache = cache.NewMemoryCache()
+		memoryCache = cache.NewMemoryCache(cfg.Cache.Memory.MaxSize)
 		logger.Info().Msg("No Redis configured, using memory cache")
 	}
 
@@ -206,6 +223,18 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 
+	// Trust no proxy by default: ClientIP() then falls back to the socket
+	// RemoteAddr, so client-supplied X-Forwarded-For cannot spoof the
+	// localhost/IP-whitelist checks on the metrics endpoint. Deployments
+	// behind an LB must list its CIDR in server.trusted_proxies.
+	if len(a.config.Server.TrustedProxies) > 0 {
+		if err := router.SetTrustedProxies(a.config.Server.TrustedProxies); err != nil {
+			return nil, fmt.Errorf("invalid trusted_proxies config: %w", err)
+		}
+	} else {
+		_ = router.SetTrustedProxies(nil)
+	}
+
 	// OpenTelemetry middleware (only if enabled)
 	if a.config.Telemetry.Enabled {
 		router.Use(otelgin.Middleware(a.config.Telemetry.ServiceName))
@@ -220,6 +249,10 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 	// Error middleware
 	router.Use(middleware.ErrorMiddleware())
 
+	// Body parse middleware (size cap + single shared parse; must run
+	// before cache lookup and limits so they don't re-read the body)
+	router.Use(middleware.BodyParseMiddleware(a.config.Server.MaxBodySize))
+
 	// Initialize block number tracker
 	middleware.InitBlockNumberTracker()
 
@@ -229,16 +262,15 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 	// Update block number middleware (must be after response capture)
 	router.Use(middleware.UpdateBlockNumberMiddleware())
 
-	// Cache lookup middleware
+	// Cache lookup middleware. Response caching is done by the processor
+	// (per-upstream TTL policy); there is no middleware-level store.
 	router.Use(middleware.CacheLookupMiddleware(a.cacheGroup))
-
-	// Cache store middleware (must be after handlers)
-	router.Use(middleware.CacheStoreMiddleware(a.cacheGroup))
 
 	// Limits middleware
 	limitsConfig := &middleware.LimitsConfig{
 		BatchSizeLimit:      a.config.Server.BatchSizeLimit,
 		AccountHistoryLimit: a.config.Limits.AccountHistoryLimit,
+		UpstreamLimits:      a.config.Upstream.RawConfig.Limits,
 	}
 	router.Use(middleware.LimitsMiddleware(limitsConfig))
 
@@ -297,10 +329,13 @@ func (a *App) Run() error {
 	}
 
 	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", a.config.Server.Host, a.config.Server.Port),
-		Handler:      router,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:        fmt.Sprintf("%s:%d", a.config.Server.Host, a.config.Server.Port),
+		Handler:     router,
+		ReadTimeout: 10 * time.Second,
+		// Must exceed the broadcast minimum upstream timeout (30s), or the
+		// server clips in-flight broadcasts that legitimately take ~30s.
+		WriteTimeout: 35 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	// Start server in goroutine

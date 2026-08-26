@@ -521,13 +521,19 @@ func (p *RequestProcessor) ProcessBatchRequest(ctx context.Context, requests []*
 		res := <-resultChan
 		if res.err != nil {
 			errorCount++
-			// Create error response
+			// Log the real error server-side; the client gets a generic
+			// message because the error chain may contain upstream URLs
+			// and internal details.
+			slog.Warn("batch request failed",
+				"error", res.err.Error(),
+				"method", requests[res.index].Method,
+			)
 			results[res.index] = map[string]interface{}{
 				"jsonrpc": "2.0",
 				"id":      requests[res.index].ID,
 				"error": map[string]interface{}{
 					"code":    -32603,
-					"message": res.err.Error(),
+					"message": "Internal error",
 				},
 			}
 		} else {

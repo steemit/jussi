@@ -12,6 +12,10 @@ import (
 type LimitsConfig struct {
 	BatchSizeLimit      int
 	AccountHistoryLimit int
+	// UpstreamLimits carries the raw "limits" object from the upstream
+	// config file (custom_json_size_limit, accounts_blacklist, ...),
+	// consumed by validators.LimitBroadcastTransactionRequest.
+	UpstreamLimits map[string]interface{}
 }
 
 // LimitsMiddleware enforces rate limits.
@@ -31,9 +35,11 @@ func LimitsMiddleware(config *LimitsConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Parse request body
-		var body interface{}
-		if err := c.ShouldBindJSON(&body); err != nil {
+		// Use the body parsed by BodyParseMiddleware. The body has already
+		// been consumed at this point in the chain, so a fallback parse here
+		// would silently skip every check below (that was the H-1 bug).
+		body, ok := ParsedBody(c)
+		if !ok {
 			c.Next()
 			return
 		}
@@ -47,26 +53,20 @@ func LimitsMiddleware(config *LimitsConfig) gin.HandlerFunc {
 				return
 			}
 
-			// Check account_history_limit for each request in batch
-			if config.AccountHistoryLimit > 0 {
-				for _, item := range batch {
-					if reqMap, ok := item.(map[string]interface{}); ok {
-						if err := checkAccountHistoryLimit(reqMap, config.AccountHistoryLimit); err != nil {
-							errors.HandleError(c, err, nil)
-							c.Abort()
-							return
-						}
+			for _, item := range batch {
+				if reqMap, ok := item.(map[string]interface{}); ok {
+					if err := checkRequestLimits(reqMap, config); err != nil {
+						errors.HandleError(c, err, nil)
+						c.Abort()
+						return
 					}
 				}
 			}
 		} else if reqMap, ok := body.(map[string]interface{}); ok {
-			// Check account_history_limit for single request
-			if config.AccountHistoryLimit > 0 {
-				if err := checkAccountHistoryLimit(reqMap, config.AccountHistoryLimit); err != nil {
-					errors.HandleError(c, err, nil)
-					c.Abort()
-					return
-				}
+			if err := checkRequestLimits(reqMap, config); err != nil {
+				errors.HandleError(c, err, nil)
+				c.Abort()
+				return
 			}
 		}
 
@@ -74,10 +74,10 @@ func LimitsMiddleware(config *LimitsConfig) gin.HandlerFunc {
 	}
 }
 
-// checkAccountHistoryLimit parses a raw JSON-RPC request and checks the limit.
-// Extracted as a helper to avoid duplicating the parse-then-validate logic
-// between single and batch request paths.
-func checkAccountHistoryLimit(reqMap map[string]interface{}, maxLimit int) error {
+// checkRequestLimits applies per-request limits to a raw JSON-RPC request:
+//   1. get_account_history limit (temporary ahnode protection)
+//   2. broadcast/custom_json limits (size cap + accounts blacklist)
+func checkRequestLimits(reqMap map[string]interface{}, config *LimitsConfig) error {
 	parsedURN, err := urn.FromRequest(reqMap)
 	if err != nil {
 		return nil // not a valid request, let downstream handle it
@@ -87,5 +87,12 @@ func checkAccountHistoryLimit(reqMap map[string]interface{}, maxLimit int) error
 		URN: parsedURN,
 	}
 
-	return validators.LimitAccountHistoryCountRequest(jrpcReq, maxLimit)
+	if config.AccountHistoryLimit > 0 {
+		if err := validators.LimitAccountHistoryCountRequest(jrpcReq, config.AccountHistoryLimit); err != nil {
+			return err
+		}
+	}
+
+	return validators.LimitBroadcastTransactionRequest(jrpcReq, config.UpstreamLimits)
 }
+

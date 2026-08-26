@@ -203,4 +203,3 @@ func (cg *CacheGroup) Close() error {
 
 	return err
 }
-

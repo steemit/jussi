@@ -57,10 +57,15 @@ func Setup(cfg config.TelemetryConfig) (func(), error) {
 		}
 	}
 
-	// Build OTLP HTTP client options
+	// Build OTLP HTTP client options. https:// endpoints use TLS so the
+	// OTLP headers (which may carry Authorization credentials) and trace
+	// payloads are encrypted in transit.
+	useTLS := strings.HasPrefix(cfg.OTLPEndpoint, "https://")
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpoint(endpoint),
-		otlptracehttp.WithInsecure(), // Use TLS in production
+	}
+	if !useTLS {
+		opts = append(opts, otlptracehttp.WithInsecure())
 	}
 	// Custom URL path (e.g. /api/default/v1/traces for OpenObserve)
 	if urlPath != "" {
@@ -86,10 +91,11 @@ func Setup(cfg config.TelemetryConfig) (func(), error) {
 	)
 	otel.SetTracerProvider(tp)
 
-	// Setup propagation
+	// Setup propagation. Baggage is deliberately NOT propagated: this is a
+	// public gateway, so client-supplied baggage headers are untrusted input
+	// that would otherwise flow into traces and upstream requests.
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
-		propagation.Baggage{},
 	))
 
 	// Setup Prometheus exporter

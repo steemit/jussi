@@ -22,11 +22,13 @@ type Config struct {
 
 // ServerConfig holds server configuration
 type ServerConfig struct {
-	Host           string `mapstructure:"host"`
-	Port           int    `mapstructure:"port"`
-	Workers        int    `mapstructure:"workers"`
-	TCPBacklog     int    `mapstructure:"tcp_backlog"`
-	BatchSizeLimit int    `mapstructure:"batch_size_limit"`
+	Host            string   `mapstructure:"host"`
+	Port            int      `mapstructure:"port"`
+	Workers         int      `mapstructure:"workers"`
+	TCPBacklog      int      `mapstructure:"tcp_backlog"`
+	BatchSizeLimit  int      `mapstructure:"batch_size_limit"`
+	MaxBodySize     int64    `mapstructure:"max_body_size"`
+	TrustedProxies  []string `mapstructure:"trusted_proxies"`
 }
 
 // UpstreamConfig holds upstream configuration
@@ -178,6 +180,20 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
+	// Parse trusted proxies from env var (comma-separated CIDRs/IPs).
+	// Viper can't auto-split env strings into slices.
+	if tpStr := os.Getenv("JUSSI_SERVER_TRUSTED_PROXIES"); tpStr != "" {
+		proxies := make([]string, 0)
+		for _, p := range strings.Split(tpStr, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				proxies = append(proxies, p)
+			}
+		}
+		if len(proxies) > 0 {
+			config.Server.TrustedProxies = proxies
+		}
+	}
+
 	// Load upstream config from JSON file
 	upstreamConfig, err := loadUpstreamConfig(configFile)
 	if err != nil {
@@ -203,6 +219,8 @@ func bindEnvOverrides() {
 		{"JUSSI_SERVER_WORKERS", "server.workers"},
 		{"JUSSI_SERVER_TCP_BACKLOG", "server.tcp_backlog"},
 		{"JUSSI_JSONRPC_BATCH_SIZE_LIMIT", "server.batch_size_limit"},
+		{"JUSSI_SERVER_MAX_BODY_SIZE", "server.max_body_size"},
+		{"JUSSI_SERVER_TRUSTED_PROXIES", "server.trusted_proxies"},
 
 		// Upstream
 		{"JUSSI_UPSTREAM_CONFIG_FILE", "upstream_config_file"},
@@ -313,6 +331,11 @@ func setDefaults() {
 	viper.SetDefault("server.workers", 0) // 0 means use CPU count
 	viper.SetDefault("server.tcp_backlog", 100)
 	viper.SetDefault("server.batch_size_limit", 50)
+	// 4 MiB request body cap; 0 falls back to the middleware default.
+	viper.SetDefault("server.max_body_size", 4194304)
+	// Empty = trust no proxy (ClientIP falls back to RemoteAddr). Behind an
+	// LB, set its CIDR here or X-Forwarded-For will be ignored.
+	viper.SetDefault("server.trusted_proxies", []string{})
 
 	// WebSocket pool defaults
 	viper.SetDefault("upstream.websocket_pool.min_size", 8)
@@ -323,6 +346,7 @@ func setDefaults() {
 
 	// Cache defaults
 	viper.SetDefault("cache.enabled", true)
+	viper.SetDefault("cache.memory.max_size", 100000)
 	viper.SetDefault("cache.read_timeout", 1.0)
 	viper.SetDefault("cache.test_before_add", false)
 

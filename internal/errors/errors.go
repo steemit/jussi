@@ -2,6 +2,7 @@ package errors
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -106,13 +107,19 @@ func NewInvalidRequest(message string) *JSONRPCError {
 	}
 }
 
-// NewInternalError creates an internal error
+// NewInternalError creates an internal error. The message is only included
+// in the response when it is a deliberately client-facing message; internal
+// error chains (upstream URLs, timeouts, stack details) must not be passed
+// here — log those instead.
 func NewInternalError(message string) *JSONRPCError {
-	return &JSONRPCError{
+	e := &JSONRPCError{
 		Code:    CodeInternalError,
 		Message: "Internal error",
-		Data:    map[string]interface{}{"details": message},
 	}
+	if message != "" {
+		e.Data = map[string]interface{}{"details": message}
+	}
+	return e
 }
 
 // NewRequestTimeoutError creates a request timeout error
@@ -142,7 +149,10 @@ func NewInvalidNamespace(message string) *JSONRPCError {
 	}
 }
 
-// HandleError handles errors and returns appropriate JSON-RPC response
+// HandleError handles errors and returns appropriate JSON-RPC response.
+// Non-JSONRPCError errors are logged server-side and returned to the client
+// with a generic message: their text may contain upstream URLs and internal
+// topology details that must not leak to untrusted callers.
 func HandleError(c *gin.Context, err error, requestID interface{}) {
 	var jsonrpcErr *JSONRPCError
 
@@ -150,7 +160,11 @@ func HandleError(c *gin.Context, err error, requestID interface{}) {
 	case *JSONRPCError:
 		jsonrpcErr = e
 	default:
-		jsonrpcErr = NewInternalError(err.Error())
+		slog.Error("internal error while handling request",
+			"error", err.Error(),
+			"path", c.Request.URL.Path,
+		)
+		jsonrpcErr = NewInternalError("")
 	}
 
 	// Get jussi_request_id from context if available

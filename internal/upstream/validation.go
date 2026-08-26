@@ -46,7 +46,7 @@ func ValidateUpstreamURLs(cfg *config.Config) error {
 // testUpstreamURL tests if an upstream URL is reachable
 func testUpstreamURL(urlStr string) error {
 	// For HTTP/HTTPS URLs, try to make a HEAD request
-	if urlStr[:4] == "http" {
+	if strings.HasPrefix(urlStr, "http") {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
