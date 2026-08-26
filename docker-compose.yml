@@ -27,8 +27,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    # No ports published: the cache must only be reachable from the compose
+    # network. Publishing 6379 without auth allowed anyone with host network
+    # access to read/poison/flush the cache.
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -61,7 +62,6 @@ services:
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
     restart: unless-stopped
 
 volumes:

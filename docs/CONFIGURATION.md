@@ -116,6 +116,8 @@ Controls the HTTP server behavior.
 | `batch_size_limit` | int | `50` | Maximum batch request size |
 | `request_timeout` | int | `30` | Request timeout in seconds |
 | `response_timeout` | int | `30` | Response timeout in seconds |
+| `max_body_size` | int | `4194304` | Maximum request body size in bytes (4 MiB) |
+| `trusted_proxies` | []string | `[]` | Trusted proxy CIDRs for `X-Forwarded-For`. Empty = trust none (ClientIP uses the socket address). Set to your LB's CIDR when deployed behind one. |
 
 **Environment Variables:**
 - `JUSSI_SERVER_HOST`
@@ -123,6 +125,8 @@ Controls the HTTP server behavior.
 - `JUSSI_SERVER_BATCH_SIZE_LIMIT`
 - `JUSSI_SERVER_REQUEST_TIMEOUT`
 - `JUSSI_SERVER_RESPONSE_TIMEOUT`
+- `JUSSI_SERVER_MAX_BODY_SIZE`
+- `JUSSI_SERVER_TRUSTED_PROXIES` (comma-separated CIDRs)
 
 ### Logging Configuration
 
@@ -470,6 +474,8 @@ Jussi validates configuration on startup and will exit with an error if:
 1. **Bind Address**: Use `127.0.0.1` for local-only access, `0.0.0.0` for external access
 2. **Timeouts**: Set reasonable timeouts to prevent resource exhaustion
 3. **Limits**: Configure appropriate batch size and request limits
+4. **Trusted Proxies**: Keep `trusted_proxies` empty unless deployed behind an LB — a spoofable `X-Forwarded-For` defeats the `/metrics` IP restrictions
+5. **Version Exposure**: `/` and `/health` redact `source_commit`/`docker_tag` to `unknown`; set `JUSSI_EXPOSE_VERSION=true` only on internal deployments that need build fingerprinting
 
 ### Performance
 
