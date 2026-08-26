@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
@@ -19,15 +18,17 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 			return
 		}
 
-		// Parse request body without consuming it
+		// Use the body parsed by BodyParseMiddleware; fall back to parsing
+		// ourselves only when that middleware is not in the chain (tests).
 		var body interface{}
-		if err := c.ShouldBindJSON(&body); err != nil {
+		if parsed, ok := ParsedBody(c); ok {
+			body = parsed
+		} else if err := c.ShouldBindJSON(&body); err != nil {
 			c.Next()
 			return
+		} else {
+			c.Set("parsed_body", body)
 		}
-
-		// Store parsed body in context for later use
-		c.Set("parsed_body", body)
 
 		// Skip cache lookup for batch requests; they are cached
 		// at the individual request level by the processor.
@@ -55,14 +56,14 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 					// cache reference (memory cache returns the original pointer).
 					respCopy := helpers.DeepCopyMap(cachedResp)
 					respCopy["id"] = reqMap["id"]
-					c.JSON(200, respCopy)
 					c.Header("x-jussi-cache-hit", cacheKey)
+					c.JSON(200, respCopy)
 					c.Abort()
 					return
 				}
 			}
-			c.JSON(200, cachedValue)
 			c.Header("x-jussi-cache-hit", cacheKey)
+			c.JSON(200, cachedValue)
 			c.Abort()
 			return
 		}
@@ -70,65 +71,6 @@ func CacheLookupMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
 		// Cache miss - continue to next handler
 		c.Set("cache_key", cacheKey)
 		c.Next()
-	}
-}
-
-// CacheStoreMiddleware stores response in cache
-func CacheStoreMiddleware(cacheGroup *cache.CacheGroup) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Process response
-		c.Next()
-
-		// Check if response was cached
-		if c.GetHeader("x-jussi-cache-hit") != "" {
-			return
-		}
-
-		// Get cache key
-		cacheKey, exists := c.Get("cache_key")
-		if !exists || cacheKey == "" {
-			return
-		}
-
-		// Get response body
-		responseBody, exists := c.Get("response_body")
-		if !exists {
-			return
-		}
-
-		bodyBytes, ok := responseBody.([]byte)
-		if !ok || len(bodyBytes) == 0 {
-			return
-		}
-
-		// Parse response
-		var response interface{}
-		if err := json.Unmarshal(bodyBytes, &response); err != nil {
-			return
-		}
-
-		// Only cache single responses at the middleware level.
-		// Batch responses are cached per-request by the processor.
-		respMap, isSingle := response.(map[string]interface{})
-		if !isSingle {
-			return
-		}
-
-		// Remove request-specific "id" before caching so that future
-		// cache hits don't carry a stale id. The id is per-request and
-		// must be injected at read time (see CacheLookupMiddleware).
-		delete(respMap, "id")
-
-		// Get TTL from context (set by processor)
-		ttl, _ := c.Get("cache_ttl")
-		ttlDuration := 3 * time.Second // Default
-		if ttlInt, ok := ttl.(int); ok {
-			ttlDuration = time.Duration(ttlInt) * time.Second
-		}
-
-		// Store in cache
-		ctx := c.Request.Context()
-		_ = cacheGroup.Set(ctx, cacheKey.(string), respMap, ttlDuration)
 	}
 }
 
