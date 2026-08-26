@@ -329,9 +329,9 @@ func (a *App) Run() error {
 	}
 
 	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", a.config.Server.Host, a.config.Server.Port),
-		Handler:      router,
-		ReadTimeout:  10 * time.Second,
+		Addr:        fmt.Sprintf("%s:%d", a.config.Server.Host, a.config.Server.Port),
+		Handler:     router,
+		ReadTimeout: 10 * time.Second,
 		// Must exceed the broadcast minimum upstream timeout (30s), or the
 		// server clips in-flight broadcasts that legitimately take ~30s.
 		WriteTimeout: 35 * time.Second,
