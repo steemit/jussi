@@ -56,12 +56,14 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "tags=steemit/jussi:pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "canonical=pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           else
             EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
             echo "tags<<$EOF" >> $GITHUB_OUTPUT
             echo "steemit/jussi:next" >> $GITHUB_OUTPUT
             echo "steemit/jussi:next-${{ steps.commit.outputs.sha7 }}" >> $GITHUB_OUTPUT
             echo "$EOF" >> $GITHUB_OUTPUT
+            echo "canonical=next-${{ steps.commit.outputs.sha7 }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up QEMU
@@ -83,6 +85,9 @@ jobs:
           context: .
           push: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
           tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
+            DOCKER_TAG=${{ steps.tags.outputs.canonical }}
 
       - name: Image info
         if: github.event_name == 'push' || github.event_name == 'pull_request'

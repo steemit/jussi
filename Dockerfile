@@ -26,8 +26,11 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Get current commit hash and write to /tmp/commit_hash
-RUN git rev-parse HEAD > /tmp/commit_hash 2>/dev/null || echo "unknown" > /tmp/commit_hash
+# Build metadata, injected by CI via build args (.git is dockerignored, so
+# git rev-parse here would always yield "unknown")
+ARG SOURCE_COMMIT=unknown
+ARG DOCKER_TAG=latest
+RUN echo "${SOURCE_COMMIT}" > /tmp/commit_hash
 
 # Tidy dependencies and build the application (without go mod tidy)
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jussi ./cmd/jussi
@@ -62,7 +65,14 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Set environment variable for configuration file
 ENV JUSSI_UPSTREAM_CONFIG_FILE=DEV_config.json
-ENV DOCKER_TAG=latest
+
+# Build metadata for /health and / version info (re-declare: ARG scope is
+# per-stage). Real values come from CI build args; consumed by the app only
+# when JUSSI_EXPOSE_VERSION=true.
+ARG SOURCE_COMMIT=unknown
+ARG DOCKER_TAG=latest
+ENV SOURCE_COMMIT=${SOURCE_COMMIT}
+ENV DOCKER_TAG=${DOCKER_TAG}
 
 USER jussi
 
