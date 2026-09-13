@@ -138,51 +138,86 @@ func NewRequestProcessor(
 	}
 }
 
-// translateToAppbase translates API calls to condenser_api when the upstream
-// namespace is configured with translate_to_appbase: true. This matches the
-// legacy Python jussi behavior where all non-condenser_api methods (e.g.
-// network_broadcast_api, database_api, follow_api) are rewritten to
-// condenser_api so that appbase-style steemd nodes can handle them.
+// translateToAppbase converts legacy condenser-era request formats to the
+// appbase namespaced format when an appbase-style upstream is configured with
+// translate_to_appbase: true.
 //
-// Two request formats are handled:
-//  1. call-style:  method="call", params=["network_broadcast_api","method",args]
-//     → translate params[0] to "condenser_api"
-//  2. direct method: method="network_broadcast_api.method", params=args
-//     → translate the method string to "condenser_api.method"
+// Only requests that use a legacy wire format are rewritten — i.e. the params
+// are positional (or absent): bare methods ("get_block"), call-style triples
+// (["database_api","get_block",args] or [0,"get_block",args]) and api-prefixed
+// methods with positional args ("database_api.get_state" with ["/trending"]).
+// appbase nodes only accept that wire format on condenser_api, so these are
+// rewritten to their condenser_api equivalent:
+//
+//	"get_block"                          → "condenser_api.get_block"
+//	["database_api","get_block",args]    → ["condenser_api","get_block",args]
+//
+// Requests already in appbase format — named (JSON object) params, e.g.
+// database_api.find_accounts with {"accounts":[...]} — are forwarded with
+// their target API unchanged. Rewriting those would break every method that
+// exists on an appbase API but not on condenser_api (find_accounts,
+// list_votes, ...), which surfaced as
+// "Could not find method find_accounts" errors.
+//
+// URN.Namespace is switched to "appbase" on translation so routing matches
+// config entries like "appbase.condenser_api.get_state" (→ hivemind) instead
+// of falling through to the generic steemd upstream.
 func translateToAppbase(jsonrpcReq *request.JSONRPCRequest, router *upstream.Router) {
 	api := jsonrpcReq.URN.API
 	if api == "condenser_api" || api == "jsonrpc" {
 		return
 	}
 
-	shouldTranslate := false
-	if jsonrpcReq.URN.Namespace == "steemd" {
-		shouldTranslate = router.ShouldTranslateToAppbase("steemd")
-	} else if jsonrpcReq.URN.Namespace == "appbase" {
-		// Direct method format like "database_api.get_state" is parsed as
-		// namespace="appbase" by the regex. Only translate known legacy APIs.
-		if api == "database_api" {
-			shouldTranslate = true
+	// Translation only applies to requests destined for the steemd/appbase
+	// upstreams. Other namespaces (hivemind bridge.*, overseer, ...) are
+	// different services and must be forwarded exactly as received.
+	switch jsonrpcReq.URN.Namespace {
+	case "steemd":
+		if !router.ShouldTranslateToAppbase("steemd") {
+			return
 		}
-	}
-
-	if !shouldTranslate {
+	case "appbase":
+		// Direct *_api.method requests can use the legacy positional format
+		// too; honor either the steemd or appbase upstream flag.
+		if !router.ShouldTranslateToAppbase("steemd") && !router.ShouldTranslateToAppbase("appbase") {
+			return
+		}
+	default:
 		return
 	}
 
-	oldAPI := api
+	// Named params mean the request is already in appbase format; the target
+	// API must not be changed.
+	if isNamedParams(jsonrpcReq.URN.Params) {
+		return
+	}
+
 	jsonrpcReq.URN.API = "condenser_api"
 	jsonrpcReq.URN.Namespace = "appbase"
 
 	if jsonrpcReq.Method == "call" {
-		if paramsSlice, ok := jsonrpcReq.Params.([]interface{}); ok && len(paramsSlice) >= 1 {
-			if apiName, ok := paramsSlice[0].(string); ok && apiName == oldAPI {
+		if paramsSlice, ok := jsonrpcReq.Params.([]interface{}); ok && len(paramsSlice) > 0 {
+			switch paramsSlice[0].(type) {
+			case string, float64, int:
+				// string API name ("database_api") or pre-appbase numeric
+				// API index (0=database_api, 1=login_api)
 				paramsSlice[0] = "condenser_api"
 			}
 		}
-	} else {
-		jsonrpcReq.Method = strings.Replace(jsonrpcReq.Method, oldAPI+".", "condenser_api.", 1)
+		return
 	}
+
+	// Rebuild the method from the parsed URN so bare ("get_block") and
+	// api-prefixed ("database_api.get_block", "steemd.database_api.get_block")
+	// methods all become a valid namespaced appbase method.
+	jsonrpcReq.Method = "condenser_api." + jsonrpcReq.URN.Method
+}
+
+// isNamedParams reports whether the method params are a JSON object, which is
+// the appbase wire format (legacy condenser clients send positional arrays).
+func isNamedParams(params interface{}) bool {
+	_, ok := params.(map[string]interface{})
+	return ok
 }
 
 // ProcessSingleRequest processes a single JSON-RPC request
