@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/steemit/jussi/internal/cache"
+	jussiErrors "github.com/steemit/jussi/internal/errors"
 	"github.com/steemit/jussi/internal/helpers"
 	"github.com/steemit/jussi/internal/middleware"
 	"github.com/steemit/jussi/internal/request"
@@ -118,8 +119,14 @@ type RequestProcessor struct {
 	cacheGroup *cache.CacheGroup
 	router     *upstream.Router
 	httpClient *upstream.HTTPClient
-	// TODO: WebSocket support - temporarily disabled
-	// wsPools    map[string]*ws.Pool
+	// breakers holds one circuit breaker per upstream host. When an
+	// upstream is saturated (deadlines, connection errors, 5xx), the
+	// breaker stops new requests from piling onto it: jussi cancels at
+	// its deadline, but the upstream keeps executing the SQL it already
+	// started, so unthrottled arrivals turn one slow backend into an
+	// outage (2026-09-18 hivemind storm). Fail fast instead and let the
+	// backend drain.
+	breakers *upstream.Registry
 }
 
 // NewRequestProcessor creates a new request processor
@@ -133,6 +140,7 @@ func NewRequestProcessor(
 		cacheGroup: cacheGroup,
 		router:     router,
 		httpClient: httpClient,
+		breakers:   upstream.NewRegistry(upstream.DefaultBreakerConfig()),
 		// TODO: WebSocket support - temporarily disabled
 		// wsPools:    wsPools,
 	}
@@ -468,6 +476,16 @@ func getProtocol(url string) string {
 //     but with a tight enough budget to avoid the expiration-on-retry
 //     pattern that motivated commit 9cf36ea.
 func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
+	// Circuit breaker: when an upstream is saturated, fail fast instead
+	// of queueing another request behind the pile-up. See
+	// RequestProcessor.breakers for why this matters.
+	breaker := p.breakers.For(url)
+	if !breaker.Allow() {
+		telemetry.UpstreamCircuitRejects.WithLabelValues(url).Inc()
+		return nil, jussiErrors.NewUpstreamCircuitOpenError(
+			fmt.Sprintf("circuit breaker open for %s; request rejected without dialing upstream", url))
+	}
+
 	payload := jsonrpcReq.ToUpstreamRequest()
 	headers := jsonrpcReq.UpstreamHeaders()
 
@@ -476,10 +494,38 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	var response map[string]interface{}
+	var err error
 	if validators.IsBroadcastTransactionRequest(jsonrpcReq) {
-		return p.httpClient.Request(ctx, url, payload, headers)
+		response, err = p.httpClient.Request(ctx, url, payload, headers)
+	} else {
+		response, err = p.httpClient.RequestWithRetry(ctx, url, payload, headers, upstream.DefaultRetryConfig())
 	}
-	return p.httpClient.RequestWithRetry(ctx, url, payload, headers, upstream.DefaultRetryConfig())
+
+	// Feed the breaker. Timeouts (including context deadlines jussi set
+	// itself), transport errors, and 5xx responses all count as
+	// failures; any successful response counts as success.
+	if err != nil {
+		breaker.Record(false)
+		telemetry.UpstreamCircuitState.WithLabelValues(url).Set(breakerStateValue(breaker))
+		return nil, err
+	}
+	breaker.Record(true)
+	telemetry.UpstreamCircuitState.WithLabelValues(url).Set(breakerStateValue(breaker))
+	return response, nil
+}
+
+// breakerStateValue maps the breaker state to the gauge value exported
+// by jussi_upstream_circuit_state.
+func breakerStateValue(b *upstream.Breaker) float64 {
+	switch b.State() {
+	case "open":
+		return 1
+	case "half-open":
+		return 2
+	default:
+		return 0
+	}
 }
 
 // TODO: WebSocket support - temporarily disabled
