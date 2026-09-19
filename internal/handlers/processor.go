@@ -489,16 +489,22 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	// RequestProcessor.breakers for why this matters. When the circuit
 	// is disabled via config (upstream.circuit.enabled=false) every
 	// Allow returns true and Record is a no-op window write.
-	breaker := p.breakers.For(url)
+	breaker, breakerKey := p.breakers.For(url)
 	allowed, probeToken := breaker.Allow()
 	if !allowed && p.circuitEnabled {
-		telemetry.UpstreamCircuitRejects.WithLabelValues(url).Inc()
+		telemetry.UpstreamCircuitRejects.WithLabelValues(breakerKey).Inc()
+		telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
 		return nil, jussiErrors.NewUpstreamCircuitOpenError(
 			fmt.Sprintf("circuit breaker open for %s; request rejected without dialing upstream", url))
 	}
-	if !p.circuitEnabled {
-		allowed = true
-		probeToken = nil
+	probeToken = nil //nolint:ineffassign,wastedassign // documented below
+	if p.circuitEnabled {
+		// Keep the token only when the circuit is enabled; when
+		// disabled, Record below would otherwise treat a half-open
+		// probe admission as live.
+		if !allowed {
+			allowed = true
+		}
 	}
 
 	payload := jsonrpcReq.ToUpstreamRequest()
@@ -523,11 +529,11 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	// token attributes half-open outcomes to the actual probe request.
 	if err != nil {
 		breaker.Record(false, probeToken)
-		telemetry.UpstreamCircuitState.WithLabelValues(url).Set(breakerStateValue(breaker))
+		telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
 		return nil, err
 	}
 	breaker.Record(true, probeToken)
-	telemetry.UpstreamCircuitState.WithLabelValues(url).Set(breakerStateValue(breaker))
+	telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
 	return response, nil
 }
 

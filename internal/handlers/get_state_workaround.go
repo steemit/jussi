@@ -624,10 +624,10 @@ func (p *RequestProcessor) callSteemd(
 	params []interface{},
 	originalReq *request.JSONRPCRequest,
 ) (map[string]interface{}, error) {
-	breaker := p.breakers.For(upstreamURL)
+	breaker, breakerKey := p.breakers.For(upstreamURL)
 	allowed, probeToken := breaker.Allow()
 	if !allowed && p.circuitEnabled {
-		telemetry.UpstreamCircuitRejects.WithLabelValues(upstreamURL).Inc()
+		telemetry.UpstreamCircuitRejects.WithLabelValues(breakerKey).Inc()
 		return nil, jussiErrors.NewUpstreamCircuitOpenError(
 			fmt.Sprintf("circuit breaker open for %s; sub-request rejected without dialing upstream", upstreamURL))
 	}
@@ -654,7 +654,7 @@ func (p *RequestProcessor) callSteemd(
 	} else {
 		breaker.Record(true, probeToken)
 	}
-	telemetry.UpstreamCircuitState.WithLabelValues(upstreamURL).Set(breakerStateValue(breaker))
+	telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
 	return resp, err
 }
 

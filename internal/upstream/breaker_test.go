@@ -218,9 +218,9 @@ func TestBreakerWindowSlides(t *testing.T) {
 
 func TestBreakerRegistryPerHost(t *testing.T) {
 	r := NewRegistry(BreakerConfig{})
-	a := r.For("https://beta-hivemind.steemit.com")
-	b := r.For("https://beta-hivemind.steemit.com/")
-	c := r.For("https://steemd.steemit.com")
+	a, _ := r.For("https://beta-hivemind.steemit.com")
+	b, _ := r.For("https://beta-hivemind.steemit.com/")
+	c, _ := r.For("https://steemd.steemit.com")
 	if a != b {
 		t.Fatal("same upstream host must share one breaker")
 	}

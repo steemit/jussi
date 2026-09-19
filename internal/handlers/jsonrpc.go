@@ -29,6 +29,16 @@ type JSONRPCHandler struct {
 	processor     *RequestProcessor
 }
 
+// CircuitBreakers exposes the processor's per-upstream breaker
+// registry (creating the processor if a request has not already done
+// so), for the /health endpoint.
+func (h *JSONRPCHandler) CircuitBreakers() *upstream.Registry {
+	if h.processor == nil {
+		h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools, h.CircuitConfig)
+	}
+	return h.processor.breakers
+}
+
 // HandleJSONRPC handles POST / requests
 func (h *JSONRPCHandler) HandleJSONRPC(c *gin.Context) {
 	// Try to get parsed body from middleware first

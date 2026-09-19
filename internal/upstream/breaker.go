@@ -340,10 +340,12 @@ func NewRegistry(cfg BreakerConfig) *Registry {
 	}
 }
 
-// For returns the breaker for an upstream URL, creating it if needed.
-// The URL is reduced to scheme://host so pooled upstream URLs (https +
-// ws variants of the same host) share one breaker.
-func (r *Registry) For(upstreamURL string) *Breaker {
+// For returns the breaker for an upstream URL along with its registry
+// key, creating it if needed. Callers should use the key as the metric
+// label so all URL variants of one host share a single series. The URL
+// is reduced to scheme://host so pooled upstream URLs (https + ws
+// variants of the same host) share one breaker.
+func (r *Registry) For(upstreamURL string) (*Breaker, string) {
 	key := breakerKey(upstreamURL)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -355,7 +357,7 @@ func (r *Registry) For(upstreamURL string) *Breaker {
 		b = NewBreaker(r.cfg)
 		r.breakers[key] = b
 	}
-	return b
+	return b, key
 }
 
 // Snapshot returns state strings for every known breaker, keyed by
