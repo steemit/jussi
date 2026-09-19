@@ -281,8 +281,9 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 		HTTPClient: a.httpClient,
 		// TODO: WebSocket support - temporarily disabled
 		// WSPools:    a.wsPools,
-		WSPools: nil,
-		Logger:  a.logger,
+		WSPools:       nil,
+		Logger:        a.logger,
+		CircuitConfig: a.config.Upstream.Circuit,
 	}
 
 	// Get version information from environment or config
@@ -297,6 +298,13 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 
 	tracker := middleware.GetBlockNumberTracker()
 	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag, tracker)
+	// Expose the same per-upstream breaker registry the JSON-RPC
+	// handler uses so /health reflects circuit states. The registry is
+	// created lazily inside the processor on first request; reaching
+	// into it here would race that lazy init, so keep the two handlers
+	// decoupled by sharing the config instead. Health reads breaker
+	// state from the processor after wiring, via the handler field.
+	healthHandler.Breakers = jsonrpcHandler.CircuitBreakers()
 	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, tracker)
 	metricsHandler := &handlers.MetricsHandler{}
 	// Register routes
