@@ -346,7 +346,7 @@ func NewRegistry(cfg BreakerConfig) *Registry {
 // is reduced to scheme://host so pooled upstream URLs (https + ws
 // variants of the same host) share one breaker.
 func (r *Registry) For(upstreamURL string) (*Breaker, string) {
-	key := breakerKey(upstreamURL)
+	key := BreakerKey(upstreamURL)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.breakers == nil {
@@ -372,7 +372,12 @@ func (r *Registry) Snapshot() map[string]string {
 	return out
 }
 
-func breakerKey(rawURL string) string {
+// BreakerKey reduces an upstream URL to its registry/metric key
+// (scheme://host) so pooled upstream URLs of one host share a single
+// breaker. Exported for callers that must precompute keys without
+// touching a breaker — e.g. mapping snapshot keys to hostname-free
+// aliases for the public /health payload.
+func BreakerKey(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Host == "" {
 		return rawURL

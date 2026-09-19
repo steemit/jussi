@@ -13,7 +13,7 @@ Grafana work is dashboards + alert rules only — no new jussi-side collection.
 | `jussi_upstream_requests_total` | counter | `upstream`, `protocol` | requests dialed |
 | `jussi_upstream_errors_total` | counter | `upstream`, `protocol`, `error_type` | dialed requests that failed |
 | `jussi_upstream_request_duration_seconds` | histogram | `upstream`, `protocol` | upstream latency |
-| `/health` JSON | — | — | `circuit_states`, `circuit_degraded`, `circuit_worst_state` |
+| `/health` JSON | — | — | `circuit_states` (keyed by configured upstream name — never a backend hostname), `circuit_degraded`, `circuit_worst_state` |
 
 ## Golden dashboard (one row per upstream host)
 
