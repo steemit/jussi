@@ -1,6 +1,8 @@
 {
   "limits": {
-    "accounts_blacklist": ["non-steemit"]
+    "accounts_blacklist": [
+      "non-steemit"
+    ]
   },
   "upstreams": [
     {
@@ -179,22 +181,34 @@
     {
       "name": "yo",
       "urls": [
-        {
-          "prefix": "yo",
-          "upstream_url": "wss://yo.steemitdev.com"
-        }
+        [
+          "prefix",
+          "yo"
+        ],
+        [
+          "upstream_url",
+          "wss://yo.steemitdev.com"
+        ]
       ],
       "ttls": [
-        {
-          "prefix": "yo",
-          "upstream_ttl": 3
-        }
+        [
+          "prefix",
+          "yo"
+        ],
+        [
+          "upstream_ttl",
+          3
+        ]
       ],
       "timeouts": [
-        {
-          "prefix": "yo",
-          "upstream_timeout": 3
-        }
+        [
+          "prefix",
+          "yo"
+        ],
+        [
+          "upstream_timeout",
+          3
+        ]
       ]
     },
     {

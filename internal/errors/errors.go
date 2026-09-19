@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -39,24 +40,24 @@ func (e *JSONRPCError) ToResponseWithRequestID(id interface{}, jussiRequestID st
 
 	// Build error data
 	errorData := make(map[string]interface{})
-	
+
 	// Copy existing data
 	if len(e.Data) > 0 {
 		for k, v := range e.Data {
 			errorData[k] = v
 		}
 	}
-	
+
 	// Add jussi_request_id if provided
 	if jussiRequestID != "" {
 		errorData["jussi_request_id"] = jussiRequestID
 	}
-	
+
 	// Add trace_id if provided
 	if traceID != "" {
 		errorData["trace_id"] = traceID
 	}
-	
+
 	// Only add data field if there's data to include
 	if len(errorData) > 0 {
 		response["error"].(map[string]interface{})["data"] = errorData
@@ -153,13 +154,17 @@ func NewInvalidNamespace(message string) *JSONRPCError {
 // Non-JSONRPCError errors are logged server-side and returned to the client
 // with a generic message: their text may contain upstream URLs and internal
 // topology details that must not leak to untrusted callers.
+//
+// Unwrapping uses errors.As, so a *JSONRPCError wrapped by fmt.Errorf
+// ("%w") anywhere in the chain still reaches the client as the typed
+// error. HandleError callers wrap typed errors — e.g. callHTTPUpstream
+// wraps the structured circuit-breaker rejection — and without unwrapping
+// every such error fell into the default branch, flattening code and
+// message into a generic internal error and spamming the error log.
 func HandleError(c *gin.Context, err error, requestID interface{}) {
 	var jsonrpcErr *JSONRPCError
 
-	switch e := err.(type) {
-	case *JSONRPCError:
-		jsonrpcErr = e
-	default:
+	if !errors.As(err, &jsonrpcErr) {
 		slog.Error("internal error while handling request",
 			"error", err.Error(),
 			"path", c.Request.URL.Path,
@@ -183,4 +188,3 @@ func HandleError(c *gin.Context, err error, requestID interface{}) {
 
 	c.JSON(http.StatusOK, jsonrpcErr.ToResponseWithRequestID(requestID, jussiRequestID, traceID))
 }
-

@@ -22,13 +22,13 @@ type Config struct {
 
 // ServerConfig holds server configuration
 type ServerConfig struct {
-	Host            string   `mapstructure:"host"`
-	Port            int      `mapstructure:"port"`
-	Workers         int      `mapstructure:"workers"`
-	TCPBacklog      int      `mapstructure:"tcp_backlog"`
-	BatchSizeLimit  int      `mapstructure:"batch_size_limit"`
-	MaxBodySize     int64    `mapstructure:"max_body_size"`
-	TrustedProxies  []string `mapstructure:"trusted_proxies"`
+	Host           string   `mapstructure:"host"`
+	Port           int      `mapstructure:"port"`
+	Workers        int      `mapstructure:"workers"`
+	TCPBacklog     int      `mapstructure:"tcp_backlog"`
+	BatchSizeLimit int      `mapstructure:"batch_size_limit"`
+	MaxBodySize    int64    `mapstructure:"max_body_size"`
+	TrustedProxies []string `mapstructure:"trusted_proxies"`
 }
 
 // UpstreamConfig holds upstream configuration
@@ -36,6 +36,7 @@ type UpstreamConfig struct {
 	TestURLs         bool                `mapstructure:"test_urls"`
 	WebSocketEnabled bool                `mapstructure:"websocket_enabled"`
 	WebSocketPool    WebSocketPoolConfig `mapstructure:"websocket_pool"`
+	Circuit          CircuitConfig       `mapstructure:"circuit"`
 	RawConfig        *UpstreamRawConfig  `mapstructure:"-"`
 }
 
@@ -232,6 +233,14 @@ func bindEnvOverrides() {
 		{"JUSSI_WEBSOCKET_READ_LIMIT", "upstream.websocket_pool.read_limit"},
 		{"JUSSI_WEBSOCKET_WRITE_LIMIT", "upstream.websocket_pool.write_limit"},
 
+		// Upstream circuit breaker
+		{"JUSSI_UPSTREAM_CIRCUIT_ENABLED", "upstream.circuit.enabled"},
+		{"JUSSI_UPSTREAM_CIRCUIT_WINDOW_SECONDS", "upstream.circuit.window_seconds"},
+		{"JUSSI_UPSTREAM_CIRCUIT_FAILURE_RATE", "upstream.circuit.failure_rate"},
+		{"JUSSI_UPSTREAM_CIRCUIT_MIN_SAMPLES", "upstream.circuit.min_samples"},
+		{"JUSSI_UPSTREAM_CIRCUIT_OPEN_DURATION_SECONDS", "upstream.circuit.open_duration_seconds"},
+		{"JUSSI_UPSTREAM_CIRCUIT_JITTER_FRACTION", "upstream.circuit.jitter_fraction"},
+
 		// Cache
 		{"JUSSI_CACHE_ENABLED", "cache.enabled"},
 		{"JUSSI_CACHE_READ_TIMEOUT", "cache.read_timeout"},
@@ -343,6 +352,15 @@ func setDefaults() {
 	viper.SetDefault("upstream.websocket_pool.queue_size", 1)
 	viper.SetDefault("upstream.websocket_pool.read_limit", 65536)
 	viper.SetDefault("upstream.websocket_pool.write_limit", 65536)
+	// Circuit breaker: enabled=true matches DefaultBreakerConfig tuning
+	// (see internal/upstream/breaker.go for the rationale behind each
+	// value).
+	viper.SetDefault("upstream.circuit.enabled", true)
+	viper.SetDefault("upstream.circuit.window_seconds", 30)
+	viper.SetDefault("upstream.circuit.failure_rate", 0.5)
+	viper.SetDefault("upstream.circuit.min_samples", 20)
+	viper.SetDefault("upstream.circuit.open_duration_seconds", 10)
+	viper.SetDefault("upstream.circuit.jitter_fraction", 0.25)
 
 	// Cache defaults
 	viper.SetDefault("cache.enabled", true)

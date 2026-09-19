@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/config"
 	"github.com/steemit/jussi/internal/errors"
 	"github.com/steemit/jussi/internal/logging"
 	"github.com/steemit/jussi/internal/request"
@@ -22,7 +23,10 @@ type JSONRPCHandler struct {
 	HTTPClient *upstream.HTTPClient
 	WSPools    map[string]*ws.Pool
 	Logger     *logging.Logger
-	processor  *RequestProcessor
+	// CircuitConfig tunes the per-upstream circuit breaker; zero value
+	// falls back to built-in defaults with the breaker enabled.
+	CircuitConfig config.CircuitConfig
+	processor     *RequestProcessor
 }
 
 // HandleJSONRPC handles POST / requests
@@ -77,7 +81,7 @@ func (h *JSONRPCHandler) handleSingleRequest(c *gin.Context, req map[string]inte
 
 	// Initialize processor if not already done
 	if h.processor == nil {
-		h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools)
+		h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools, h.CircuitConfig)
 	}
 
 	// Process request
@@ -166,7 +170,7 @@ func (h *JSONRPCHandler) handleBatchRequest(c *gin.Context, reqs []interface{}) 
 	if len(validReqs) > 0 {
 		// Initialize processor if not already done
 		if h.processor == nil {
-			h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools)
+			h.processor = NewRequestProcessor(h.CacheGroup, h.Router, h.HTTPClient, h.WSPools, h.CircuitConfig)
 		}
 
 		ctx := c.Request.Context()
@@ -204,4 +208,3 @@ func getString(v interface{}) string {
 	}
 	return ""
 }
-

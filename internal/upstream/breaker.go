@@ -93,8 +93,12 @@ type Breaker struct {
 	openedAt time.Time
 	// openFor is the (jittered) duration this open period lasts.
 	openFor time.Duration
-	// probing marks the single in-flight half-open probe.
-	probing bool
+	// probeAdmittedAt is when the current half-open probe was admitted;
+	// used by the liveness guard to re-admit if a probe never records.
+	probeAdmittedAt time.Time
+	// probeID is the generation of the current probe token; incremented
+	// each time a probe is admitted so stale tokens are distinguishable.
+	probeID uint64
 	// buckets is a circular buffer of per-interval counts.
 	buckets []bucket
 	cur     int
@@ -122,9 +126,16 @@ func NewBreaker(cfg BreakerConfig) *Breaker {
 
 // Allow reports whether a request to this upstream may proceed. When it
 // returns false the caller should fail fast without touching the
-// upstream. In the half-open state it returns true for exactly one
-// caller (the probe); everyone else is rejected until the probe lands.
-func (b *Breaker) Allow() bool {
+// upstream.
+//
+// In the half-open state exactly one caller receives a non-nil token
+// (the probe); everyone else gets (false, nil) until the probe lands.
+// The token is what Record uses to attribute the probe's outcome, so a
+// slow request admitted before the trip cannot "answer" the probe in
+// its place — previously such a stale request could close the breaker
+// prematurely (delaying recovery detection) or waste the probe and
+// reopen (delaying recovery itself).
+func (b *Breaker) Allow() (bool, ProbeToken) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	now := b.cfg.Now()
@@ -132,28 +143,54 @@ func (b *Breaker) Allow() bool {
 
 	switch b.state {
 	case stateClosed:
-		return true
+		return true, nil
 	case stateOpen:
 		if now.Sub(b.openedAt) >= b.openFor {
 			b.state = stateHalfOpen
-			b.probing = true
-			return true
+			b.probeAdmittedAt = now
+			b.probeID++
+			return true, probeToken{id: b.probeID}
 		}
-		return false
+		return false, nil
 	case stateHalfOpen:
 		// Only the single admitted probe is in flight; everyone else
 		// waits for its outcome.
-		return false
+		//
+		// Liveness guard: if the probe never records (lost response,
+		// panic in the caller), re-admit after a full open cycle
+		// instead of deadlocking half-open forever.
+		if now.Sub(b.probeAdmittedAt) >= b.cfg.OpenDuration {
+			b.probeAdmittedAt = now
+			b.probeID++
+			return true, probeToken{id: b.probeID}
+		}
+		return false, nil
 	}
-	return true
+	return true, nil
 }
+
+// ProbeToken marks the caller admitted as the half-open probe. It is
+// opaque, single-purpose, and nil for non-probe requests.
+type ProbeToken interface{ isProbe() }
+
+// probeToken is the concrete ProbeToken implementation. The id ties a
+// token to the exact half-open cycle that issued it, so a token from a
+// previous cycle cannot answer the current probe.
+type probeToken struct{ id uint64 }
+
+func (probeToken) isProbe() {}
 
 // Record reports the outcome of an upstream call. ok is false for
 // timeouts, connection failures, and 5xx responses — the failure modes
 // that indicate a saturated backend. Client-side cancellations after a
 // context deadline count as failures too, which is exactly the signal
 // the breaker exists to catch.
-func (b *Breaker) Record(ok bool) {
+//
+// token carries the half-open probe identity returned by Allow. Pass it
+// only for the request that received it; a non-nil token from a stale
+// Allow (one whose request has since completed) is ignored, and a nil
+// token never answers a probe.
+func (b *Breaker) Record(ok bool, token ProbeToken) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	now := b.cfg.Now()
@@ -161,6 +198,17 @@ func (b *Breaker) Record(ok bool) {
 
 	switch b.state {
 	case stateHalfOpen:
+		if token == nil {
+			// A stale request finished while the probe is in flight.
+			// It must not decide the probe's outcome.
+			return
+		}
+		pt, isProbe := token.(probeToken)
+		if !isProbe || pt.id != b.probeID {
+			// A token from a previous half-open cycle: the request was
+			// admitted before the breaker re-opened. Ignore it.
+			return
+		}
 		if ok {
 			b.reset()
 		} else {
@@ -264,14 +312,12 @@ func (b *Breaker) trip(now time.Time) {
 	b.openedAt = now
 	jitter := time.Duration(rand.Float64() * b.cfg.JitterFraction * float64(b.cfg.OpenDuration))
 	b.openFor = b.cfg.OpenDuration + jitter
-	b.probing = false
 }
 
 // reset returns the breaker to closed and clears the window so the
 // failure rate that tripped it does not immediately re-trip it.
 func (b *Breaker) reset() {
 	b.state = stateClosed
-	b.probing = false
 	for i := range b.buckets {
 		b.buckets[i] = bucket{}
 	}

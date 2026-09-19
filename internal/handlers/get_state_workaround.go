@@ -10,7 +10,9 @@ import (
 	"sync"
 	"time"
 
+	jussiErrors "github.com/steemit/jussi/internal/errors"
 	"github.com/steemit/jussi/internal/request"
+	"github.com/steemit/jussi/internal/telemetry"
 	"github.com/steemit/jussi/internal/urn"
 )
 
@@ -86,8 +88,8 @@ import (
 
 // Configuration constants
 const (
-	subRequestTimeout = 15 * time.Second
-	maxHistoryEntries = 200
+	subRequestTimeout  = 15 * time.Second
+	maxHistoryEntries  = 200
 	workaroundCacheTTL = 10 * time.Second
 )
 
@@ -478,11 +480,11 @@ func (p *RequestProcessor) fillDelegations(
 	}
 
 	var (
-		wg             sync.WaitGroup
-		outDelegsResp  map[string]interface{}
-		outErr         error
-		inDelegsResp   map[string]interface{}
-		inErr          error
+		wg            sync.WaitGroup
+		outDelegsResp map[string]interface{}
+		outErr        error
+		inDelegsResp  map[string]interface{}
+		inErr         error
 	)
 
 	wg.Add(2)
@@ -608,6 +610,13 @@ func (p *RequestProcessor) getSteemdUpstreamURL() (string, error) {
 
 // callSteemd sends a single JSON-RPC request to the steemd upstream
 // with an independent timeout to avoid cascading context cancellation.
+//
+// The call goes through the same per-upstream circuit breaker as
+// callHTTPUpstream: this path routes to the very upstream (beta-hivemind
+// in production) the breaker exists to protect, and its 15s sub-request
+// timeout would otherwise hold connections to a saturated backend
+// invisibly to the breaker. The emulated paths are idempotent reads, so
+// failing fast while the breaker is open is acceptable.
 func (p *RequestProcessor) callSteemd(
 	ctx context.Context,
 	upstreamURL string,
@@ -615,6 +624,18 @@ func (p *RequestProcessor) callSteemd(
 	params []interface{},
 	originalReq *request.JSONRPCRequest,
 ) (map[string]interface{}, error) {
+	breaker := p.breakers.For(upstreamURL)
+	allowed, probeToken := breaker.Allow()
+	if !allowed && p.circuitEnabled {
+		telemetry.UpstreamCircuitRejects.WithLabelValues(upstreamURL).Inc()
+		return nil, jussiErrors.NewUpstreamCircuitOpenError(
+			fmt.Sprintf("circuit breaker open for %s; sub-request rejected without dialing upstream", upstreamURL))
+	}
+	if !p.circuitEnabled {
+		allowed = true
+		probeToken = nil
+	}
+
 	// Create a per-request timeout context
 	subCtx, cancel := context.WithTimeout(ctx, subRequestTimeout)
 	defer cancel()
@@ -627,7 +648,14 @@ func (p *RequestProcessor) callSteemd(
 	}
 	headers := originalReq.UpstreamHeaders()
 
-	return p.httpClient.Request(subCtx, upstreamURL, payload, headers)
+	resp, err := p.httpClient.Request(subCtx, upstreamURL, payload, headers)
+	if err != nil {
+		breaker.Record(false, probeToken)
+	} else {
+		breaker.Record(true, probeToken)
+	}
+	telemetry.UpstreamCircuitState.WithLabelValues(upstreamURL).Set(breakerStateValue(breaker))
+	return resp, err
 }
 
 // deepCopyMap creates a deep copy of a map[string]interface{} by

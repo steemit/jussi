@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/config"
 	jussiErrors "github.com/steemit/jussi/internal/errors"
 	"github.com/steemit/jussi/internal/helpers"
 	"github.com/steemit/jussi/internal/middleware"
@@ -127,6 +128,11 @@ type RequestProcessor struct {
 	// outage (2026-09-18 hivemind storm). Fail fast instead and let the
 	// backend drain.
 	breakers *upstream.Registry
+	// circuitEnabled mirrors the config flag; checked on every call so
+	// the breaker can be disabled via env var without a restart path in
+	// code (new instances pick it up; disabling mid-flight requires the
+	// next deploy, matching every other jussi config knob).
+	circuitEnabled bool
 }
 
 // NewRequestProcessor creates a new request processor
@@ -135,12 +141,14 @@ func NewRequestProcessor(
 	router *upstream.Router,
 	httpClient *upstream.HTTPClient,
 	wsPools map[string]*ws.Pool, // TODO: WebSocket support - temporarily disabled, can be nil
+	circuitCfg config.CircuitConfig,
 ) *RequestProcessor {
 	return &RequestProcessor{
-		cacheGroup: cacheGroup,
-		router:     router,
-		httpClient: httpClient,
-		breakers:   upstream.NewRegistry(upstream.DefaultBreakerConfig()),
+		cacheGroup:     cacheGroup,
+		router:         router,
+		httpClient:     httpClient,
+		breakers:       upstream.NewRegistry(breakerConfig(circuitCfg)),
+		circuitEnabled: circuitCfg.Enabled,
 		// TODO: WebSocket support - temporarily disabled
 		// wsPools:    wsPools,
 	}
@@ -478,12 +486,19 @@ func getProtocol(url string) string {
 func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
 	// Circuit breaker: when an upstream is saturated, fail fast instead
 	// of queueing another request behind the pile-up. See
-	// RequestProcessor.breakers for why this matters.
+	// RequestProcessor.breakers for why this matters. When the circuit
+	// is disabled via config (upstream.circuit.enabled=false) every
+	// Allow returns true and Record is a no-op window write.
 	breaker := p.breakers.For(url)
-	if !breaker.Allow() {
+	allowed, probeToken := breaker.Allow()
+	if !allowed && p.circuitEnabled {
 		telemetry.UpstreamCircuitRejects.WithLabelValues(url).Inc()
 		return nil, jussiErrors.NewUpstreamCircuitOpenError(
 			fmt.Sprintf("circuit breaker open for %s; request rejected without dialing upstream", url))
+	}
+	if !p.circuitEnabled {
+		allowed = true
+		probeToken = nil
 	}
 
 	payload := jsonrpcReq.ToUpstreamRequest()
@@ -504,13 +519,14 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 
 	// Feed the breaker. Timeouts (including context deadlines jussi set
 	// itself), transport errors, and 5xx responses all count as
-	// failures; any successful response counts as success.
+	// failures; any successful response counts as success. The probe
+	// token attributes half-open outcomes to the actual probe request.
 	if err != nil {
-		breaker.Record(false)
+		breaker.Record(false, probeToken)
 		telemetry.UpstreamCircuitState.WithLabelValues(url).Set(breakerStateValue(breaker))
 		return nil, err
 	}
-	breaker.Record(true)
+	breaker.Record(true, probeToken)
 	telemetry.UpstreamCircuitState.WithLabelValues(url).Set(breakerStateValue(breaker))
 	return response, nil
 }

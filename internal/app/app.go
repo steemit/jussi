@@ -281,8 +281,9 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 		HTTPClient: a.httpClient,
 		// TODO: WebSocket support - temporarily disabled
 		// WSPools:    a.wsPools,
-		WSPools: nil,
-		Logger:  a.logger,
+		WSPools:       nil,
+		Logger:        a.logger,
+		CircuitConfig: a.config.Upstream.Circuit,
 	}
 
 	// Get version information from environment or config
