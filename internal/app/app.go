@@ -305,6 +305,9 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 	// decoupled by sharing the config instead. Health reads breaker
 	// state from the processor after wiring, via the handler field.
 	healthHandler.Breakers = jsonrpcHandler.CircuitBreakers()
+	// /health is public: key circuit states by configured upstream names
+	// so backend hostnames don't leak (unknown keys get digest aliases).
+	healthHandler.BreakerNames = handlers.BreakerAliases(a.config.Upstream.RawConfig)
 	homepageHandler := handlers.NewHomepageHandler(sourceCommit, dockerTag, tracker)
 	metricsHandler := &handlers.MetricsHandler{}
 	// Register routes

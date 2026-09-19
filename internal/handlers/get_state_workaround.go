@@ -628,8 +628,14 @@ func (p *RequestProcessor) callSteemd(
 	allowed, probeToken := breaker.Allow()
 	if !allowed && p.circuitEnabled {
 		telemetry.UpstreamCircuitRejects.WithLabelValues(breakerKey).Inc()
+		// Upstream identity stays in the metric label and this
+		// server-side log; the client-facing error carries no hostname.
+		slog.Warn("circuit open: sub-request rejected without dialing upstream",
+			"upstream", breakerKey,
+			"method", method,
+		)
 		return nil, jussiErrors.NewUpstreamCircuitOpenError(
-			fmt.Sprintf("circuit breaker open for %s; sub-request rejected without dialing upstream", upstreamURL))
+			"circuit breaker open; sub-request rejected without dialing upstream")
 	}
 	if !p.circuitEnabled {
 		allowed = true

@@ -1,12 +1,18 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/steemit/jussi/internal/cache"
+	"github.com/steemit/jussi/internal/config"
 	"github.com/steemit/jussi/internal/upstream"
 )
 
@@ -31,6 +37,13 @@ type HealthHandler struct {
 	// Breakers, when set, exposes per-upstream circuit breaker states
 	// in the health payload. May be nil (breaker not wired).
 	Breakers *upstream.Registry
+	// BreakerNames maps breaker registry keys (scheme://host) to the
+	// opaque aliases /health reports them under. /health is public and
+	// CORS-open, so backend hostnames — including internal-only ones —
+	// are deployment topology that must not leak. Built from the
+	// upstream config via BreakerAliases; may be nil (keys then all get
+	// the digest fallback below).
+	BreakerNames map[string]string
 }
 
 // NewHealthHandler creates a new health handler
@@ -64,11 +77,12 @@ func (h *HealthHandler) HandleHealth(c *gin.Context) {
 		"jussi_num":     h.Tracker.GetLastIrreversibleBlockNum(),
 	}
 
-	// Per-upstream circuit breaker states (closed/open/half-open).
-	// Exported here in addition to the Prometheus gauge so a scrape
-	// failure never blinds operators to a tripped breaker.
+	// Per-upstream circuit breaker states (closed/open/half-open),
+	// keyed by configured upstream name rather than hostname. Exported
+	// here in addition to the Prometheus gauge so a scrape failure never
+	// blinds operators to a tripped breaker.
 	if h.Breakers != nil {
-		response["circuit_states"] = h.Breakers.Snapshot()
+		response["circuit_states"] = aliasedCircuitStates(h.Breakers.Snapshot(), h.BreakerNames)
 		if state := worstBreakerState(h.Breakers); state != "closed" {
 			response["circuit_degraded"] = true
 			response["circuit_worst_state"] = state
@@ -81,4 +95,73 @@ func (h *HealthHandler) HandleHealth(c *gin.Context) {
 	c.Header("Access-Control-Allow-Headers", "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Content-Range,Range")
 
 	c.JSON(http.StatusOK, response)
+}
+
+// BreakerAliases maps breaker registry keys (scheme://host) to the
+// configured upstream names ("hivemind", "steemd"), so /health reports
+// per-backend breaker states without exposing backend hostnames — the
+// endpoint is public and CORS-open, and even internal-only hostnames
+// reveal deployment topology.
+//
+// Multiple hosts under one upstream name get -2, -3, ... suffixes.
+// Names and each name's keys are walked in sorted order so aliases are
+// stable across restarts.
+func BreakerAliases(raw *config.UpstreamRawConfig) map[string]string {
+	if raw == nil {
+		return nil
+	}
+	byName := make(map[string][]string)
+	for _, u := range raw.Upstreams {
+		for _, pair := range u.URLs {
+			if len(pair) != 2 {
+				continue
+			}
+			rawURL, ok := pair[1].(string)
+			if !ok || !strings.Contains(rawURL, "://") {
+				// Non-URL pairs (prefix markers, ttls-style entries) in
+				// the urls array.
+				continue
+			}
+			key := upstream.BreakerKey(rawURL)
+			byName[u.Name] = append(byName[u.Name], key)
+		}
+	}
+
+	names := make([]string, 0, len(byName))
+	for name := range byName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	out := make(map[string]string)
+	for _, name := range names {
+		keys := byName[name]
+		sort.Strings(keys)
+		for i, key := range keys {
+			alias := name
+			if i > 0 {
+				alias = fmt.Sprintf("%s-%d", name, i+1)
+			}
+			out[key] = alias
+		}
+	}
+	return out
+}
+
+// aliasedCircuitStates rewrites snapshot keys to their aliases. Keys
+// without an alias — a breaker whose URL never appeared in the config,
+// which should not happen since all runtime upstream URLs come from the
+// router — fall back to a non-reversible digest so a hostname can never
+// reach the response by accident.
+func aliasedCircuitStates(states, aliases map[string]string) map[string]string {
+	out := make(map[string]string, len(states))
+	for key, state := range states {
+		if alias, ok := aliases[key]; ok {
+			out[alias] = state
+			continue
+		}
+		digest := sha256.Sum256([]byte(key))
+		out["upstream-"+hex.EncodeToString(digest[:4])] = state
+	}
+	return out
 }
