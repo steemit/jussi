@@ -3,8 +3,10 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -301,4 +303,30 @@ func indexOf(haystack, needle string) int {
 		}
 	}
 	return -1
+}
+
+// TestCircuitIntegration_RejectionCarriesNoUpstreamURL guards the
+// topology leak: the client-facing circuit-open error must not embed
+// the upstream URL. The upstream identity lives in the metric label and
+// the server-side warn log only.
+func TestCircuitIntegration_RejectionCarriesNoUpstreamURL(t *testing.T) {
+	env := newCircuitEnv(t)
+	env.mode.Store("fail")
+
+	var rejection *jussiErrors.JSONRPCError
+	for i := 0; i < 30 && rejection == nil; i++ {
+		_, err := env.call(t)
+		var jerr *jussiErrors.JSONRPCError
+		if errors.As(err, &jerr) && jerr.Message == "Upstream temporarily unavailable" {
+			rejection = jerr
+		}
+	}
+	if rejection == nil {
+		t.Fatal("breaker never tripped after 30 failing calls")
+	}
+
+	rendered := fmt.Sprintf("%v", rejection.Data)
+	if strings.Contains(rendered, env.upstream.URL) || strings.Contains(rendered, "://") {
+		t.Fatalf("circuit-open error leaks the upstream URL: %s", rendered)
+	}
 }

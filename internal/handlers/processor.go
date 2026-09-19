@@ -494,8 +494,15 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	if !allowed && p.circuitEnabled {
 		telemetry.UpstreamCircuitRejects.WithLabelValues(breakerKey).Inc()
 		telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
+		// The upstream identity (breakerKey) goes to the metric label
+		// and this server-side log only — the client-facing error must
+		// not carry the hostname.
+		slog.Warn("circuit open: request rejected without dialing upstream",
+			"upstream", breakerKey,
+			"method", jsonrpcReq.URN.String(),
+		)
 		return nil, jussiErrors.NewUpstreamCircuitOpenError(
-			fmt.Sprintf("circuit breaker open for %s; request rejected without dialing upstream", url))
+			"circuit breaker open; request rejected without dialing upstream")
 	}
 	probeToken = nil //nolint:ineffassign,wastedassign // documented below
 	if p.circuitEnabled {
