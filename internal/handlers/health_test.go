@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -76,6 +77,63 @@ func TestBreakerAliases(t *testing.T) {
 
 	if got := BreakerAliases(nil); got != nil {
 		t.Errorf("nil config must yield nil aliases, got %v", got)
+	}
+}
+
+// TestBreakerAliasesPoolEntries mirrors the production config shape: a
+// pool-style upstream whose urls array repeats the same few hosts across
+// many routing lines (32 rows on 3 hosts), plus single-host entries that
+// share hosts with the pool. Duplicate rows must not inflate suffix
+// numbers, and the alphabetically-latest name must win a shared host.
+func TestBreakerAliasesPoolEntries(t *testing.T) {
+	rows := func(prefix, host string, n int) [][]interface{} {
+		out := make([][]interface{}, 0, n)
+		for i := 0; i < n; i++ {
+			out = append(out, []interface{}{fmt.Sprintf("%s.api%d", prefix, i), host})
+		}
+		return out
+	}
+	raw := &config.UpstreamRawConfig{
+		Upstreams: []config.UpstreamDefinition{
+			{
+				// prod shape: 32 rows — ahnode x8, hive x23, steemd x1
+				Name: "appbase",
+				URLs: append(append(
+					rows("appbase", "https://ahnode.secret.internal", 8),
+					rows("appbase", "https://hive.secret.internal", 23)...),
+					[]interface{}{"appbase.condenser_api", "https://steemd.secret.internal"}),
+			},
+			{
+				Name: "hive",
+				URLs: [][]interface{}{{"hive", "https://hive.secret.internal"}},
+			},
+			{
+				Name: "steemd",
+				URLs: [][]interface{}{{"steemd", "https://steemd.secret.internal"}},
+			},
+			{
+				// prod shape: the same host listed 3x under its own name
+				Name: "conveyor",
+				URLs: rows("conveyor", "https://conveyor.secret.internal", 3),
+			},
+		},
+	}
+
+	aliases := BreakerAliases(raw)
+
+	// Duplicate rows count once: suffixes number UNIQUE hosts.
+	if got := aliases["https://ahnode.secret.internal"]; got != "appbase" {
+		t.Errorf("pool host ahnode aliased to %q, want appbase (no duplicate inflation)", got)
+	}
+	// Shared hosts keep the alphabetically-latest name.
+	if got := aliases["https://hive.secret.internal"]; got != "hive" {
+		t.Errorf("shared hive host aliased to %q, want hive", got)
+	}
+	if got := aliases["https://steemd.secret.internal"]; got != "steemd" {
+		t.Errorf("shared steemd host aliased to %q, want steemd", got)
+	}
+	if got := aliases["https://conveyor.secret.internal"]; got != "conveyor" {
+		t.Errorf("conveyor host aliased to %q, want conveyor (no -3 suffix)", got)
 	}
 }
 
