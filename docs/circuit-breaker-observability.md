@@ -15,6 +15,40 @@ Grafana work is dashboards + alert rules only — no new jussi-side collection.
 | `jussi_upstream_request_duration_seconds` | histogram | `upstream`, `protocol` | upstream latency |
 | `/health` JSON | — | — | `circuit_states` (keyed by configured upstream name — never a backend hostname), `circuit_degraded`, `circuit_worst_state` |
 
+## Upstream aliases in `/health` (`circuit_states` keys)
+
+`/health` is public and CORS-open, so `circuit_states` never carries a
+backend hostname. Each key is an **alias** derived from the upstream
+config (`internal/handlers/health.go`, `BreakerAliases`):
+
+1. **Base name** = the upstream's configured `name` field (`steemd`,
+   `hive`, `appbase` ...).
+2. **One alias per unique host.** Pool-style upstreams repeat the same
+   host across many `urls` routing rows (production `appbase` has 32
+   rows on 3 hosts) — duplicates count once; `-2`, `-3`... suffixes
+   number the *unique* hosts under that name, in sorted host order.
+   E.g. `appbase` → the pool's first host, `appbase-2` → the second.
+3. **Shared hosts** (one host serving several named upstreams, e.g.
+   hivemind serves both `appbase` rows and a dedicated `hive` entry)
+   keep the **alphabetically-latest** name — `hive`, not `appbase-2`.
+4. **Unconfigured keys** — a breaker whose host never appeared in the
+   config (should not happen; all runtime upstream URLs come from the
+   router) — get a non-reversible digest alias `upstream-<sha256[:8]>`,
+   so a hostname can never reach the response by accident.
+
+Stability: aliases are deterministic for a given config (sorted walks),
+so they are stable across restarts and instances — but they **renumber
+when the config's host set changes** (adding/removing a host under a
+multi-host name shifts the suffixes). Treat `-N` suffixes as "Nth host
+of that upstream", not as a stable host identity across config edits.
+
+Resolving an alias to the actual host: operators read the upstream
+config (the same file jussi routes by) and apply rules 1–3, or
+cross-reference the `jussi_upstream_circuit_state{upstream="scheme://host"}`
+series on the metrics endpoint (localhost-only by default), which keeps
+the full hostname as the label — the two views are joinable by state
+and time.
+
 ## Golden dashboard (one row per upstream host)
 
 1. **Circuit state** — `jussi_upstream_circuit_state` as a state timeline (0/1/2

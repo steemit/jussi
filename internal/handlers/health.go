@@ -103,14 +103,23 @@ func (h *HealthHandler) HandleHealth(c *gin.Context) {
 // endpoint is public and CORS-open, and even internal-only hostnames
 // reveal deployment topology.
 //
-// Multiple hosts under one upstream name get -2, -3, ... suffixes.
-// Names and each name's keys are walked in sorted order so aliases are
-// stable across restarts.
+// Naming rules (documented for operators in
+// docs/circuit-breaker-observability.md):
+//   - the alias base is the upstream's configured `name`; one alias per
+//     UNIQUE host — pool-style entries that repeat a host across many
+//     routing lines (e.g. 32 urls rows on 3 hosts) count it once
+//   - multiple unique hosts under one name get -2, -3, ... suffixes in
+//     sorted host order
+//   - a host serving several named upstreams keeps the
+//     alphabetically-last name (specific single-host entries like
+//     "hive" win over pool entries like "appbase-2")
+//   - names and hosts are walked in sorted order, so aliases are stable
+//     across restarts (but renumber if the config's host set changes)
 func BreakerAliases(raw *config.UpstreamRawConfig) map[string]string {
 	if raw == nil {
 		return nil
 	}
-	byName := make(map[string][]string)
+	byName := make(map[string]map[string]struct{})
 	for _, u := range raw.Upstreams {
 		for _, pair := range u.URLs {
 			if len(pair) != 2 {
@@ -122,8 +131,10 @@ func BreakerAliases(raw *config.UpstreamRawConfig) map[string]string {
 				// the urls array.
 				continue
 			}
-			key := upstream.BreakerKey(rawURL)
-			byName[u.Name] = append(byName[u.Name], key)
+			if byName[u.Name] == nil {
+				byName[u.Name] = make(map[string]struct{})
+			}
+			byName[u.Name][upstream.BreakerKey(rawURL)] = struct{}{}
 		}
 	}
 
@@ -135,7 +146,10 @@ func BreakerAliases(raw *config.UpstreamRawConfig) map[string]string {
 
 	out := make(map[string]string)
 	for _, name := range names {
-		keys := byName[name]
+		keys := make([]string, 0, len(byName[name]))
+		for key := range byName[name] {
+			keys = append(keys, key)
+		}
 		sort.Strings(keys)
 		for i, key := range keys {
 			alias := name
