@@ -115,9 +115,10 @@ belt-and-braces). **This string is the cache key and the routing key.**
   (`selectUpstreamTimeout`) — see [06-upstream-resilience.md](06-upstream-resilience.md#timeout-policy).
 - `ShouldTranslateToAppbase(name)` exposes the per-upstream translation flag.
 
-## Appbase translation (`handlers/processor.go:translateToAppbase`)
+## Appbase translation
 
-Runs at the top of `ProcessSingleRequest`, before routing and caching. It applies only when:
+Implemented by `translateToAppbase` in `handlers/processor.go`. Runs at the top of
+`ProcessSingleRequest`, before routing and caching. It applies only when:
 
 - the URN namespace is `steemd` (flag on the `steemd` upstream), or `appbase` (flag on either
   `steemd` or `appbase`), and
@@ -135,5 +136,5 @@ Other namespaces (hivemind `bridge.*`, overseer, ...) are forwarded verbatim, al
 Translation consequence to keep in mind: the cache key is generated **after** translation, so
 `get_block` and `condenser_api.get_block` share one cache entry
 (`appbase.condenser_api.get_block.params=[...]`). See
-[04-caching.md](04-caching.md#two-lookup-layers) for the middleware/processor key mismatch this
+[04-caching.md](04-caching.md#two-lookup-layers-middleware-vs-processor) for the middleware/processor key mismatch this
 creates.

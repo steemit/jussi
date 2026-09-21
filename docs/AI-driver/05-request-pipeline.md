@@ -18,7 +18,7 @@ Registered in this order (all `router.Use`):
 | 6 | `BodyParseMiddleware` | Enforces `server.max_body_size` (default 4 MiB), parses body **once** → ctx `parsed_body`, restores the raw body for legacy readers. Must precede every body consumer. |
 | 7 | `ResponseCaptureMiddleware` | Wraps `c.Writer` in the body-capturing writer. Must precede everything that writes a response and #8. |
 | 8 | `UpdateBlockNumberMiddleware` | After `c.Next()`: type-asserts the writer from #7 and scans the response for `last_irreversible_block_num` → LIB tracker. |
-| 9 | `CacheLookupMiddleware` | Single-POST cache lookup (pre-translation key; see [04-caching.md](04-caching.md#two-lookup-layers)). On hit: respond + `Abort`. Runs after #6 (needs `ParsedBody`). |
+| 9 | `CacheLookupMiddleware` | Single-POST cache lookup (pre-translation key; see [04-caching.md](04-caching.md#two-lookup-layers-middleware-vs-processor)). On hit: respond + `Abort`. Runs after #6 (needs `ParsedBody`). |
 | 10 | `LimitsMiddleware` | Batch size cap (`server.batch_size_limit`), `get_account_history` limit cap, broadcast custom_json size + account blacklist (from the upstream file's `limits`). Uses `ParsedBody`; a body it cannot parse is skipped by design. |
 
 `/health`, `/`, `/metrics` are separate routes; middlewares 6/9/10 no-op on GET.

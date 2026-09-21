@@ -28,7 +28,7 @@ If you read nothing else before changing code:
 
 1. **Never serialize a request body to an upstream with `json.Marshal`.** steemd's FC JSON parser
    does not understand `\uXXXX` escapes; use `helpers.MarshalJSONWithoutHTMLEscape` or signatures
-   break. (See [08-known-pitfalls.md](08-known-pitfalls.md#1-html-escaping-breaks-signatures).)
+   break. (See [08-known-pitfalls.md](08-known-pitfalls.md#1-html-escaping-breaks-transaction-signatures).)
 2. **Never re-read the request body.** `BodyParseMiddleware` parses it once; everything downstream
    must use `middleware.ParsedBody(c)`. A second `ShouldBindJSON` silently returns EOF and
    disables whatever check ran second. (See [pitfall #2](08-known-pitfalls.md#2-body-re-reads-silently-disable-middleware).)
@@ -41,7 +41,7 @@ If you read nothing else before changing code:
 5. **One logic, one implementation.** The worst bugs in this codebase's history came from the same
    rule existing twice (breaker token handling, cache deep-copy, error-response filtering) and only
    one copy being updated. Before duplicating a pattern, extract and share it.
-   (See [pitfall #9](08-known-pitfalls.md#9-duplicated-logic-drifts).)
+   (See [pitfall #9](08-known-pitfalls.md#9-duplicated-logic-drifts-the-meta-pitfall).)
 
 ## Project identity
 
