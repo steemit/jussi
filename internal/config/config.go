@@ -195,6 +195,21 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
+	// Parse the /metrics allowlist from env var (comma-separated IPs/CIDRs),
+	// same reason. Ignored when prometheus.localhost_only is true, which is
+	// checked first in SetupRouter.
+	if aiStr := os.Getenv("JUSSI_PROMETHEUS_ALLOWED_IPS"); aiStr != "" {
+		allowed := make([]string, 0)
+		for _, p := range strings.Split(aiStr, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				allowed = append(allowed, p)
+			}
+		}
+		if len(allowed) > 0 {
+			config.Prometheus.AllowedIPs = allowed
+		}
+	}
+
 	// Load upstream config from JSON file
 	upstreamConfig, err := loadUpstreamConfig(configFile)
 	if err != nil {
@@ -269,6 +284,7 @@ func bindEnvOverrides() {
 		{"JUSSI_PROMETHEUS_ENABLED", "prometheus.enabled"},
 		{"JUSSI_PROMETHEUS_PATH", "prometheus.path"},
 		{"JUSSI_PROMETHEUS_LOCALHOST_ONLY", "prometheus.localhost_only"},
+		{"JUSSI_PROMETHEUS_ALLOWED_IPS", "prometheus.allowed_ips"},
 
 		// Limits
 		{"JUSSI_LIMITS_ACCOUNT_HISTORY_LIMIT", "limits.account_history_limit"},

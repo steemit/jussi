@@ -755,9 +755,12 @@ Like having a pool of phone lines. You want enough for demand, but not too many 
   - Detect an image built without CI build args (`commit="unknown"`)
 
 **Why not read it from `/health`?** `/health` and `/` redact `source_commit` / `docker_tag` to
-`"unknown"` unless `JUSSI_EXPOSE_VERSION=true`, because it stays public and CORS-open. The metric lives on
-`/metrics`, which is restricted by `prometheus.localhost_only` / `prometheus.allowed_ips`, so the
-real values are available internally without fingerprinting the public endpoint.
+`"unknown"` unless `JUSSI_EXPOSE_VERSION=true`, because it stays public and CORS-open. `/metrics` is the
+internal channel instead — but only if it is actually restricted: `prometheus.localhost_only: true`
+(the default) or a non-empty `prometheus.allowed_ips` / `JUSSI_PROMETHEUS_ALLOWED_IPS`. With
+`localhost_only: false` **and** an empty allowlist the app mounts no access-control middleware at all
+(see `SetupRouter`), and then this metric hands the build fingerprint to every caller that can open
+the port.
 
 **What to watch for:**
 - ✅ Good: `commit` matches the image tag being deployed

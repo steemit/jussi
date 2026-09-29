@@ -12,9 +12,11 @@ import (
 // /health and / redact that metadata unless JUSSI_EXPOSE_VERSION=true
 // (public endpoints must not fingerprint the deployment), and the
 // redacted form is the literal "unknown" — indistinguishable from a
-// genuinely missing value. /metrics is the internal, access-restricted
-// channel where operators verify which build is actually live, so the
-// real values are always exported here.
+// genuinely missing value. Exporting it here instead keeps the public
+// payload unchanged, at the cost that /metrics now carries the
+// fingerprint for every caller it admits: restrict that endpoint with
+// prometheus.localhost_only / prometheus.allowed_ips, because the values
+// are exported regardless of JUSSI_EXPOSE_VERSION.
 var BuildInfo = promauto.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Name: "jussi_build_info",

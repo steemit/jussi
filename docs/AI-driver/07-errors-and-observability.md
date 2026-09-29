@@ -64,8 +64,12 @@ Trace context is injected into upstream request headers (`propagator.Inject` in
 ## Metrics
 
 Endpoint: `GET /metrics` (path configurable), served by `promhttp` from the default registry.
-Access control in `app.SetupRouter`: `prometheus.localhost_only` → `LocalhostOnlyMiddleware`,
-else `prometheus.allowed_ips` → CIDR/IP whitelist. Client-IP integrity depends on
+Access control in `app.SetupRouter` is opt-in per knob — **and absent when neither is set**:
+`prometheus.localhost_only: true` → `LocalhostOnlyMiddleware`; otherwise a **non-empty**
+`prometheus.allowed_ips` (env `JUSSI_PROMETHEUS_ALLOWED_IPS`) → CIDR/IP whitelist. With
+`localhost_only: false` and an empty allowlist no middleware is mounted at all, so `/metrics`
+(including `jussi_build_info`) is readable by anything that can reach the port and the security
+group is the only gate. Client-IP integrity depends on
 `server.trusted_proxies` being set to the LB's CIDR in production (otherwise XFF is ignored —
 safe default, but the whitelist then matches the LB address).
 
