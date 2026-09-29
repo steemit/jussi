@@ -295,6 +295,10 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 	if dockerTag == "" {
 		dockerTag = "unknown"
 	}
+	// /health and / redact these on public deployments; export the real
+	// values on the internal /metrics endpoint so operators can verify
+	// which build is live (jussi_build_info).
+	telemetry.SetBuildInfo(sourceCommit, dockerTag)
 
 	tracker := middleware.GetBlockNumberTracker()
 	healthHandler := handlers.NewHealthHandler(sourceCommit, dockerTag, tracker)

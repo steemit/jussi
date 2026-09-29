@@ -81,6 +81,7 @@ safe default, but the whitelist then matches the LB address).
 | `jussi_upstream_errors_total` | upstream, protocol, error_type | processor |
 | `jussi_upstream_circuit_state` | upstream | processor / callSteemd |
 | `jussi_upstream_circuit_rejects_total` | upstream | processor / callSteemd |
+| `jussi_build_info` | commit, tag | `app.SetupRouter` (once, at startup) |
 
 **Declared but never recorded (always zero)** — do not build dashboards on them, and either wire
 or delete when touching telemetry: `jussi_request_duration_seconds`, `jussi_request_errors_total`,
@@ -97,6 +98,13 @@ cache backend errors (CacheGroup swallows them).
 `docker_tag` (unless `JUSSI_EXPOSE_VERSION=true`), `jussi_num` (LIB), and when wired:
 `circuit_states` (breaker state per alias) + `circuit_degraded` / `circuit_worst_state` when any
 breaker is not closed.
+
+Redaction emits the literal `"unknown"` — the same string a build without metadata produces, so
+the public payload cannot distinguish "withheld" from "missing". To check which build is actually
+live, read `jussi_build_info{commit,tag}` from the internal `GET /metrics` instead of `/health`.
+`JUSSI_EXPOSE_VERSION=true` publishes the image tag to anyone who can reach `/health`: fine for
+internal-only deployments, a deliberate fingerprinting trade-off wherever `/health` is
+internet-reachable (e.g. a gateway proxied at `api.steemit.com/health`).
 
 Properties to preserve:
 
