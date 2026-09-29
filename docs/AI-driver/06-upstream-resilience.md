@@ -85,14 +85,24 @@ successful response counts as success.
 exactly one caller; `Record(ok, token)` with a `nil` token is ignored in half-open (so stale
 in-flight requests can't answer the probe). Two consequences for call sites:
 
-1. The token must flow from `Allow()` to `Record()` — discarding it strands the breaker in
-   half-open forever (this is precisely the P0 from the 2026-09-21 review:
-   `callHTTPUpstream` had `probeToken = nil` unconditionally; `callSteemd` in
-   `get_state_workaround.go` shows the correct form — nil it only when the circuit is disabled).
+1. The token must flow from `Allow()` to `Record()`. Discarding it strands the breaker in
+   half-open forever: every request is rejected while the admitted probe's success is never
+   attributed, and the upstream stays degraded for as long as the process lives. This happened in
+   production on 2026-09-25 — `callHTTPUpstream` nilled `probeToken` unconditionally, so one
+   instance rejected ~1.4 rps for four days while its `/health` and EB checks stayed green.
 2. Don't call `Record` from a different request than the one that got the token.
 
-When touching either call site, extract the shared guard/record helper instead of maintaining
-two copies.
+Both call sites (`callHTTPUpstream`, `callSteemd`) now share `handlers/circuit.go:admitUpstream`
+plus `upstreamAdmission.record` for exactly this reason. Route new upstream call paths through that
+helper rather than re-deriving the protocol: it keeps the token intact (dropping it only when the
+circuit is disabled, where nothing was gated) and always refreshes the state gauge.
+
+The regression guard is `TestCircuitIntegration_RecoversViaProbe` in
+`handlers/circuit_integration_test.go` (plus its `..._SubRequestRecoversViaProbe` twin for the
+`callSteemd` path): it asserts the breaker is `closed` after a successful probe **and** checks the
+call's `error` return rather than only the response envelope. A rejection arrives as `(nil, err)`,
+so envelope-only assertions pass while the breaker is stuck — which is how the 2026-09-25 bug
+shipped with green CI.
 
 Config quirk: `handlers/circuit.go:breakerConfig` treats `0` as "unset" (`> 0` guards), so
 e.g. `jitter_fraction=0` cannot be expressed — it silently becomes the default 0.25.

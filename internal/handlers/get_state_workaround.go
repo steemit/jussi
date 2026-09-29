@@ -10,9 +10,7 @@ import (
 	"sync"
 	"time"
 
-	jussiErrors "github.com/steemit/jussi/internal/errors"
 	"github.com/steemit/jussi/internal/request"
-	"github.com/steemit/jussi/internal/telemetry"
 	"github.com/steemit/jussi/internal/urn"
 )
 
@@ -624,22 +622,11 @@ func (p *RequestProcessor) callSteemd(
 	params []interface{},
 	originalReq *request.JSONRPCRequest,
 ) (map[string]interface{}, error) {
-	breaker, breakerKey := p.breakers.For(upstreamURL)
-	allowed, probeToken := breaker.Allow()
-	if !allowed && p.circuitEnabled {
-		telemetry.UpstreamCircuitRejects.WithLabelValues(breakerKey).Inc()
-		// Upstream identity stays in the metric label and this
-		// server-side log; the client-facing error carries no hostname.
-		slog.Warn("circuit open: sub-request rejected without dialing upstream",
-			"upstream", breakerKey,
-			"method", method,
-		)
-		return nil, jussiErrors.NewUpstreamCircuitOpenError(
-			"circuit breaker open; sub-request rejected without dialing upstream")
-	}
-	if !p.circuitEnabled {
-		allowed = true
-		probeToken = nil
+	// Same admission/record protocol as callHTTPUpstream — see
+	// admitUpstream in circuit.go.
+	admission, err := p.admitUpstream(upstreamURL, "sub-request", method)
+	if err != nil {
+		return nil, err
 	}
 
 	// Create a per-request timeout context
@@ -655,12 +642,7 @@ func (p *RequestProcessor) callSteemd(
 	headers := originalReq.UpstreamHeaders()
 
 	resp, err := p.httpClient.Request(subCtx, upstreamURL, payload, headers)
-	if err != nil {
-		breaker.Record(false, probeToken)
-	} else {
-		breaker.Record(true, probeToken)
-	}
-	telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
+	admission.record(err == nil)
 	return resp, err
 }
 
