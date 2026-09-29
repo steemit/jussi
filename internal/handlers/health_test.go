@@ -167,3 +167,36 @@ func TestHandleHealthHidesHostnames(t *testing.T) {
 		t.Fatalf("unconfigured key must get an opaque digest alias: %s", body)
 	}
 }
+
+// /health is public: build metadata stays redacted unless the
+// deployment opts in with JUSSI_EXPOSE_VERSION=true. The redacted form
+// is indistinguishable from a missing value, which is why /metrics
+// exports the real one (jussi_build_info).
+func TestHandleHealthVersionRedaction(t *testing.T) {
+	render := func() string {
+		h := NewHealthHandler("404bc29", "next-404bc29", cache.NewBlockNumberTracker())
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/health", nil)
+		h.HandleHealth(c)
+		return w.Body.String()
+	}
+
+	t.Setenv("JUSSI_EXPOSE_VERSION", "")
+	body := render()
+	if !strings.Contains(body, `"source_commit":"unknown"`) {
+		t.Fatalf("source_commit must be redacted by default: %s", body)
+	}
+	if strings.Contains(body, "404bc29") {
+		t.Fatalf("health body leaks build metadata: %s", body)
+	}
+
+	t.Setenv("JUSSI_EXPOSE_VERSION", "true")
+	body = render()
+	if !strings.Contains(body, `"source_commit":"404bc29"`) {
+		t.Fatalf("JUSSI_EXPOSE_VERSION=true must expose source_commit: %s", body)
+	}
+	if !strings.Contains(body, `"docker_tag":"next-404bc29"`) {
+		t.Fatalf("JUSSI_EXPOSE_VERSION=true must expose docker_tag: %s", body)
+	}
+}

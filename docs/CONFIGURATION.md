@@ -475,7 +475,7 @@ Jussi validates configuration on startup and will exit with an error if:
 2. **Timeouts**: Set reasonable timeouts to prevent resource exhaustion
 3. **Limits**: Configure appropriate batch size and request limits
 4. **Trusted Proxies**: Keep `trusted_proxies` empty unless deployed behind an LB — a spoofable `X-Forwarded-For` defeats the `/metrics` IP restrictions
-5. **Version Exposure**: `/` and `/health` redact `source_commit`/`docker_tag` to `unknown`; set `JUSSI_EXPOSE_VERSION=true` only on internal deployments that need build fingerprinting
+5. **Version Exposure**: `/` and `/health` redact `source_commit`/`docker_tag` to `unknown`; set `JUSSI_EXPOSE_VERSION=true` only on deployments whose `/health` is not internet-reachable. The real values are always available on the restricted `/metrics` endpoint as `jussi_build_info{commit,tag}`
 
 ### Performance
 

@@ -742,6 +742,28 @@ Like having a pool of phone lines. You want enough for demand, but not too many 
   - Optimize pool sizing
   - Identify connection waste
 
+### Build Metrics
+
+#### Build Info (`jussi_build_info`)
+- **Type**: Gauge (always `1`; the labels carry the information)
+- **Labels**: `commit` (SOURCE_COMMIT from the image build), `tag` (DOCKER_TAG)
+- **Description**: Build metadata of the running binary, exported once at startup
+- **Example**: `jussi_build_info{commit="404bc29",tag="next-404bc29"} 1`
+- **Use Cases**:
+  - Verify which build is actually live on an instance (`commit` changing across a deploy is the confirmation)
+  - Correlate a metric or trace anomaly with the release that introduced it
+  - Detect an image built without CI build args (`commit="unknown"`)
+
+**Why not read it from `/health`?** `/health` and `/` redact `source_commit` / `docker_tag` to
+`"unknown"` unless `JUSSI_EXPOSE_VERSION=true`, because it stays public and CORS-open. The metric lives on
+`/metrics`, which is restricted by `prometheus.localhost_only` / `prometheus.allowed_ips`, so the
+real values are available internally without fingerprinting the public endpoint.
+
+**What to watch for:**
+- ✅ Good: `commit` matches the image tag being deployed
+- ⚠️ Warning: `commit="unknown"` (image built without `SOURCE_COMMIT`/`DOCKER_TAG` build args)
+- ❌ Bad: `commit` differs between instances of the same environment (partial rollout)
+
 ## Example Queries
 
 ### Request Rate by Namespace
