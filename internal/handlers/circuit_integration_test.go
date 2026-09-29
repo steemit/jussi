@@ -92,6 +92,41 @@ func (e *circuitIntegrationEnv) call(t *testing.T) (map[string]interface{}, erro
 	return e.processor.ProcessSingleRequest(context.Background(), req)
 }
 
+// subRequest performs one direct callSteemd round trip against the same
+// test upstream — the second circuit breaker call site (the get_state
+// workaround path), which must honour the Allow/Record protocol exactly
+// like callHTTPUpstream does.
+func (e *circuitIntegrationEnv) subRequest(ctx context.Context) (map[string]interface{}, error) {
+	req := &request.JSONRPCRequest{
+		URN: &urn.URN{Namespace: "appbase", API: "condenser_api", Method: "get_state"},
+	}
+	return e.processor.callSteemd(ctx, e.upstream.URL, "condenser_api.get_state", []interface{}{"/"}, req)
+}
+
+// breakerState reports the state of the breaker every request in this
+// environment shares (one upstream, one scheme://host key).
+func (e *circuitIntegrationEnv) breakerState(t *testing.T) string {
+	t.Helper()
+	key := upstream.BreakerKey(e.upstream.URL)
+	state, ok := e.processor.breakers.Snapshot()[key]
+	if !ok {
+		t.Fatalf("no breaker registered for %s", key)
+	}
+	return state
+}
+
+// trip drives failing calls until the breaker starts rejecting.
+func (e *circuitIntegrationEnv) trip(t *testing.T) {
+	t.Helper()
+	for i := 0; i < 30; i++ {
+		resp, err := e.call(t)
+		if isCircuitOpen(t, err, resp) {
+			return
+		}
+	}
+	t.Fatal("breaker never tripped after 30 failing calls")
+}
+
 func errorText(t *testing.T, resp map[string]interface{}) string {
 	t.Helper()
 	if resp == nil {
@@ -148,21 +183,22 @@ func TestCircuitIntegration_TripsAndStopsHittingUpstream(t *testing.T) {
 // TestCircuitIntegration_RecoversViaProbe verifies the recovery path:
 // after the open period, a single probe reaches the upstream, and a
 // successful probe closes the breaker so normal traffic resumes.
+//
+// This is the regression guard for the 2026-09-25 production incident: the
+// probe token was dropped on its way from Allow() to Record(), so a
+// half-open breaker rejected every request while the admitted probe's
+// success was never attributed — the upstream stayed degraded (one probe
+// per open cycle, everything else rejected) for four days. The assertions
+// below deliberately fail in that state: a rejection arrives as (nil, err)
+// with no response envelope, and the breaker state itself must be closed.
 func TestCircuitIntegration_RecoversViaProbe(t *testing.T) {
 	env := newCircuitEnv(t)
 
 	// Trip the breaker.
 	env.mode.Store("fail")
-	tripped := false
-	for i := 0; i < 30; i++ {
-		resp, err := env.call(t)
-		if isCircuitOpen(t, err, resp) {
-			tripped = true
-			break
-		}
-	}
-	if !tripped {
-		t.Fatal("breaker never tripped")
+	env.trip(t)
+	if state := env.breakerState(t); state != "open" {
+		t.Fatalf("breaker state after tripping = %q, want %q", state, "open")
 	}
 
 	// Heal the upstream BEFORE the open period ends.
@@ -185,12 +221,51 @@ func TestCircuitIntegration_RecoversViaProbe(t *testing.T) {
 	if result == nil || result["ok"] != true {
 		t.Fatalf("probe response missing result: %v", resp)
 	}
+	if state := env.breakerState(t); state != "closed" {
+		t.Fatalf("breaker state after a successful probe = %q, want %q", state, "closed")
+	}
 
-	// Normal traffic resumed: another plain success, no rejections.
+	// Normal traffic resumed: another plain success, no rejections. The
+	// error return is the assertion that matters — a stuck half-open
+	// breaker rejects with (nil, err), which inspecting only the
+	// response envelope silently accepts.
 	for i := 0; i < 3; i++ {
-		resp, _ := env.call(t)
+		resp, err := env.call(t)
+		if err != nil {
+			t.Fatalf("post-recovery call %d rejected: %v", i, err)
+		}
 		if msg := errText(t, resp); msg != "" {
 			t.Fatalf("post-recovery call %d failed: %v", i, resp)
+		}
+	}
+}
+
+// TestCircuitIntegration_SubRequestRecoversViaProbe is the same recovery
+// guard for the other breaker call site (callSteemd, the get_state
+// workaround path). Both sites share the admission helper, so this pins
+// the wiring rather than a second implementation.
+func TestCircuitIntegration_SubRequestRecoversViaProbe(t *testing.T) {
+	env := newCircuitEnv(t)
+
+	env.mode.Store("fail")
+	env.trip(t)
+
+	env.mode.Store("ok")
+	time.Sleep(1400 * time.Millisecond)
+
+	// The sub-request admitted as the probe must succeed and close the
+	// breaker.
+	if _, err := env.subRequest(context.Background()); err != nil {
+		t.Fatalf("sub-request probe failed: %v", err)
+	}
+	if state := env.breakerState(t); state != "closed" {
+		t.Fatalf("breaker state after a successful sub-request probe = %q, want %q", state, "closed")
+	}
+
+	// Follow-up traffic is served, not rejected.
+	for i := 0; i < 3; i++ {
+		if _, err := env.subRequest(context.Background()); err != nil {
+			t.Fatalf("post-recovery sub-request %d rejected: %v", i, err)
 		}
 	}
 }

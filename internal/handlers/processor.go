@@ -10,7 +10,6 @@ import (
 
 	"github.com/steemit/jussi/internal/cache"
 	"github.com/steemit/jussi/internal/config"
-	jussiErrors "github.com/steemit/jussi/internal/errors"
 	"github.com/steemit/jussi/internal/helpers"
 	"github.com/steemit/jussi/internal/middleware"
 	"github.com/steemit/jussi/internal/request"
@@ -486,32 +485,13 @@ func getProtocol(url string) string {
 func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *request.JSONRPCRequest, url string) (map[string]interface{}, error) {
 	// Circuit breaker: when an upstream is saturated, fail fast instead
 	// of queueing another request behind the pile-up. See
-	// RequestProcessor.breakers for why this matters. When the circuit
-	// is disabled via config (upstream.circuit.enabled=false) every
-	// Allow returns true and Record is a no-op window write.
-	breaker, breakerKey := p.breakers.For(url)
-	allowed, probeToken := breaker.Allow()
-	if !allowed && p.circuitEnabled {
-		telemetry.UpstreamCircuitRejects.WithLabelValues(breakerKey).Inc()
-		telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
-		// The upstream identity (breakerKey) goes to the metric label
-		// and this server-side log only — the client-facing error must
-		// not carry the hostname.
-		slog.Warn("circuit open: request rejected without dialing upstream",
-			"upstream", breakerKey,
-			"method", jsonrpcReq.URN.String(),
-		)
-		return nil, jussiErrors.NewUpstreamCircuitOpenError(
-			"circuit breaker open; request rejected without dialing upstream")
-	}
-	probeToken = nil //nolint:ineffassign,wastedassign // documented below
-	if p.circuitEnabled {
-		// Keep the token only when the circuit is enabled; when
-		// disabled, Record below would otherwise treat a half-open
-		// probe admission as live.
-		if !allowed {
-			allowed = true
-		}
+	// RequestProcessor.breakers for why this matters. Admission and
+	// outcome reporting go through the shared helpers in circuit.go so
+	// this path and callSteemd cannot drift apart; the probe token they
+	// carry is what lets a recovered upstream be detected.
+	admission, err := p.admitUpstream(url, "request", jsonrpcReq.URN.String())
+	if err != nil {
+		return nil, err
 	}
 
 	payload := jsonrpcReq.ToUpstreamRequest()
@@ -523,7 +503,6 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 	defer cancel()
 
 	var response map[string]interface{}
-	var err error
 	if validators.IsBroadcastTransactionRequest(jsonrpcReq) {
 		response, err = p.httpClient.Request(ctx, url, payload, headers)
 	} else {
@@ -532,15 +511,11 @@ func (p *RequestProcessor) callHTTPUpstream(ctx context.Context, jsonrpcReq *req
 
 	// Feed the breaker. Timeouts (including context deadlines jussi set
 	// itself), transport errors, and 5xx responses all count as
-	// failures; any successful response counts as success. The probe
-	// token attributes half-open outcomes to the actual probe request.
+	// failures; any successful response counts as success.
+	admission.record(err == nil)
 	if err != nil {
-		breaker.Record(false, probeToken)
-		telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
 		return nil, err
 	}
-	breaker.Record(true, probeToken)
-	telemetry.UpstreamCircuitState.WithLabelValues(breakerKey).Set(breakerStateValue(breaker))
 	return response, nil
 }
 
