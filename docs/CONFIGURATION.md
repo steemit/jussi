@@ -182,7 +182,7 @@ Controls Prometheus metrics collection. Metrics are exposed on the same HTTP ser
 | `enabled` | bool | `true` | Enable Prometheus metrics |
 | `path` | string | `"/metrics"` | Metrics endpoint path (e.g., `http://localhost:8080/metrics`) |
 | `localhost_only` | bool | `true` | Restrict metrics endpoint to localhost only |
-| `allowed_ips` | array | `[]` | List of allowed IP addresses (if `localhost_only` is false) |
+| `allowed_ips` | array | `[]` | Allowed IPs/CIDRs for the metrics endpoint, consulted when `localhost_only` is false. **Empty means no application-level restriction**: the endpoint is then reachable by anything that can open the port, so fence it off with network controls (security group / private subnet) or leave `localhost_only: true` |
 
 **To disable Prometheus:**
 ```json
@@ -199,6 +199,7 @@ Controls Prometheus metrics collection. Metrics are exposed on the same HTTP ser
 - `JUSSI_PROMETHEUS_ENABLED` - Enable/disable Prometheus metrics
 - `JUSSI_PROMETHEUS_PATH`
 - `JUSSI_PROMETHEUS_LOCALHOST_ONLY`
+- `JUSSI_PROMETHEUS_ALLOWED_IPS` - Comma-separated IPs/CIDRs for the metrics allowlist, e.g. `10.123.2.0/23,10.123.4.0/23` (consulted only when `JUSSI_PROMETHEUS_LOCALHOST_ONLY=false`)
 
 ### Cache Configuration
 
@@ -475,7 +476,7 @@ Jussi validates configuration on startup and will exit with an error if:
 2. **Timeouts**: Set reasonable timeouts to prevent resource exhaustion
 3. **Limits**: Configure appropriate batch size and request limits
 4. **Trusted Proxies**: Keep `trusted_proxies` empty unless deployed behind an LB — a spoofable `X-Forwarded-For` defeats the `/metrics` IP restrictions
-5. **Version Exposure**: `/` and `/health` redact `source_commit`/`docker_tag` to `unknown`; set `JUSSI_EXPOSE_VERSION=true` only on deployments whose `/health` is not internet-reachable. The real values are always available on the restricted `/metrics` endpoint as `jussi_build_info{commit,tag}`
+5. **Version Exposure**: `/` and `/health` redact `source_commit`/`docker_tag` to `unknown` unless `JUSSI_EXPOSE_VERSION=true` — enabling it publishes the image tag to everyone who can reach the endpoint, so treat it as a deliberate fingerprinting trade-off rather than a per-environment default. The real values are also always exported on `/metrics` as `jussi_build_info{commit,tag}`, which is why that endpoint should carry an explicit allowlist (`JUSSI_PROMETHEUS_ALLOWED_IPS`) instead of relying on the network alone
 
 ### Performance
 

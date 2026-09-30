@@ -50,7 +50,9 @@ jussi is a public gateway. The rule set:
 - `/health` reports breaker states under **aliases** derived from configured upstream names
   (`handlers.BreakerAliases`); unknown keys fall back to a sha256 digest alias, never a hostname.
 - Version metadata (`source_commit`, `docker_tag`) is redacted to `"unknown"` unless
-  `JUSSI_EXPOSE_VERSION=true`.
+  `JUSSI_EXPOSE_VERSION=true`; the real values are always exported on `/metrics` as
+  `jussi_build_info`, so redaction never hides the running build from operators — it only
+  changes which endpoint reveals it.
 - Proxy trust is opt-in: with no `server.trusted_proxies`, gin trusts nothing and `ClientIP()`
   uses the socket address, so `X-Forwarded-For` cannot spoof the metrics allowlist.
 
