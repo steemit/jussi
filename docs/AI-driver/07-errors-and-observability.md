@@ -98,17 +98,19 @@ cache backend errors (CacheGroup swallows them).
 
 ## Health endpoint
 
-`GET /health` (and `GET /`, same shape): `status`, `datetime`, redacted `source_commit` /
-`docker_tag` (unless `JUSSI_EXPOSE_VERSION=true`), `jussi_num` (LIB), and when wired:
-`circuit_states` (breaker state per alias) + `circuit_degraded` / `circuit_worst_state` when any
-breaker is not closed.
+`GET /health` (and `GET /`, same shape): `status`, `datetime`, `source_commit` / `docker_tag` of the
+running image, `jussi_num` (LIB), and when wired: `circuit_states` (breaker state per alias) +
+`circuit_degraded` / `circuit_worst_state` when any breaker is not closed.
 
-Redaction emits the literal `"unknown"` — the same string a build without metadata produces, so
-the public payload cannot distinguish "withheld" from "missing". To check which build is actually
-live, read `jussi_build_info{commit,tag}` from the internal `GET /metrics` instead of `/health`.
-`JUSSI_EXPOSE_VERSION=true` publishes the image tag to anyone who can reach `/health`: fine for
-internal-only deployments, a deliberate fingerprinting trade-off wherever `/health` is
-internet-reachable (e.g. a gateway proxied at `api.steemit.com/health`).
+Build metadata is reported as-is. **Accepted risk, not an oversight — do not re-flag**: jussi is
+open source, the tag and commit are already public in the image registry and the CI log, they are
+static strings baked into the binary (never request-derived), and this endpoint is how operators
+confirm which build a node is running. The decision record is the comment on
+`handlers.HealthHandler.versionInfo`; the same values are exported on `/metrics` as
+`jussi_build_info{commit,tag}` for dashboards and alert rules. An earlier review redacted these
+behind `JUSSI_EXPOSE_VERSION`; that switch is gone, and the literal `"unknown"` now means exactly one
+thing: the image carries no build metadata. Deployment *topology* must still not leak here — breaker
+states are aliased and hostnames never appear.
 
 Properties to preserve:
 

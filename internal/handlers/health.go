@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -55,14 +54,33 @@ func NewHealthHandler(sourceCommit, dockerTag string, tracker *cache.BlockNumber
 	}
 }
 
-// versionInfo returns (sourceCommit, dockerTag), redacted to "unknown"
-// unless JUSSI_EXPOSE_VERSION=true — build metadata on a public endpoint
-// helps attackers fingerprint the deployment.
+// versionInfo returns the build metadata embedded in the image
+// (SOURCE_COMMIT / DOCKER_TAG, baked in by CI at build time).
+//
+// These two values are deliberately reported as-is on this public,
+// CORS-open endpoint. That is an accepted decision, not an oversight:
+//
+//   - jussi is open source, and both values are already public — the tag
+//     exists in the image registry and the CI log, so the endpoint tells a
+//     client nothing it cannot look up.
+//   - They are static strings from the binary, never request-derived: no
+//     user input, no upstream URL, no hostname flows through them.
+//   - Operators need them: /health is the fastest way to confirm which
+//     build a node actually runs after a deploy. The previous behaviour
+//     returned the literal "unknown", which is also what a build with
+//     missing metadata produces, so a healthy deployment and a broken
+//     metadata injection looked identical.
+//
+// An earlier security review (#263, 2026-08-26) redacted these behind the
+// JUSSI_EXPOSE_VERSION switch, which made api.steemit.com/health claim
+// "unknown" for every deployment. That switch is gone by decision: for
+// this project the deployment fingerprint is accepted risk, and a security
+// review that flags it again should cite this comment rather than propose
+// redaction a second time. What still must not leak here is deployment
+// topology — breaker states stay aliased (see BreakerAliases) and
+// hostnames never appear.
 func (h *HealthHandler) versionInfo() (string, string) {
-	if os.Getenv("JUSSI_EXPOSE_VERSION") == "true" {
-		return h.SourceCommit, h.DockerTag
-	}
-	return "unknown", "unknown"
+	return h.SourceCommit, h.DockerTag
 }
 
 // HandleHealth handles GET /health requests
