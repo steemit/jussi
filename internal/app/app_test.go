@@ -49,6 +49,52 @@ func TestSetupRouterPublishesBuildInfo(t *testing.T) {
 	}
 }
 
+// A build that never received the CI build args falls back to the literal
+// "unknown" in both /health and the metric. Nothing is redacted any more, so
+// that literal now has exactly one meaning: the image carries no metadata
+// (see the decision record in handlers.HealthHandler.versionInfo).
+func TestSetupRouterBuildMetadataFallback(t *testing.T) {
+	t.Setenv("JUSSI_UPSTREAM_CONFIG_FILE", "../../tests/data/configs/TEST_UPSTREAM_CONFIG.json")
+	t.Setenv("JUSSI_PROMETHEUS_ENABLED", "true")
+	t.Setenv("JUSSI_PROMETHEUS_LOCALHOST_ONLY", "true")
+	t.Setenv("SOURCE_COMMIT", "")
+	t.Setenv("DOCKER_TAG", "")
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+	application, err := NewApp(cfg)
+	if err != nil {
+		t.Fatalf("NewApp failed: %v", err)
+	}
+	router, err := application.SetupRouter()
+	if err != nil {
+		t.Fatalf("SetupRouter failed: %v", err)
+	}
+
+	get := func(path string) string {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d, want 200", path, w.Code)
+		}
+		return w.Body.String()
+	}
+
+	health := get("/health")
+	for _, want := range []string{`"source_commit":"unknown"`, `"docker_tag":"unknown"`} {
+		if !strings.Contains(health, want) {
+			t.Fatalf("/health is missing %s: %s", want, health)
+		}
+	}
+	if want := `jussi_build_info{commit="unknown",tag="unknown"} 1`; !strings.Contains(get("/metrics"), want) {
+		t.Fatalf("/metrics is missing %q", want)
+	}
+}
+
 // An empty allowlist is NOT a restriction: with localhost_only=false and no
 // allowed_ips the app mounts no middleware at all, so the endpoint stays
 // open (network controls have to cover it). Asserted here because the two

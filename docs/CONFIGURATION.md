@@ -476,7 +476,7 @@ Jussi validates configuration on startup and will exit with an error if:
 2. **Timeouts**: Set reasonable timeouts to prevent resource exhaustion
 3. **Limits**: Configure appropriate batch size and request limits
 4. **Trusted Proxies**: Keep `trusted_proxies` empty unless deployed behind an LB — a spoofable `X-Forwarded-For` defeats the `/metrics` IP restrictions
-5. **Version Exposure**: `/` and `/health` redact `source_commit`/`docker_tag` to `unknown` unless `JUSSI_EXPOSE_VERSION=true` — enabling it publishes the image tag to everyone who can reach the endpoint, so treat it as a deliberate fingerprinting trade-off rather than a per-environment default. The real values are also always exported on `/metrics` as `jussi_build_info{commit,tag}`, which is why that endpoint should carry an explicit allowlist (`JUSSI_PROMETHEUS_ALLOWED_IPS`) instead of relying on the network alone
+5. **Version Exposure**: `/` and `/health` report the image's `source_commit` / `docker_tag` as-is. That is an accepted decision, not an oversight: jussi is open source, the tag is already public in the image registry and the CI log, the values are static strings baked into the binary (never request-derived), and operators need them to confirm which build a node actually runs after a deploy. The same values are also exported on `/metrics` as `jussi_build_info{commit,tag}` for dashboards — keep that endpoint behind an explicit allowlist (`JUSSI_PROMETHEUS_ALLOWED_IPS`) rather than relying on the network alone. The old `JUSSI_EXPOSE_VERSION` opt-in switch no longer exists; a deployment that still sets it simply gets it ignored. What must not leak from these endpoints is deployment topology: breaker states stay aliased and hostnames never appear
 
 ### Performance
 

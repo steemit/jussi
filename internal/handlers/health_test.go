@@ -168,13 +168,14 @@ func TestHandleHealthHidesHostnames(t *testing.T) {
 	}
 }
 
-// /health is public: build metadata stays redacted unless the
-// deployment opts in with JUSSI_EXPOSE_VERSION=true. The redacted form
-// is indistinguishable from a missing value, which is why /metrics
-// exports the real one (jussi_build_info).
-func TestHandleHealthVersionRedaction(t *testing.T) {
-	render := func() string {
-		h := NewHealthHandler("404bc29", "next-404bc29", cache.NewBlockNumberTracker())
+// /health reports the build metadata embedded in the image (SOURCE_COMMIT /
+// DOCKER_TAG). That is deliberate and accepted risk — jussi is open source
+// and the values are already public in the registry/CI — see the comment on
+// HealthHandler.versionInfo for the full decision record. What must stay
+// hidden is deployment topology, so breaker states are aliased.
+func TestHandleHealthReportsBuildMetadata(t *testing.T) {
+	render := func(sourceCommit, dockerTag string) string {
+		h := NewHealthHandler(sourceCommit, dockerTag, cache.NewBlockNumberTracker())
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -182,21 +183,19 @@ func TestHandleHealthVersionRedaction(t *testing.T) {
 		return w.Body.String()
 	}
 
-	t.Setenv("JUSSI_EXPOSE_VERSION", "")
-	body := render()
-	if !strings.Contains(body, `"source_commit":"unknown"`) {
-		t.Fatalf("source_commit must be redacted by default: %s", body)
-	}
-	if strings.Contains(body, "404bc29") {
-		t.Fatalf("health body leaks build metadata: %s", body)
-	}
-
-	t.Setenv("JUSSI_EXPOSE_VERSION", "true")
-	body = render()
-	if !strings.Contains(body, `"source_commit":"404bc29"`) {
-		t.Fatalf("JUSSI_EXPOSE_VERSION=true must expose source_commit: %s", body)
-	}
-	if !strings.Contains(body, `"docker_tag":"next-404bc29"`) {
-		t.Fatalf("JUSSI_EXPOSE_VERSION=true must expose docker_tag: %s", body)
+	// The old JUSSI_EXPOSE_VERSION switch must have no effect: whatever it is
+	// set to, the real build metadata is reported.
+	for _, v := range []string{"", "false", "true"} {
+		t.Setenv("JUSSI_EXPOSE_VERSION", v)
+		body := render("404bc29", "next-404bc29")
+		if !strings.Contains(body, `"source_commit":"404bc29"`) {
+			t.Fatalf("JUSSI_EXPOSE_VERSION=%q: source_commit must be reported: %s", v, body)
+		}
+		if !strings.Contains(body, `"docker_tag":"next-404bc29"`) {
+			t.Fatalf("JUSSI_EXPOSE_VERSION=%q: docker_tag must be reported: %s", v, body)
+		}
+		if strings.Contains(body, "unknown") {
+			t.Fatalf("JUSSI_EXPOSE_VERSION=%q: payload must not redact build metadata: %s", v, body)
+		}
 	}
 }

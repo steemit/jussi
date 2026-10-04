@@ -754,13 +754,13 @@ Like having a pool of phone lines. You want enough for demand, but not too many 
   - Correlate a metric or trace anomaly with the release that introduced it
   - Detect an image built without CI build args (`commit="unknown"`)
 
-**Why not read it from `/health`?** `/health` and `/` redact `source_commit` / `docker_tag` to
-`"unknown"` unless `JUSSI_EXPOSE_VERSION=true`, because it stays public and CORS-open. `/metrics` is the
-internal channel instead — but only if it is actually restricted: `prometheus.localhost_only: true`
-(the default) or a non-empty `prometheus.allowed_ips` / `JUSSI_PROMETHEUS_ALLOWED_IPS`. With
-`localhost_only: false` **and** an empty allowlist the app mounts no access-control middleware at all
-(see `SetupRouter`), and then this metric hands the build fingerprint to every caller that can open
-the port.
+**Same values on `/health`.** `/health` and `/` report the real `source_commit` / `docker_tag` as
+well — nothing is redacted any more (accepted risk, rationale in `docs/CONFIGURATION.md` →
+"Version Exposure"). The metric remains the right source for *time series*: it lets dashboards and
+alert rules answer "which builds have been live, and since when", which a JSON endpoint cannot, and
+it stays queryable when a node is unreachable. `/metrics` carries the same fingerprint, so keep it
+behind `prometheus.localhost_only` or a non-empty `prometheus.allowed_ips` /
+`JUSSI_PROMETHEUS_ALLOWED_IPS` — with both unset the app mounts no access-control middleware at all.
 
 **What to watch for:**
 - ✅ Good: `commit` matches the image tag being deployed
