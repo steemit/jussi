@@ -2,6 +2,8 @@ module github.com/steemit/jussi
 
 go 1.25.0
 
+toolchain go1.27.3
+
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gobwas/ws v1.4.0
