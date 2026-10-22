@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,13 +24,12 @@ func NewHomepageHandler(sourceCommit, dockerTag string, tracker *cache.BlockNumb
 	}
 }
 
-// versionInfo mirrors HealthHandler.versionInfo — redacted unless
-// JUSSI_EXPOSE_VERSION=true.
+// versionInfo mirrors HealthHandler.versionInfo: build metadata is reported
+// as-is (accepted risk, rationale documented in full there). `/` is the same
+// public, CORS-open shape as `/health`, so the two endpoints must not
+// disagree about which build is live.
 func (h *HomepageHandler) versionInfo() (string, string) {
-	if os.Getenv("JUSSI_EXPOSE_VERSION") == "true" {
-		return h.SourceCommit, h.DockerTag
-	}
-	return "unknown", "unknown"
+	return h.SourceCommit, h.DockerTag
 }
 
 // HandleHomepage handles GET / requests

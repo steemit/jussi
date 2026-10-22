@@ -9,14 +9,14 @@ import (
 // image was built with (CI passes SOURCE_COMMIT / DOCKER_TAG as build
 // args, so the values travel with the image).
 //
-// /health and / redact that metadata unless JUSSI_EXPOSE_VERSION=true
-// (public endpoints must not fingerprint the deployment), and the
-// redacted form is the literal "unknown" — indistinguishable from a
-// genuinely missing value. Exporting it here instead keeps the public
-// payload unchanged, at the cost that /metrics now carries the
-// fingerprint for every caller it admits: restrict that endpoint with
-// prometheus.localhost_only / prometheus.allowed_ips, because the values
-// are exported regardless of JUSSI_EXPOSE_VERSION.
+// /health and / report the same values in their JSON payload — nothing is
+// redacted (accepted risk; the decision record is the comment on
+// handlers.HealthHandler.versionInfo). The metric exists for the time
+// series: dashboards and alert rules need "which build has been live since
+// when", which a JSON endpoint cannot answer, and the series stays
+// queryable when a node is unreachable. /metrics therefore carries the same
+// fingerprint, so restrict that endpoint with prometheus.localhost_only or
+// a non-empty prometheus.allowed_ips.
 var BuildInfo = promauto.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Name: "jussi_build_info",

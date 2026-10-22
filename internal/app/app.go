@@ -286,7 +286,10 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 		CircuitConfig: a.config.Upstream.Circuit,
 	}
 
-	// Get version information from environment or config
+	// Get version information from environment or config. The values travel
+	// with the image (CI passes the build args); "unknown" is the fallback
+	// for a build without them — since nothing redacts the payload any more,
+	// that literal has exactly one meaning.
 	sourceCommit := os.Getenv("SOURCE_COMMIT")
 	if sourceCommit == "" {
 		sourceCommit = "unknown"
@@ -295,9 +298,8 @@ func (a *App) SetupRouter() (*gin.Engine, error) {
 	if dockerTag == "" {
 		dockerTag = "unknown"
 	}
-	// /health and / redact these on public deployments; export the real
-	// values on the internal /metrics endpoint so operators can verify
-	// which build is live (jussi_build_info).
+	// Export the same metadata /health reports, so dashboards and alert
+	// rules can see which build has been live and for how long.
 	telemetry.SetBuildInfo(sourceCommit, dockerTag)
 
 	tracker := middleware.GetBlockNumberTracker()

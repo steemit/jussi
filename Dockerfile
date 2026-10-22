@@ -67,8 +67,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENV JUSSI_UPSTREAM_CONFIG_FILE=DEV_config.json
 
 # Build metadata for /health and / version info (re-declare: ARG scope is
-# per-stage). Real values come from CI build args; consumed by the app only
-# when JUSSI_EXPOSE_VERSION=true.
+# per-stage). Real values come from CI build args; the defaults keep a
+# locally built image identifiable, and the app reports whatever it finds
+# as-is (accepted risk — see docs/CONFIGURATION.md, "Version Exposure").
 ARG SOURCE_COMMIT=unknown
 ARG DOCKER_TAG=latest
 ENV SOURCE_COMMIT=${SOURCE_COMMIT}
